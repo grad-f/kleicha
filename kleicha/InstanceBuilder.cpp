@@ -2,6 +2,24 @@
 #include "InstanceBuilder.h"
 #include "format.h"
 #include "Utils.h"
+#include "Initializers.h"
+#include "vulkan/vk_enum_string_helper.h"
+
+// debug messenger callback function
+VkBool32 VKAPI_PTR vkDebugUtilsMessengerCallback(
+	VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+	[[maybe_unused]]VkDebugUtilsMessageTypeFlagsEXT messageTypes,
+	const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+	[[maybe_unused]]void* pUserData) {
+
+	// only output warning and error debug information -- adjust as needed
+	if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
+		fmt::println("[Debug Messenger][{0}] {1}", string_VkDebugUtilsMessageSeverityFlagBitsEXT(messageSeverity), pCallbackData->pMessage);
+	}
+
+	return VK_FALSE;
+}
+
 
 // checks if the supplied layers are available
 void InstanceBuilder::check_layers_supported() const {
@@ -34,8 +52,6 @@ VkInstance InstanceBuilder::build_instance() {
 	uint32_t apiVersion{};
 	vkEnumerateInstanceVersion(&apiVersion);
 
-
-
 	VkApplicationInfo appInfo{ .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO };
 	appInfo.pNext = nullptr;
 	appInfo.pApplicationName = "Kleicha";
@@ -45,14 +61,17 @@ VkInstance InstanceBuilder::build_instance() {
 	appInfo.apiVersion = apiVersion;
 
 	VkInstanceCreateInfo instanceInfo{ .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO };
-	instanceInfo.pNext = nullptr;
-	instanceInfo.pApplicationInfo = &appInfo;
+	
 
 	// enable validation layer and debug messenger if in debug mode
 #ifdef _DEBUG
+	VkDebugUtilsMessengerCreateInfoEXT debugMessengerInfo{ init::create_debug_utils_messenger_info(vkDebugUtilsMessengerCallback) };
+	instanceInfo.pNext = &debugMessengerInfo;
 	if (m_useValidationLayer)
 		m_layers.push_back("VK_LAYER_KHRONOS_validation");
 #endif // _DEBUG
+
+	instanceInfo.pApplicationInfo = &appInfo;
 
 	check_layers_supported();
 	instanceInfo.enabledLayerCount = static_cast<uint32_t>(m_layers.size());
