@@ -12,11 +12,14 @@ VkBool32 VKAPI_PTR vkDebugUtilsMessengerCallback(
 	const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
 	[[maybe_unused]]void* pUserData) {
 
-	// only output warning and error debug information -- adjust as needed
-	if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
-		fmt::println("[Debug Messenger][{0}] {1}", string_VkDebugUtilsMessageSeverityFlagBitsEXT(messageSeverity), pCallbackData->pMessage);
+	switch (messageSeverity) {
+		case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
+			fmt::println("[Debug Messenger] WARNING: {0}", pCallbackData->pMessage);
+			return VK_FALSE;
+		case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
+			fmt::println("[Debug Messenger] ERROR: {0}", pCallbackData->pMessage);
+			return VK_FALSE;
 	}
-
 	return VK_FALSE;
 }
 
