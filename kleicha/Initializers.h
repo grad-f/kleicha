@@ -19,5 +19,4 @@ namespace init {
 		return debugMessengerInfo;
 	}
 }
-
 #endif // !INITIALIZERS_H

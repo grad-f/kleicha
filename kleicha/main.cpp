@@ -7,9 +7,11 @@ int main()
 	try {
 		Kleicha kleicha{};
 		kleicha.init();
+
+		kleicha.cleanup();
 	}
 	catch (const std::exception& e) {
-		fmt::println("{}", e.what());
+		fmt::println("[Exception] {}", e.what());
 		return EXIT_FAILURE;
 	}
 

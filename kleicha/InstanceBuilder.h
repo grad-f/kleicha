@@ -1,22 +1,27 @@
 #ifndef INSTANCEBUILDER_H
 #define INSTANCEBUILDER_H
 #include <vector>
+
 #include "vulkan/vulkan.h"
+#include "Types.h"
 
 class InstanceBuilder {
 public:
-	VkInstance build_instance();
+	vkt::Instance build();
 
-	void add_layers(const std::vector<const char*>& layers) {
+	InstanceBuilder& add_layers(const std::vector<const char*>& layers) {
 		m_layers = layers;
+		return *this;
 	}
 
-	void add_extensions(const std::vector<const char*>& extensions) {
+	InstanceBuilder& add_extensions(const std::vector<const char*>& extensions) {
 		m_extensions = extensions;
+		return *this;
 	}
 
-	void use_validation_layer() {
+	InstanceBuilder& use_validation_layer() {
 		m_useValidationLayer = true;
+		return *this;
 	}
 
 private:
@@ -25,7 +30,9 @@ private:
 	bool m_useValidationLayer{ false };
 
 
-	void check_layers_supported() const;
+	void check_layers_support() const;
+	void add_default_instance_exts();
+	void check_extensions_support() const;
 };
 
 #endif // !INSTANCEBUILDER_H
