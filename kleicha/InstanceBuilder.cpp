@@ -1,10 +1,7 @@
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
-
 #include "InstanceBuilder.h"
-#include "format.h"
-#include "Utils.h"
 #include "Initializers.h"
+#include "Utils.h"
+
 
 // debug messenger callback function
 #ifdef _DEBUG 
@@ -72,7 +69,7 @@ void InstanceBuilder::check_extensions_support() const {
 }
 
 // adds default extensions to the user specified extensions
-void InstanceBuilder::add_default_instance_exts() {
+void InstanceBuilder::add_glfw_instance_exts() {
 	// add glfw extensions
 	uint32_t glfwExtCount{};
 	const char** glfwExts{ glfwGetRequiredInstanceExtensions(&glfwExtCount) };
@@ -112,7 +109,7 @@ vkt::Instance InstanceBuilder::build() {
 	instanceInfo.enabledLayerCount = static_cast<uint32_t>(m_layers.size());
 	instanceInfo.ppEnabledLayerNames = m_layers.data();
 
-	add_default_instance_exts();
+	add_glfw_instance_exts();
 	check_extensions_support();
 	instanceInfo.enabledExtensionCount = static_cast<uint32_t>(m_extensions.size());
 	instanceInfo.ppEnabledExtensionNames = m_extensions.data();
@@ -128,7 +125,7 @@ vkt::Instance InstanceBuilder::build() {
 	if (inst.pfnCreateMessenger == nullptr || inst.pfnDestroyMessenger == nullptr)
 		fmt::println("[InstanceBuilder] Failed to load debug messenger create and destroy procedures");
 
-	inst.pfnCreateMessenger(inst.instance, &debugMessengerInfo, nullptr, &inst.debugMessenger);
+	VK_CHECK(inst.pfnCreateMessenger(inst.instance, &debugMessengerInfo, nullptr, &inst.debugMessenger));
 #endif
 
 	return inst;

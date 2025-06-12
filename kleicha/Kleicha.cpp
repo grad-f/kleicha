@@ -1,11 +1,21 @@
 #include "Kleicha.h"
 #include "InstanceBuilder.h"
+#include "DeviceBuilder.h"
 #include <iostream>
 
 
 // init calls the required functions to initialize vulkan
 void Kleicha::init() {
-	
+	// create vulkan instance
+	init_create_instance();
+
+	// pick physical device
+	DeviceBuilder device{};
+	device.build(m_instance.instance);
+
+}
+
+void Kleicha::init_glfw() {
 	if (!glfwInit()) {
 		throw std::runtime_error{ "glfw failed to initialize." };
 	}
@@ -13,7 +23,6 @@ void Kleicha::init() {
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	m_window = glfwCreateWindow(static_cast<int>(m_windowExtent.width), static_cast<int>(m_windowExtent.height), "kleicha", NULL, NULL);
 
-	init_create_instance();
 }
 
 // creates a vulkan instance

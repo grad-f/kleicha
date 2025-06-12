@@ -9,7 +9,6 @@
 class Kleicha {
 public:
 	void init();
-	void init_create_instance();
 
 	// initial cleanup procedure
 	void cleanup() const;
@@ -17,6 +16,9 @@ private:
 	GLFWwindow* m_window{};
 	VkExtent2D m_windowExtent{ 1600,900 };
 	vkt::Instance m_instance{};
+	void init_glfw();
+	void init_create_instance();
+
 };
 
 #endif // !KLEICHA_H
