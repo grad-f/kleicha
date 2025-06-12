@@ -7,6 +7,7 @@
 #include "Initializers.h"
 
 // debug messenger callback function
+#ifdef _DEBUG 
 static VkBool32 VKAPI_PTR vkDebugUtilsMessengerCallback(
 	VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
 	[[maybe_unused]]VkDebugUtilsMessageTypeFlagsEXT messageTypes,
@@ -23,7 +24,7 @@ static VkBool32 VKAPI_PTR vkDebugUtilsMessengerCallback(
 	}
 	return VK_FALSE;
 }
-
+#endif
 
 // checks if the supplied layers are available
 void InstanceBuilder::check_layers_support() const {
@@ -119,6 +120,16 @@ vkt::Instance InstanceBuilder::build() {
 	vkt::Instance inst{};
 	VK_CHECK(vkCreateInstance(&instanceInfo, nullptr, &inst.instance));
 
-	// TO-DO: Create debug messenger and encapsulate the instance and debug messenger into a type to be returned to the caller
+#ifdef _DEBUG
+	// load debug messenger procedures (since they're part of an extension)
+	inst.pfnCreateMessenger = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(vkGetInstanceProcAddr(inst.instance, "vkCreateDebugUtilsMessengerEXT"));
+	inst.pfnDestroyMessenger = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(vkGetInstanceProcAddr(inst.instance, "vkDestroyDebugUtilsMessengerEXT"));
+
+	if (inst.pfnCreateMessenger == nullptr || inst.pfnDestroyMessenger == nullptr)
+		fmt::println("[InstanceBuilder] Failed to load debug messenger create and destroy procedures");
+
+	inst.pfnCreateMessenger(inst.instance, &debugMessengerInfo, nullptr, &inst.debugMessenger);
+#endif
+
 	return inst;
 }

@@ -25,7 +25,9 @@ void Kleicha::init_create_instance() {
 }
 
 void Kleicha::cleanup() const {
-	vkDestroyDebugUtilsMessengerEXT(m_instance.instance, m_instance.debugMessenger, nullptr);
+#ifdef _DEBUG
+	m_instance.pfnDestroyMessenger(m_instance.instance, m_instance.debugMessenger, nullptr);
+#endif
 	vkDestroyInstance(m_instance.instance, nullptr);
 	glfwDestroyWindow(m_window);
 	glfwTerminate();
