@@ -27,7 +27,7 @@ private:
 	bool m_useValidationLayer{ false };
 
 	void check_layers_support() const;
-	void add_glfw_instance_exts();
+	void add_glfw_instance_extensions();
 	void check_extensions_support() const;
 };
 

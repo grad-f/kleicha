@@ -8,7 +8,13 @@
 class DeviceBuilder {
 public:
 	VkDevice build(VkInstance instance);
+	DeviceBuilder& add_extensions(std::vector<const char*>& extensions) {
+		m_extensions = extensions;
+		return *this;
+	}
 private:
+	std::vector<const char*> m_extensions{};
+	bool are_extensions_supported(VkPhysicalDevice device) const;
 	VkPhysicalDevice select_physical_device(VkInstance instance) const;
 };
 
@@ -17,6 +23,27 @@ VkDevice DeviceBuilder::build(VkInstance instance) {
 	[[maybe_unused]]VkPhysicalDevice physicalDevice{ select_physical_device(instance) };
 
 	return VK_NULL_HANDLE;
+}
+
+// checks if the device supports the requested extensions
+bool DeviceBuilder::are_extensions_supported(VkPhysicalDevice device) const {
+	uint32_t extensionsCount{};
+	VK_CHECK(vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionsCount, nullptr));
+	std::vector<VkExtensionProperties> extensionProperties(extensionsCount);
+	VK_CHECK(vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionsCount, extensionProperties.data()));
+
+	for (const auto& requestedExtension : m_extensions) {
+		bool extensionFound{ false };
+		for (const auto& extensionProperty : extensionProperties) {
+			if (strcmp(requestedExtension, extensionProperty.extensionName) == 0) {
+				extensionFound = true;
+				break;
+			}
+		}
+		if (!extensionFound)
+			return false;
+	}
+	return true;
 }
 
 VkPhysicalDevice DeviceBuilder::select_physical_device(VkInstance instance) const {
@@ -35,11 +62,12 @@ VkPhysicalDevice DeviceBuilder::select_physical_device(VkInstance instance) cons
 	// traverse physical devices and determine which is best
 	for (const auto& device : devices) {
 		// get device properties
-		VkPhysicalDeviceProperties2 deviceProperties{};
+		VkPhysicalDeviceProperties2 deviceProperties{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2 };
 		vkGetPhysicalDeviceProperties2(device, &deviceProperties);
 		if (deviceProperties.properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
 		{
-			//TO-DO: Check if the physical device supports the requested device features
+			if (!are_extensions_supported(device))
+				continue;
 
 			chosenDevice = device;
 			break;

@@ -49,10 +49,10 @@ void InstanceBuilder::check_layers_support() const {
 
 // checks if the supplied instance extensions are available
 void InstanceBuilder::check_extensions_support() const {
-	uint32_t extCount{};
-	VK_CHECK(vkEnumerateInstanceExtensionProperties(nullptr, &extCount, nullptr));
-	std::vector<VkExtensionProperties> supportedExtensions(extCount);
-	VK_CHECK(vkEnumerateInstanceExtensionProperties(nullptr, &extCount, supportedExtensions.data()));
+	uint32_t extensionCount{};
+	VK_CHECK(vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr));
+	std::vector<VkExtensionProperties> supportedExtensions(extensionCount);
+	VK_CHECK(vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, supportedExtensions.data()));
 
 	for (const auto& requestedExt : m_extensions) {
 		bool extFound{ false };
@@ -69,13 +69,13 @@ void InstanceBuilder::check_extensions_support() const {
 }
 
 // adds default extensions to the user specified extensions
-void InstanceBuilder::add_glfw_instance_exts() {
+void InstanceBuilder::add_glfw_instance_extensions() {
 	// add glfw extensions
-	uint32_t glfwExtCount{};
-	const char** glfwExts{ glfwGetRequiredInstanceExtensions(&glfwExtCount) };
+	uint32_t glfwExtensionCount{};
+	const char** glfwExtensions{ glfwGetRequiredInstanceExtensions(&glfwExtensionCount) };
 
-	for (uint32_t i{ 0 }; i < glfwExtCount; ++i)
-		m_extensions.emplace_back(glfwExts[i]);
+	for (uint32_t i{ 0 }; i < glfwExtensionCount; ++i)
+		m_extensions.emplace_back(glfwExtensions[i]);
 }
 
 vkt::Instance InstanceBuilder::build() {
@@ -109,7 +109,7 @@ vkt::Instance InstanceBuilder::build() {
 	instanceInfo.enabledLayerCount = static_cast<uint32_t>(m_layers.size());
 	instanceInfo.ppEnabledLayerNames = m_layers.data();
 
-	add_glfw_instance_exts();
+	add_glfw_instance_extensions();
 	check_extensions_support();
 	instanceInfo.enabledExtensionCount = static_cast<uint32_t>(m_extensions.size());
 	instanceInfo.ppEnabledExtensionNames = m_extensions.data();

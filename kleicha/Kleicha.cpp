@@ -11,7 +11,10 @@ void Kleicha::init() {
 
 	// pick physical device
 	DeviceBuilder device{};
-	device.build(m_instance.instance);
+	std::vector<const char*> deviceExtensions{ VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+		VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME, VK_EXT_PIPELINE_CREATION_CACHE_CONTROL_EXTENSION_NAME,
+		VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME, VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME, "Poop2"};
+	device.add_extensions(deviceExtensions).build(m_instance.instance);
 
 }
 
@@ -29,8 +32,8 @@ void Kleicha::init_glfw() {
 void Kleicha::init_create_instance() {
 	InstanceBuilder instanceBuilder{};
 	std::vector<const char*> layers{};
-	std::vector<const char*> exts{};
-	m_instance = instanceBuilder.add_layers(layers).add_extensions(exts).use_validation_layer().build();
+	std::vector<const char*> instanceExtensions{};
+	m_instance = instanceBuilder.add_layers(layers).add_extensions(instanceExtensions).use_validation_layer().build();
 }
 
 void Kleicha::cleanup() const {
