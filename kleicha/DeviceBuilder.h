@@ -7,7 +7,11 @@
 
 class DeviceBuilder {
 public:
-	VkDevice build(VkInstance instance);
+
+	DeviceBuilder(VkInstance instance, VkSurfaceKHR surface)
+		: m_instance{ instance }, m_surface{ surface } {}
+
+	VkDevice build();
 	DeviceBuilder& request_extensions(std::vector<const char*>& extensions) {
 		m_extensions = extensions;
 		return *this;
@@ -20,14 +24,15 @@ public:
 private:
 	std::vector<const char*> m_extensions{};
 	vkt::DeviceFeatures m_requestedFeatures{};
-
+	VkInstance m_instance{};
+	VkSurfaceKHR m_surface{};
 	bool are_extensions_supported(VkPhysicalDevice device) const;
 	VkPhysicalDevice select_physical_device(VkInstance instance) const;
 };
 
-VkDevice DeviceBuilder::build(VkInstance instance) {
+VkDevice DeviceBuilder::build() {
 
-	[[maybe_unused]]VkPhysicalDevice physicalDevice{ select_physical_device(instance) };
+	[[maybe_unused]]VkPhysicalDevice physicalDevice{ select_physical_device(m_instance) };
 
 	return VK_NULL_HANDLE;
 }

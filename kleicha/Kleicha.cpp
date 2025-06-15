@@ -36,8 +36,8 @@ void Kleicha::init_vulkan() {
 	deviceFeatures.Vk13Features.dynamicRendering = true;
 	deviceFeatures.Vk13Features.synchronization2 = true;
 	deviceFeatures.Vk13Features.pipelineCreationCacheControl = true;
-	DeviceBuilder device{};
-	device.request_extensions(deviceExtensions).request_features(deviceFeatures).build(m_instance.instance);
+	DeviceBuilder device{m_instance.instance, m_surface};
+	device.request_extensions(deviceExtensions).request_features(deviceFeatures).build();
 }
 
 void Kleicha::cleanup() const {
