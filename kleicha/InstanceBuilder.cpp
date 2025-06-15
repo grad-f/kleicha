@@ -123,7 +123,7 @@ vkt::Instance InstanceBuilder::build() {
 	inst.pfnDestroyMessenger = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(vkGetInstanceProcAddr(inst.instance, "vkDestroyDebugUtilsMessengerEXT"));
 
 	if (inst.pfnCreateMessenger == nullptr || inst.pfnDestroyMessenger == nullptr)
-		fmt::println("[InstanceBuilder] Failed to load debug messenger create and destroy procedures");
+		fmt::println("[InstanceBuilder] Failed to load debug messenger create and destroy procedures.");
 
 	VK_CHECK(inst.pfnCreateMessenger(inst.instance, &debugMessengerInfo, nullptr, &inst.debugMessenger));
 #endif

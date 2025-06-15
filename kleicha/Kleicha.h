@@ -14,10 +14,10 @@ public:
 	void cleanup() const;
 private:
 	GLFWwindow* m_window{};
+	VkSurfaceKHR m_surface{};
 	VkExtent2D m_windowExtent{ 1600,900 };
 	vkt::Instance m_instance{};
-	void init_glfw();
-	void init_create_instance();
+	void init_vulkan();
 
 };
 

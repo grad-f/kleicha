@@ -4,8 +4,8 @@
 
 int main()
 {
+	Kleicha kleicha{};
 	try {
-		Kleicha kleicha{};
 		kleicha.init();
 
 		kleicha.cleanup();
