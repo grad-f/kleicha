@@ -27,7 +27,9 @@ private:
 	VkInstance m_instance{};
 	VkSurfaceKHR m_surface{};
 	bool are_extensions_supported(VkPhysicalDevice device) const;
-	VkPhysicalDevice select_physical_device(VkInstance instance) const;
+	bool are_features_supported(VkPhysicalDevice device);
+	bool check_features_struct(VkBool32* p_reqFeaturesStart, VkBool32* p_reqFeaturesEnd, VkBool32* p_DeviceFeaturesStart);
+	VkPhysicalDevice select_physical_device(VkInstance instance);
 };
 
 VkDevice DeviceBuilder::build() {
@@ -62,7 +64,40 @@ bool DeviceBuilder::are_extensions_supported(VkPhysicalDevice device) const {
 	return true;
 }
 
-VkPhysicalDevice DeviceBuilder::select_physical_device(VkInstance instance) const {
+bool DeviceBuilder::check_features_struct(VkBool32* p_reqFeaturesStart, VkBool32* p_reqFeaturesEnd, VkBool32* p_DeviceFeaturesStart) {
+	uint32_t offset{ 0 };
+	for (const VkBool32* i{ p_reqFeaturesStart }; i <= p_reqFeaturesEnd; ++i) {
+		if (*i && !p_DeviceFeaturesStart[offset]) {
+			return false;
+		}
+		++offset;
+	}
+	return true;
+}
+
+// This is fine because VkBool32 is a typdef of uint32_t that provides memory width guarantee. Only an issue on 32 bit.
+bool DeviceBuilder::are_features_supported(VkPhysicalDevice device) {
+	vkt::DeviceFeatures deviceFeatures{};
+	vkGetPhysicalDeviceFeatures2(device, &deviceFeatures.VkFeatures);
+
+	if (!deviceFeatures.VkFeatures.features.geometryShader || !deviceFeatures.VkFeatures.features.tessellationShader)
+		return false;
+	if (!check_features_struct(&m_requestedFeatures.Vk11Features.storageBuffer16BitAccess, &m_requestedFeatures.Vk11Features.shaderDrawParameters, &deviceFeatures.Vk11Features.storageBuffer16BitAccess))
+		return false;
+
+	if (!check_features_struct(&m_requestedFeatures.Vk12Features.samplerMirrorClampToEdge, &m_requestedFeatures.Vk12Features.subgroupBroadcastDynamicId, &deviceFeatures.Vk12Features.samplerMirrorClampToEdge))
+		return false;
+
+	if (!check_features_struct(&m_requestedFeatures.Vk13Features.robustImageAccess, &m_requestedFeatures.Vk13Features.maintenance4, &deviceFeatures.Vk13Features.robustImageAccess))
+		return false;
+
+	if (!check_features_struct(&m_requestedFeatures.Vk14Features.globalPriorityQuery, &m_requestedFeatures.Vk14Features.pushDescriptor, &deviceFeatures.Vk14Features.globalPriorityQuery))
+		return false;
+
+	return true;
+}
+
+VkPhysicalDevice DeviceBuilder::select_physical_device(VkInstance instance) {
 
 	// get all physical devices supported by the implementation
 	uint32_t deviceCount{};
@@ -80,6 +115,7 @@ VkPhysicalDevice DeviceBuilder::select_physical_device(VkInstance instance) cons
 		// get device properties
 		VkPhysicalDeviceProperties2 deviceProperties{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2 };
 		vkGetPhysicalDeviceProperties2(device, &deviceProperties);
+
 		if (deviceProperties.properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
 		{
 			// check device extension support
@@ -87,7 +123,8 @@ VkPhysicalDevice DeviceBuilder::select_physical_device(VkInstance instance) cons
 				continue;
 
 			// check device feature support
-
+			if (!are_features_supported(device))
+				continue;
 
 			chosenDevice = device;
 			break;
