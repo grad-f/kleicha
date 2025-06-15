@@ -64,9 +64,14 @@ bool DeviceBuilder::are_extensions_supported(VkPhysicalDevice device) const {
 	return true;
 }
 
+/* Traverses the features object in memory to avoid checking individual fields of the struct.
+This is fine because VkBool32 is a typdef of uint32_t that provides memory width guarantee.Only an issue on 32 bit.*/
 bool DeviceBuilder::check_features_struct(VkBool32* p_reqFeaturesStart, VkBool32* p_reqFeaturesEnd, VkBool32* p_DeviceFeaturesStart) {
-	uint32_t offset{ 0 };
+	uint32_t offset{ 0 }; // this is used to index the candidate physical device features field at its corresponding address
+
+	// traverse the requested features object memory 4 bytes at a time
 	for (const VkBool32* i{ p_reqFeaturesStart }; i <= p_reqFeaturesEnd; ++i) {
+		// if requested feature is set at the field, check if is supported in the candidate physical device.
 		if (*i && !p_DeviceFeaturesStart[offset]) {
 			return false;
 		}
@@ -75,7 +80,6 @@ bool DeviceBuilder::check_features_struct(VkBool32* p_reqFeaturesStart, VkBool32
 	return true;
 }
 
-// This is fine because VkBool32 is a typdef of uint32_t that provides memory width guarantee. Only an issue on 32 bit.
 bool DeviceBuilder::are_features_supported(VkPhysicalDevice device) {
 	vkt::DeviceFeatures deviceFeatures{};
 	vkGetPhysicalDeviceFeatures2(device, &deviceFeatures.VkFeatures);
@@ -126,12 +130,14 @@ VkPhysicalDevice DeviceBuilder::select_physical_device(VkInstance instance) {
 			if (!are_features_supported(device))
 				continue;
 
+			// check surface support
+
 			chosenDevice = device;
 			break;
 		}
 	}
 	if (chosenDevice == nullptr)
-		throw std::runtime_error{ "Failed to find a compatible physical device." };
+		throw std::runtime_error{ "[DeviceBuilder] Failed to find a compatible physical device." };
 
 	return chosenDevice;
 }
