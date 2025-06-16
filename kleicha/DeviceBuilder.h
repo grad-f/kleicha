@@ -4,6 +4,7 @@
 #include "Utils.h"
 #include "Types.h"
 #include <vector>
+#include <optional>
 
 class DeviceBuilder {
 public:
@@ -28,6 +29,7 @@ private:
 	VkSurfaceKHR m_surface{};
 	bool are_extensions_supported(VkPhysicalDevice device) const;
 	bool are_features_supported(VkPhysicalDevice device) const;
+	std::optional<uint32_t> get_queue_family(VkPhysicalDevice device) const;
 	bool check_features_struct(const VkBool32* p_reqFeaturesStart, const VkBool32* p_reqFeaturesEnd, const VkBool32* p_DeviceFeaturesStart) const;
 	VkPhysicalDevice select_physical_device(VkInstance instance) const;
 };
@@ -101,6 +103,27 @@ bool DeviceBuilder::are_features_supported(VkPhysicalDevice device) const {
 	return true;
 }
 
+std::optional<uint32_t> DeviceBuilder::get_queue_family(VkPhysicalDevice device) const {
+	uint32_t queueFamilyCount{};
+	vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+	std::vector<VkQueueFamilyProperties> queueFamilyProperties(queueFamilyCount);
+	// queue family properties will be copied into our vector in their respective queue family index order
+	vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilyProperties.data());
+
+	// we're going to avoid using separate queue families for graphics, transfer, and presentation. Compute support is guaranteed if graphics commands are supported
+	for (uint32_t i{ 0 }; i < queueFamilyProperties.size(); ++i) {
+		if (queueFamilyProperties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT && queueFamilyProperties[i].queueFlags & VK_QUEUE_TRANSFER_BIT) {
+			// check for presentation support
+			VkBool32 presentSupported{ VK_FALSE };
+			vkGetPhysicalDeviceSurfaceSupportKHR(device, i, m_surface, &presentSupported);
+			if (presentSupported)
+				return i;
+		}
+	}
+
+	return {};
+}
+
 VkPhysicalDevice DeviceBuilder::select_physical_device(VkInstance instance) const {
 
 	// get all physical devices supported by the implementation
@@ -116,12 +139,20 @@ VkPhysicalDevice DeviceBuilder::select_physical_device(VkInstance instance) cons
 	VkPhysicalDevice chosenDevice{};
 	// traverse physical devices and find one that is discrete and supports the requested extensions and features
 	for (const auto& device : devices) {
+
 		// get device properties
 		VkPhysicalDeviceProperties2 deviceProperties{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2 };
 		vkGetPhysicalDeviceProperties2(device, &deviceProperties);
 
+		// attempt to get a queue family index that supports graphics, compute, transfer, and presentation
+		std::optional<uint32_t> queueFamilyIndex{ get_queue_family(device) };
+
 		if (deviceProperties.properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
 		{
+			// check for graphics, transfer, compute, and presentation queue family support
+			if (!queueFamilyIndex.has_value())
+				continue;
+
 			// check device extension support
 			if (!are_extensions_supported(device))
 				continue;
@@ -130,9 +161,8 @@ VkPhysicalDevice DeviceBuilder::select_physical_device(VkInstance instance) cons
 			if (!are_features_supported(device))
 				continue;
 
-			// check surface support
+			// check for surface support
 
-			// check queue family support (for transfer and graphics).
 
 			chosenDevice = device;
 			break;
