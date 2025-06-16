@@ -1,5 +1,5 @@
-#ifndef DEVICE_H
-#define DEVICE_H
+#ifndef DEVICEBUILDER_H
+#define DEVICEBUILDER_H
 
 #include "Utils.h"
 #include "Types.h"
@@ -27,9 +27,9 @@ private:
 	VkInstance m_instance{};
 	VkSurfaceKHR m_surface{};
 	bool are_extensions_supported(VkPhysicalDevice device) const;
-	bool are_features_supported(VkPhysicalDevice device);
-	bool check_features_struct(VkBool32* p_reqFeaturesStart, VkBool32* p_reqFeaturesEnd, VkBool32* p_DeviceFeaturesStart);
-	VkPhysicalDevice select_physical_device(VkInstance instance);
+	bool are_features_supported(VkPhysicalDevice device) const;
+	bool check_features_struct(const VkBool32* p_reqFeaturesStart, const VkBool32* p_reqFeaturesEnd, const VkBool32* p_DeviceFeaturesStart) const;
+	VkPhysicalDevice select_physical_device(VkInstance instance) const;
 };
 
 VkDevice DeviceBuilder::build() {
@@ -66,7 +66,7 @@ bool DeviceBuilder::are_extensions_supported(VkPhysicalDevice device) const {
 
 /* Traverses the features object in memory to avoid checking individual fields of the struct.
 This is fine because VkBool32 is a typdef of uint32_t that provides memory width guarantee.Only an issue on 32 bit.*/
-bool DeviceBuilder::check_features_struct(VkBool32* p_reqFeaturesStart, VkBool32* p_reqFeaturesEnd, VkBool32* p_DeviceFeaturesStart) {
+bool DeviceBuilder::check_features_struct(const VkBool32* p_reqFeaturesStart, const VkBool32* p_reqFeaturesEnd, const VkBool32* p_DeviceFeaturesStart) const {
 	uint32_t offset{ 0 }; // this is used to index the candidate physical device features field at its corresponding address
 
 	// traverse the requested features object memory 4 bytes at a time
@@ -80,7 +80,7 @@ bool DeviceBuilder::check_features_struct(VkBool32* p_reqFeaturesStart, VkBool32
 	return true;
 }
 
-bool DeviceBuilder::are_features_supported(VkPhysicalDevice device) {
+bool DeviceBuilder::are_features_supported(VkPhysicalDevice device) const {
 	vkt::DeviceFeatures deviceFeatures{};
 	vkGetPhysicalDeviceFeatures2(device, &deviceFeatures.VkFeatures);
 
@@ -101,7 +101,7 @@ bool DeviceBuilder::are_features_supported(VkPhysicalDevice device) {
 	return true;
 }
 
-VkPhysicalDevice DeviceBuilder::select_physical_device(VkInstance instance) {
+VkPhysicalDevice DeviceBuilder::select_physical_device(VkInstance instance) const {
 
 	// get all physical devices supported by the implementation
 	uint32_t deviceCount{};
@@ -131,6 +131,8 @@ VkPhysicalDevice DeviceBuilder::select_physical_device(VkInstance instance) {
 				continue;
 
 			// check surface support
+
+			// check queue family support (for transfer and graphics).
 
 			chosenDevice = device;
 			break;
