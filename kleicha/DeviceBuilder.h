@@ -32,12 +32,12 @@ private:
 	std::optional<uint32_t> get_queue_family(VkPhysicalDevice device) const;
 	std::optional<vkt::SurfaceSupportDetails> get_surface_support_details(VkPhysicalDevice device) const;
 	bool check_features_struct(const VkBool32* p_reqFeaturesStart, const VkBool32* p_reqFeaturesEnd, const VkBool32* p_DeviceFeaturesStart) const;
-	VkPhysicalDevice select_physical_device(VkInstance instance) const;
+	vkt::PhysicalDevice select_physical_device(VkInstance instance) const;
 };
 
 VkDevice DeviceBuilder::build() {
 
-	[[maybe_unused]]VkPhysicalDevice physicalDevice{ select_physical_device(m_instance) };
+	[[maybe_unused]]vkt::PhysicalDevice physicalDevice{ select_physical_device(m_instance) };
 
 	return VK_NULL_HANDLE;
 }
@@ -151,7 +151,7 @@ std::optional<vkt::SurfaceSupportDetails> DeviceBuilder::get_surface_support_det
 	return vkt::SurfaceSupportDetails{ .capabilities = surfaceCapabilities, .formats = surfaceFormats, .presentModes = presentModes };
 }
 
-VkPhysicalDevice DeviceBuilder::select_physical_device(VkInstance instance) const {
+vkt::PhysicalDevice DeviceBuilder::select_physical_device(VkInstance instance) const {
 
 	// get all physical devices supported by the implementation
 	uint32_t deviceCount{};
@@ -163,7 +163,9 @@ VkPhysicalDevice DeviceBuilder::select_physical_device(VkInstance instance) cons
 	std::vector<VkPhysicalDevice> devices(deviceCount);
 	VK_CHECK(vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data()));
 
-	VkPhysicalDevice chosenDevice{};
+	bool foundCompatibleDevice{ false };
+	vkt::PhysicalDevice physicalDevice{};
+
 	// traverse physical devices and find one that is discrete and supports the requested extensions and features
 	for (const auto& device : devices) {
 		// get device properties
@@ -193,15 +195,17 @@ VkPhysicalDevice DeviceBuilder::select_physical_device(VkInstance instance) cons
 			if (!are_features_supported(device))
 				continue;
 
-			// device passed all checks, encapsulate all data and return to caller as this is the device we'll be using
-
-			chosenDevice = device;
+			// physical device passed all checks, encapsulate all data and return to caller as this is the physical device we'll be using
+			foundCompatibleDevice = true;
+			physicalDevice.device = device;
+			physicalDevice.queueFamilyIndex = queueFamilyIndex.value();
+			physicalDevice.surfaceSupportDetails = surfaceSupportDetails.value();
 			break;
 		}
 	}
-	if (chosenDevice == nullptr)
+	if (!foundCompatibleDevice)
 		throw std::runtime_error{ "[DeviceBuilder] Failed to find a compatible physical device." };
 
-	return chosenDevice;
+	return physicalDevice;
 }
 #endif
