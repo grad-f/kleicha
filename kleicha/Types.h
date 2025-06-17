@@ -30,6 +30,7 @@ namespace vkt {
 	struct Device {
 		PhysicalDevice physicalDevice{};
 		VkDevice device{};
+		VkQueue queue{};
 	};
 
 	// chained and encapsulated device features struct

@@ -17,8 +17,10 @@ private:
 	VkSurfaceKHR m_surface{};
 	VkExtent2D m_windowExtent{ 1600,900 };
 	vkt::Instance m_instance{};
-	void init_vulkan();
+	vkt::Device m_device{};
 
+	void init_vulkan();
+	void init_swapchain();
 };
 
 #endif // !KLEICHA_H

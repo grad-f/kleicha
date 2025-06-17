@@ -12,7 +12,7 @@ public:
 	DeviceBuilder(VkInstance instance, VkSurfaceKHR surface)
 		: m_instance{ instance }, m_surface{ surface } {}
 
-	VkDevice build();
+	vkt::Device build();
 	DeviceBuilder& request_extensions(std::vector<const char*>& extensions) {
 		m_extensions = extensions;
 		return *this;
@@ -35,17 +35,17 @@ private:
 	vkt::PhysicalDevice select_physical_device(VkInstance instance) const;
 };
 
-VkDevice DeviceBuilder::build() {
+vkt::Device DeviceBuilder::build() {
 
 	vkt::PhysicalDevice physicalDevice{ select_physical_device(m_instance) };
 
-	const float queuePriorities[3]{ 1.0f, 1.0f, 0.9f };
+	float queuePriority{ 1.0f };
 	VkDeviceQueueCreateInfo queueInfo{ .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO };
 	queueInfo.queueFamilyIndex = physicalDevice.queueFamilyIndex;
-	queueInfo.queueCount = 3; // double-buffering and a separate queue that'll be used for immediate submits
-	queueInfo.pQueuePriorities = queuePriorities;
+	queueInfo.queueCount = 1;
+	queueInfo.pQueuePriorities = &queuePriority;
 
-	// create logical device
+	// create logical device along with the queues detailed above
 	VkDeviceCreateInfo deviceInfo{ .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
 	deviceInfo.pNext = &m_requestedFeatures.VkFeatures;
 	deviceInfo.queueCreateInfoCount = 1;
@@ -57,7 +57,11 @@ VkDevice DeviceBuilder::build() {
 	VkDevice device{};
 	vkCreateDevice(physicalDevice.device, &deviceInfo, nullptr, &device);
 
-	return device;
+	// get device queue
+	VkQueue queue{};
+	vkGetDeviceQueue(device, physicalDevice.queueFamilyIndex, 0, &queue);
+
+	return vkt::Device{ .physicalDevice = physicalDevice, .device = device, .queue = queue };
 }
 
 // checks if the device supports the requested extensions
@@ -185,7 +189,7 @@ vkt::PhysicalDevice DeviceBuilder::select_physical_device(VkInstance instance) c
 	vkt::PhysicalDevice physicalDevice{};
 	// traverse physical devices and find one that is discrete and supports the requested extensions and features
 	for (const auto& device : devices) {
-		// get device properties
+		// get device properties -- using physical device properties 2 here as we plan to use ray tracing in the future and will need to check for ext feature support.
 		VkPhysicalDeviceProperties2 deviceProperties{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2 };
 		vkGetPhysicalDeviceProperties2(device, &deviceProperties);
 

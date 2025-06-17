@@ -14,8 +14,10 @@ void Kleicha::init() {
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	m_window = glfwCreateWindow(static_cast<int>(m_windowExtent.width), static_cast<int>(m_windowExtent.height), "kleicha", NULL, NULL);
 	init_vulkan();
+	init_swapchain();
 }
 
+// core vulkan init
 void Kleicha::init_vulkan() {
 	/*		create instance		*/	
 	InstanceBuilder instanceBuilder{};
@@ -37,13 +39,14 @@ void Kleicha::init_vulkan() {
 	deviceFeatures.Vk13Features.synchronization2 = true;
 	deviceFeatures.Vk13Features.pipelineCreationCacheControl = true;
 	DeviceBuilder device{m_instance.instance, m_surface};
-	device.request_extensions(deviceExtensions).request_features(deviceFeatures).build();
+	m_device = device.request_extensions(deviceExtensions).request_features(deviceFeatures).build();
 }
 
 void Kleicha::cleanup() const {
 #ifdef _DEBUG
 	m_instance.pfnDestroyMessenger(m_instance.instance, m_instance.debugMessenger, nullptr);
 #endif
+	vkDestroyDevice(m_device.device, nullptr);
 	vkDestroySurfaceKHR(m_instance.instance, m_surface, nullptr);
 	vkDestroyInstance(m_instance.instance, nullptr);
 	glfwDestroyWindow(m_window);
