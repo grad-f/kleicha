@@ -2,6 +2,7 @@
 #include "Utils.h"
 #include "InstanceBuilder.h"
 #include "DeviceBuilder.h"
+#include "SwapchainBuilder.h"
 #include "Types.h"
 #include <iostream>
 
@@ -44,7 +45,9 @@ void Kleicha::init_vulkan() {
 }
 
 void Kleicha::init_swapchain() {
-
+	SwapchainBuilder swapchainBuilder{ m_instance.instance, m_window, m_surface, m_device };
+	VkSurfaceFormatKHR surfaceFormat{ .format = VK_FORMAT_R8G8B8A8_SRGB, .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR };
+	swapchainBuilder.desired_image_usage(VK_IMAGE_USAGE_TRANSFER_DST_BIT).desired_image_format(surfaceFormat).desired_present_mode(VK_PRESENT_MODE_FIFO_KHR).build();
 }
 
 void Kleicha::cleanup() const {

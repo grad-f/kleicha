@@ -177,6 +177,7 @@
     <ClInclude Include="InstanceBuilder.h" />
     <ClInclude Include="Kleicha.h" />
     <ClInclude Include="DeviceBuilder.h" />
+    <ClInclude Include="SwapchainBuilder.h" />
     <ClInclude Include="Types.h" />
     <ClInclude Include="Utils.h" />
   </ItemGroup>

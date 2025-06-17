@@ -47,5 +47,8 @@
     <ClInclude Include="DeviceBuilder.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="SwapchainBuilder.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
