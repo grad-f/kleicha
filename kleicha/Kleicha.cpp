@@ -1,4 +1,5 @@
 #include "Kleicha.h"
+#include "Utils.h"
 #include "InstanceBuilder.h"
 #include "DeviceBuilder.h"
 #include "Types.h"
@@ -40,6 +41,10 @@ void Kleicha::init_vulkan() {
 	deviceFeatures.Vk13Features.pipelineCreationCacheControl = true;
 	DeviceBuilder device{m_instance.instance, m_surface};
 	m_device = device.request_extensions(deviceExtensions).request_features(deviceFeatures).build();
+}
+
+void Kleicha::init_swapchain() {
+
 }
 
 void Kleicha::cleanup() const {
