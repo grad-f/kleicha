@@ -37,9 +37,27 @@ private:
 
 VkDevice DeviceBuilder::build() {
 
-	[[maybe_unused]]vkt::PhysicalDevice physicalDevice{ select_physical_device(m_instance) };
+	vkt::PhysicalDevice physicalDevice{ select_physical_device(m_instance) };
 
-	return VK_NULL_HANDLE;
+	const float queuePriorities[3]{ 1.0f, 1.0f, 0.9f };
+	VkDeviceQueueCreateInfo queueInfo{ .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO };
+	queueInfo.queueFamilyIndex = physicalDevice.queueFamilyIndex;
+	queueInfo.queueCount = 3; // double-buffering and a separate queue that'll be used for immediate submits
+	queueInfo.pQueuePriorities = queuePriorities;
+
+	// create logical device
+	VkDeviceCreateInfo deviceInfo{ .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
+	deviceInfo.pNext = &m_requestedFeatures.VkFeatures;
+	deviceInfo.queueCreateInfoCount = 1;
+	deviceInfo.pQueueCreateInfos = &queueInfo;
+	deviceInfo.enabledExtensionCount = static_cast<uint32_t>(m_extensions.size());
+	deviceInfo.ppEnabledExtensionNames = m_extensions.data();
+	deviceInfo.pEnabledFeatures = nullptr; // we are using VkPhysicalDeviceFeatures2
+
+	VkDevice device{};
+	vkCreateDevice(physicalDevice.device, &deviceInfo, nullptr, &device);
+
+	return device;
 }
 
 // checks if the device supports the requested extensions
@@ -159,13 +177,12 @@ vkt::PhysicalDevice DeviceBuilder::select_physical_device(VkInstance instance) c
 	if (deviceCount == 0)
 		throw std::runtime_error("[PhysicalDeviceSelector] Failed to find any physical devices.");
 
-	fmt::println("[PhysicalDeviceSelector] Found {0} physical device(s).", deviceCount);
+	fmt::println("[DeviceBuilder] Found {0} candidate physical device(s).", deviceCount);
 	std::vector<VkPhysicalDevice> devices(deviceCount);
 	VK_CHECK(vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data()));
 
 	bool foundCompatibleDevice{ false };
 	vkt::PhysicalDevice physicalDevice{};
-
 	// traverse physical devices and find one that is discrete and supports the requested extensions and features
 	for (const auto& device : devices) {
 		// get device properties
@@ -198,8 +215,10 @@ vkt::PhysicalDevice DeviceBuilder::select_physical_device(VkInstance instance) c
 			// physical device passed all checks, encapsulate all data and return to caller as this is the physical device we'll be using
 			foundCompatibleDevice = true;
 			physicalDevice.device = device;
+			physicalDevice.deviceProperties = deviceProperties;
 			physicalDevice.queueFamilyIndex = queueFamilyIndex.value();
 			physicalDevice.surfaceSupportDetails = surfaceSupportDetails.value();
+			fmt::println("[DeviceBuilder] Physical device selected: {0}", physicalDevice.deviceProperties.properties.deviceName);
 			break;
 		}
 	}

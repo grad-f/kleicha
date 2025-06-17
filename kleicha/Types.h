@@ -21,9 +21,15 @@ namespace vkt {
 
 	struct PhysicalDevice {
 		VkPhysicalDevice device{};
+		VkPhysicalDeviceProperties2 deviceProperties{};
 		// supports graphics, compute, transfer, and presentation
 		uint32_t queueFamilyIndex{};
 		vkt::SurfaceSupportDetails surfaceSupportDetails{};
+	};
+
+	struct Device {
+		PhysicalDevice physicalDevice{};
+		VkDevice device{};
 	};
 
 	// chained and encapsulated device features struct
