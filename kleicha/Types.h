@@ -33,6 +33,12 @@ namespace vkt {
 		VkQueue queue{};
 	};
 
+	struct Swapchain {
+		VkSwapchainKHR swapchain{};
+		std::vector<VkImage> images{};
+		std::vector<VkImageView> imageViews{};
+	};
+
 	// chained and encapsulated device features struct
 	struct DeviceFeatures {
 		VkPhysicalDeviceFeatures2 VkFeatures{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2, .pNext = &Vk11Features };

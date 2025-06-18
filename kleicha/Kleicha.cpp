@@ -45,6 +45,7 @@ void Kleicha::init_vulkan() {
 }
 
 void Kleicha::init_swapchain() {
+	// create swapchain
 	SwapchainBuilder swapchainBuilder{ m_instance.instance, m_window, m_surface, m_device };
 	VkSurfaceFormatKHR surfaceFormat{ .format = VK_FORMAT_R8G8B8A8_UNORM, .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR };
 	m_swapchain = swapchainBuilder.desired_image_usage(VK_IMAGE_USAGE_TRANSFER_DST_BIT).desired_image_format(surfaceFormat).desired_present_mode(VK_PRESENT_MODE_FIFO_KHR).build();
@@ -54,7 +55,11 @@ void Kleicha::cleanup() const {
 #ifdef _DEBUG
 	m_instance.pfnDestroyMessenger(m_instance.instance, m_instance.debugMessenger, nullptr);
 #endif
-	vkDestroySwapchainKHR(m_device.device, m_swapchain, nullptr);
+
+	for (const auto& view: m_swapchain.imageViews)
+		vkDestroyImageView(m_device.device, view, nullptr);
+
+	vkDestroySwapchainKHR(m_device.device, m_swapchain.swapchain, nullptr);
 	vkDestroyDevice(m_device.device, nullptr);
 	vkDestroySurfaceKHR(m_instance.instance, m_surface, nullptr);
 	vkDestroyInstance(m_instance.instance, nullptr);

@@ -21,7 +21,9 @@ vkt::Device DeviceBuilder::build() {
 	deviceInfo.pEnabledFeatures = nullptr; // we are using VkPhysicalDeviceFeatures2
 
 	VkDevice device{};
-	vkCreateDevice(physicalDevice.device, &deviceInfo, nullptr, &device);
+	VK_CHECK(vkCreateDevice(physicalDevice.device, &deviceInfo, nullptr, &device));
+
+	fmt::println("[DeviceBuilder] Created logical device.");
 
 	// get device queue
 	VkQueue queue{};

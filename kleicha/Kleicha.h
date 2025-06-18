@@ -18,7 +18,7 @@ private:
 	VkExtent2D m_windowExtent{ 1600,900 };
 	vkt::Instance m_instance{};
 	vkt::Device m_device{};
-	VkSwapchainKHR m_swapchain{};
+	vkt::Swapchain m_swapchain{};
 
 	void init_vulkan();
 	void init_swapchain();
