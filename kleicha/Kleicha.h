@@ -6,6 +6,8 @@
 #include "vulkan/vulkan.h"
 #include "Types.h"
 
+constexpr uint32_t MAX_FRAMES_IN_FLIGHT{ 2 };
+
 class Kleicha {
 public:
 	void init();
@@ -19,9 +21,14 @@ private:
 	vkt::Instance m_instance{};
 	vkt::Device m_device{};
 	vkt::Swapchain m_swapchain{};
+	VkCommandPool m_commandPool{};
+	VkCommandBuffer m_immCmdBuffer{};
+
+	vkt::Frame m_frames[MAX_FRAMES_IN_FLIGHT]{};
 
 	void init_vulkan();
 	void init_swapchain();
+	void init_command_buffers();
 };
 
 #endif // !KLEICHA_H

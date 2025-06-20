@@ -17,6 +17,7 @@ void Kleicha::init() {
 	m_window = glfwCreateWindow(static_cast<int>(m_windowExtent.width), static_cast<int>(m_windowExtent.height), "kleicha", NULL, NULL);
 	init_vulkan();
 	init_swapchain();
+	init_command_buffers();
 }
 
 // core vulkan init
@@ -51,11 +52,35 @@ void Kleicha::init_swapchain() {
 	m_swapchain = swapchainBuilder.desired_image_usage(VK_IMAGE_USAGE_TRANSFER_DST_BIT).desired_image_format(surfaceFormat).desired_present_mode(VK_PRESENT_MODE_FIFO_KHR).build();
 }
 
+// creates a command pool and command buffers for each frame
+void Kleicha::init_command_buffers() {
+	VkCommandPoolCreateInfo cmdPoolInfo{ .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
+	cmdPoolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+	cmdPoolInfo.queueFamilyIndex = m_device.physicalDevice.queueFamilyIndex;
+	VK_CHECK(vkCreateCommandPool(m_device.device, &cmdPoolInfo, nullptr, &m_commandPool));
+	fmt::println("[Kleicha] Created command pool.");
+
+
+	VkCommandBufferAllocateInfo cmdBufferInfo{ .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
+	cmdBufferInfo.pNext = nullptr;
+	cmdBufferInfo.commandPool = m_commandPool;
+	cmdBufferInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	cmdBufferInfo.commandBufferCount = 1;
+	// allocate command buffers for each potential frame in flight
+	for (auto& frame : m_frames)
+		VK_CHECK(vkAllocateCommandBuffers(m_device.device, &cmdBufferInfo, &frame.cmdBuffer));
+	fmt::println("[Kleicha] Allocated command buffers.");
+
+	// create a command buffer that'll be used for immediate submissions like uploading buffers to the device
+	VK_CHECK(vkAllocateCommandBuffers(m_device.device, &cmdBufferInfo, &m_immCmdBuffer));
+}
+
 void Kleicha::cleanup() const {
 #ifdef _DEBUG
 	m_instance.pfnDestroyMessenger(m_instance.instance, m_instance.debugMessenger, nullptr);
 #endif
 
+	vkDestroyCommandPool(m_device.device, m_commandPool, nullptr);
 	for (const auto& view: m_swapchain.imageViews)
 		vkDestroyImageView(m_device.device, view, nullptr);
 
