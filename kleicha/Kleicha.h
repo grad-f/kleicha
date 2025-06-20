@@ -30,6 +30,7 @@ private:
 	void init_swapchain();
 	void init_command_buffers();
 	void init_sync_primitives();
+	void init_graphics_pipelines();
 };
 
 #endif // !KLEICHA_H

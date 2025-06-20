@@ -18,7 +18,8 @@ void Kleicha::init() {
 	init_vulkan();
 	init_swapchain();
 	init_command_buffers();
-	init_timeline_semaphores();
+	init_sync_primitives();
+	init_graphics_pipelines();
 }
 
 // core vulkan init
@@ -95,15 +96,19 @@ void Kleicha::init_sync_primitives() {
 
 }
 
+void Kleicha::init_graphics_pipelines() {
+
+}
+
 void Kleicha::cleanup() const {
 #ifdef _DEBUG
 	m_instance.pfnDestroyMessenger(m_instance.instance, m_instance.debugMessenger, nullptr);
 #endif
 
 	for (const auto& frame : m_frames) {
+		vkDestroyFence(m_device.device, frame.inFlightFence, nullptr);
 		vkDestroySemaphore(m_device.device, frame.acquiredSemaphore, nullptr);
 		vkDestroySemaphore(m_device.device, frame.renderedSemaphore, nullptr);
-
 	}
 
 	vkDestroyCommandPool(m_device.device, m_commandPool, nullptr);

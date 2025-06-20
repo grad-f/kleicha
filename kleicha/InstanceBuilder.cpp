@@ -114,19 +114,22 @@ vkt::Instance InstanceBuilder::build() {
 	instanceInfo.enabledExtensionCount = static_cast<uint32_t>(m_extensions.size());
 	instanceInfo.ppEnabledExtensionNames = m_extensions.data();
 
-	vkt::Instance inst{};
-	VK_CHECK(vkCreateInstance(&instanceInfo, nullptr, &inst.instance));
+	VkInstance instance{};
+	VK_CHECK(vkCreateInstance(&instanceInfo, nullptr, &instance));
 
+	VkDebugUtilsMessengerEXT debugMessenger{};
+	PFN_vkCreateDebugUtilsMessengerEXT pfnCreateMessenger{};
+	PFN_vkDestroyDebugUtilsMessengerEXT pfnDestroyMessenger{};
 #ifdef _DEBUG
 	// load debug messenger procedures (since they're part of an extension)
-	inst.pfnCreateMessenger = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(vkGetInstanceProcAddr(inst.instance, "vkCreateDebugUtilsMessengerEXT"));
-	inst.pfnDestroyMessenger = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(vkGetInstanceProcAddr(inst.instance, "vkDestroyDebugUtilsMessengerEXT"));
+	pfnCreateMessenger = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT"));
+	pfnDestroyMessenger = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT"));
 
-	if (inst.pfnCreateMessenger == nullptr || inst.pfnDestroyMessenger == nullptr)
+	if (pfnCreateMessenger == nullptr || pfnDestroyMessenger == nullptr)
 		fmt::println("[InstanceBuilder] Failed to load debug messenger create and destroy procedures.");
 
-	VK_CHECK(inst.pfnCreateMessenger(inst.instance, &debugMessengerInfo, nullptr, &inst.debugMessenger));
+	VK_CHECK(pfnCreateMessenger(instance, &debugMessengerInfo, nullptr, &debugMessenger));
 #endif
 
-	return inst;
+	return vkt::Instance{ .instance = instance, .debugMessenger = debugMessenger, .pfnCreateMessenger = pfnCreateMessenger, .pfnDestroyMessenger = pfnDestroyMessenger };
 }
