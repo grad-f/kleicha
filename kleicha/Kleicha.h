@@ -29,7 +29,7 @@ private:
 	void init_vulkan();
 	void init_swapchain();
 	void init_command_buffers();
-	void init_timeline_semaphores();
+	void init_sync_primitives();
 };
 
 #endif // !KLEICHA_H

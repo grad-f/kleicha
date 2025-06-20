@@ -77,17 +77,21 @@ void Kleicha::init_command_buffers() {
 	fmt::println("[Kleicha] Allocated command buffers.");
 }
 
-void Kleicha::init_timeline_semaphores() {
-	VkSemaphoreTypeCreateInfo semaphoreTypeInfo{ .sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO };
-	semaphoreTypeInfo.pNext = nullptr;
-	semaphoreTypeInfo.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE;
-	semaphoreTypeInfo.initialValue = 0;
+void Kleicha::init_sync_primitives() {
+
+	// create fence in signaled state as we will wait at the beginning of the render loop
+	VkFenceCreateInfo fenceInfo{ .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
+	fenceInfo.pNext = nullptr;
+	fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
 	VkSemaphoreCreateInfo semaphoreInfo{ .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
-	semaphoreInfo.pNext = &semaphoreTypeInfo;
 
 	for (auto& frame : m_frames)
-		VK_CHECK(vkCreateSemaphore(m_device.device, &semaphoreInfo, nullptr, &frame.timelineSemaphore));
+	{
+		vkCreateFence(m_device.device, &fenceInfo, nullptr, &frame.inFlightFence);
+		VK_CHECK(vkCreateSemaphore(m_device.device, &semaphoreInfo, nullptr, &frame.acquiredSemaphore));
+		VK_CHECK(vkCreateSemaphore(m_device.device, &semaphoreInfo, nullptr, &frame.renderedSemaphore));
+	}
 
 }
 
@@ -96,8 +100,11 @@ void Kleicha::cleanup() const {
 	m_instance.pfnDestroyMessenger(m_instance.instance, m_instance.debugMessenger, nullptr);
 #endif
 
-	for (const auto& frame : m_frames)
-		vkDestroySemaphore(m_device.device, frame.timelineSemaphore, nullptr);
+	for (const auto& frame : m_frames) {
+		vkDestroySemaphore(m_device.device, frame.acquiredSemaphore, nullptr);
+		vkDestroySemaphore(m_device.device, frame.renderedSemaphore, nullptr);
+
+	}
 
 	vkDestroyCommandPool(m_device.device, m_commandPool, nullptr);
 	for (const auto& view: m_swapchain.imageViews)
