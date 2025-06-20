@@ -42,6 +42,7 @@ namespace vkt {
 	// encapsulates data needed for each frame
 	struct Frame {
 		VkCommandBuffer cmdBuffer{};
+		VkSemaphore timelineSemaphore{};
 	};
 
 	// chained and encapsulated device features struct

@@ -18,6 +18,7 @@ void Kleicha::init() {
 	init_vulkan();
 	init_swapchain();
 	init_command_buffers();
+	init_timeline_semaphores();
 }
 
 // core vulkan init
@@ -36,6 +37,7 @@ void Kleicha::init_vulkan() {
 		VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME, VK_EXT_PIPELINE_CREATION_CACHE_CONTROL_EXTENSION_NAME,
 		VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME, VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME };
 	vkt::DeviceFeatures deviceFeatures{};
+	deviceFeatures.Vk12Features.timelineSemaphore = true;
 	deviceFeatures.Vk12Features.bufferDeviceAddress = true;
 	deviceFeatures.Vk12Features.descriptorIndexing = true;
 	deviceFeatures.Vk13Features.dynamicRendering = true;
@@ -69,16 +71,33 @@ void Kleicha::init_command_buffers() {
 	// allocate command buffers for each potential frame in flight
 	for (auto& frame : m_frames)
 		VK_CHECK(vkAllocateCommandBuffers(m_device.device, &cmdBufferInfo, &frame.cmdBuffer));
-	fmt::println("[Kleicha] Allocated command buffers.");
 
 	// create a command buffer that'll be used for immediate submissions like uploading buffers to the device
 	VK_CHECK(vkAllocateCommandBuffers(m_device.device, &cmdBufferInfo, &m_immCmdBuffer));
+	fmt::println("[Kleicha] Allocated command buffers.");
+}
+
+void Kleicha::init_timeline_semaphores() {
+	VkSemaphoreTypeCreateInfo semaphoreTypeInfo{ .sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO };
+	semaphoreTypeInfo.pNext = nullptr;
+	semaphoreTypeInfo.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE;
+	semaphoreTypeInfo.initialValue = 0;
+
+	VkSemaphoreCreateInfo semaphoreInfo{ .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
+	semaphoreInfo.pNext = &semaphoreTypeInfo;
+
+	for (auto& frame : m_frames)
+		VK_CHECK(vkCreateSemaphore(m_device.device, &semaphoreInfo, nullptr, &frame.timelineSemaphore));
+
 }
 
 void Kleicha::cleanup() const {
 #ifdef _DEBUG
 	m_instance.pfnDestroyMessenger(m_instance.instance, m_instance.debugMessenger, nullptr);
 #endif
+
+	for (const auto& frame : m_frames)
+		vkDestroySemaphore(m_device.device, frame.timelineSemaphore, nullptr);
 
 	vkDestroyCommandPool(m_device.device, m_commandPool, nullptr);
 	for (const auto& view: m_swapchain.imageViews)
