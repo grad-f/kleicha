@@ -3,6 +3,7 @@
 #include "InstanceBuilder.h"
 #include "DeviceBuilder.h"
 #include "SwapchainBuilder.h"
+#include "PipelineBuilder.h"
 #include "Types.h"
 #include <iostream>
 
