@@ -171,6 +171,7 @@
     <ClCompile Include="InstanceBuilder.cpp" />
     <ClCompile Include="Kleicha.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="PipelineBuilder.cpp" />
     <ClCompile Include="SwapchainBuilder.cpp" />
   </ItemGroup>
   <ItemGroup>

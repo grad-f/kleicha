@@ -23,6 +23,8 @@ private:
 	vkt::Swapchain m_swapchain{};
 	VkCommandPool m_commandPool{};
 	VkCommandBuffer m_immCmdBuffer{};
+	VkPipelineLayout m_dummyPipelineLayout{};
+	VkPipeline m_graphicsPipeline{};
 
 	vkt::Frame m_frames[MAX_FRAMES_IN_FLIGHT]{};
 

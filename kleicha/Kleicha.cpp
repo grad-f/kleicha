@@ -99,6 +99,24 @@ void Kleicha::init_sync_primitives() {
 
 void Kleicha::init_graphics_pipelines() {
 
+	// create dummy shader modules to test pipeline builder.
+
+	VkPipelineLayoutCreateInfo pipelineLayoutInfo{ .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
+	vkCreatePipelineLayout(m_device.device, &pipelineLayoutInfo, nullptr, &m_dummyPipelineLayout);
+
+	VkShaderModule vertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_colored_mesh.spv") };
+	VkShaderModule fragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_colored_mesh.spv") };
+	PipelineBuilder pipelineBuilder{ m_device.device };
+	pipelineBuilder.pipelineLayout = m_dummyPipelineLayout;
+	pipelineBuilder.set_shaders(vertModule, fragModule);								//ccw winding
+	pipelineBuilder.set_rasterizer_state(VK_POLYGON_MODE_FILL, VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+	pipelineBuilder.set_depth_stencil_state(VK_FALSE);
+	pipelineBuilder.set_color_attachment_format(VK_FORMAT_R8G8B8A8_UNORM);
+	m_graphicsPipeline = pipelineBuilder.build();
+
+	// we're free to detroy shader modules after the pipeline that they'll be linked to has been created
+	vkDestroyShaderModule(m_device.device, vertModule, nullptr);
+	vkDestroyShaderModule(m_device.device, fragModule, nullptr);
 }
 
 void Kleicha::cleanup() const {
@@ -106,6 +124,8 @@ void Kleicha::cleanup() const {
 	m_instance.pfnDestroyMessenger(m_instance.instance, m_instance.debugMessenger, nullptr);
 #endif
 
+	vkDestroyPipelineLayout(m_device.device, m_dummyPipelineLayout, nullptr);
+	vkDestroyPipeline(m_device.device, m_graphicsPipeline, nullptr);
 	for (const auto& frame : m_frames) {
 		vkDestroyFence(m_device.device, frame.inFlightFence, nullptr);
 		vkDestroySemaphore(m_device.device, frame.acquiredSemaphore, nullptr);
