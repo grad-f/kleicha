@@ -7,7 +7,7 @@ int main()
 	Kleicha kleicha{};
 	try {
 		kleicha.init();
-
+		kleicha.start();
 		kleicha.cleanup();
 	}
 	catch (const std::exception& e) {

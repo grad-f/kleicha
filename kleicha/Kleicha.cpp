@@ -7,6 +7,10 @@
 #include "Types.h"
 #include <iostream>
 
+static void key_callback(GLFWwindow* window, int key, [[maybe_unused]]int scancode, int action, [[maybe_unused]]int mods) {
+	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+		glfwSetWindowShouldClose(window, GLFW_TRUE);
+}
 
 // init calls the required functions to initialize vulkan
 void Kleicha::init() {
@@ -15,7 +19,10 @@ void Kleicha::init() {
 	}
 	// disable context creation (used for opengl)
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+	// set glfw key callback function
 	m_window = glfwCreateWindow(static_cast<int>(m_windowExtent.width), static_cast<int>(m_windowExtent.height), "kleicha", NULL, NULL);
+	glfwSetKeyCallback(m_window, key_callback);
+
 	init_vulkan();
 	init_swapchain();
 	init_command_buffers();
@@ -114,18 +121,24 @@ void Kleicha::init_graphics_pipelines() {
 	pipelineBuilder.set_color_attachment_format(VK_FORMAT_R8G8B8A8_UNORM);
 	m_graphicsPipeline = pipelineBuilder.build();
 
-	// we're free to detroy shader modules after the pipeline that they'll be linked to has been created
+	// we're free to destroy shader modules after pipeline creation
 	vkDestroyShaderModule(m_device.device, vertModule, nullptr);
 	vkDestroyShaderModule(m_device.device, fragModule, nullptr);
 }
 
-void Kleicha::cleanup() const {
-#ifdef _DEBUG
-	m_instance.pfnDestroyMessenger(m_instance.instance, m_instance.debugMessenger, nullptr);
-#endif
+void Kleicha::start() {
 
-	vkDestroyPipelineLayout(m_device.device, m_dummyPipelineLayout, nullptr);
+	while (!glfwWindowShouldClose(m_window)) {
+		glfwPollEvents();
+	}
+	// wait for all driver access to conclude before cleanup
+	vkDeviceWaitIdle(m_device.device);
+}
+
+void Kleicha::cleanup() const {
+
 	vkDestroyPipeline(m_device.device, m_graphicsPipeline, nullptr);
+	vkDestroyPipelineLayout(m_device.device, m_dummyPipelineLayout, nullptr);
 	for (const auto& frame : m_frames) {
 		vkDestroyFence(m_device.device, frame.inFlightFence, nullptr);
 		vkDestroySemaphore(m_device.device, frame.acquiredSemaphore, nullptr);
@@ -139,6 +152,9 @@ void Kleicha::cleanup() const {
 	vkDestroySwapchainKHR(m_device.device, m_swapchain.swapchain, nullptr);
 	vkDestroyDevice(m_device.device, nullptr);
 	vkDestroySurfaceKHR(m_instance.instance, m_surface, nullptr);
+#ifdef _DEBUG
+	m_instance.pfnDestroyMessenger(m_instance.instance, m_instance.debugMessenger, nullptr);
+#endif
 	vkDestroyInstance(m_instance.instance, nullptr);
 	glfwDestroyWindow(m_window);
 	glfwTerminate();

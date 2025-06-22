@@ -11,11 +11,11 @@ constexpr uint32_t MAX_FRAMES_IN_FLIGHT{ 2 };
 class Kleicha {
 public:
 	void init();
-
-	// initial cleanup procedure
+	void start();
 	void cleanup() const;
-private:
+
 	GLFWwindow* m_window{};
+private:
 	VkSurfaceKHR m_surface{};
 	VkExtent2D m_windowExtent{ 1600,900 };
 	vkt::Instance m_instance{};
@@ -27,6 +27,7 @@ private:
 	VkPipeline m_graphicsPipeline{};
 
 	vkt::Frame m_frames[MAX_FRAMES_IN_FLIGHT]{};
+	uint32_t m_framesRendered{};
 
 	void init_vulkan();
 	void init_swapchain();
