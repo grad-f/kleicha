@@ -109,5 +109,5 @@ vkt::Swapchain SwapchainBuilder::build() {
 		imageViewInfo.subresourceRange.layerCount = 1;
 		VK_CHECK(vkCreateImageView(m_device, &imageViewInfo, nullptr, &imageViews[i]));
 	}
-	return vkt::Swapchain{ .swapchain = swapchain, .images = images, .imageViews = imageViews };
+	return vkt::Swapchain{ .swapchain = swapchain, .images = images, .imageCount = imageCount, .imageViews = imageViews, .imageExtent = swapchainImageExtent };
 }

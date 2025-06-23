@@ -10,11 +10,16 @@ constexpr uint32_t MAX_FRAMES_IN_FLIGHT{ 2 };
 
 class Kleicha {
 public:
+	GLFWwindow* m_window{};
+
 	void init();
 	void start();
 	void cleanup() const;
 
-	GLFWwindow* m_window{};
+	vkt::Frame get_current_frame()	{ 
+		return m_frames[m_framesRendered % 2];
+	}
+	uint32_t m_framesRendered{};
 private:
 	VkSurfaceKHR m_surface{};
 	VkExtent2D m_windowExtent{ 1600,900 };
@@ -27,13 +32,15 @@ private:
 	VkPipeline m_graphicsPipeline{};
 
 	vkt::Frame m_frames[MAX_FRAMES_IN_FLIGHT]{};
-	uint32_t m_framesRendered{};
+	std::vector<VkSemaphore> m_renderedSemaphores{};
 
 	void init_vulkan();
 	void init_swapchain();
 	void init_command_buffers();
 	void init_sync_primitives();
 	void init_graphics_pipelines();
+
+	void draw();
 };
 
 #endif // !KLEICHA_H

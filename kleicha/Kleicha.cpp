@@ -25,6 +25,8 @@ void Kleicha::init() {
 
 	init_vulkan();
 	init_swapchain();
+	//allocate present semaphores for each swap chain image
+	m_renderedSemaphores.resize(m_swapchain.imageCount);
 	init_command_buffers();
 	init_sync_primitives();
 	init_graphics_pipelines();
@@ -95,13 +97,14 @@ void Kleicha::init_sync_primitives() {
 
 	VkSemaphoreCreateInfo semaphoreInfo{ .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
 
-	for (auto& frame : m_frames)
-	{
-		vkCreateFence(m_device.device, &fenceInfo, nullptr, &frame.inFlightFence);
+	for (auto& frame : m_frames) {
+		VK_CHECK(vkCreateFence(m_device.device, &fenceInfo, nullptr, &frame.inFlightFence));
 		VK_CHECK(vkCreateSemaphore(m_device.device, &semaphoreInfo, nullptr, &frame.acquiredSemaphore));
-		VK_CHECK(vkCreateSemaphore(m_device.device, &semaphoreInfo, nullptr, &frame.renderedSemaphore));
 	}
 
+	for (std::size_t i{ 0 }; i < m_swapchain.imageCount; ++i) {
+		VK_CHECK(vkCreateSemaphore(m_device.device, &semaphoreInfo, nullptr, &m_renderedSemaphores[i]));
+	}
 }
 
 void Kleicha::init_graphics_pipelines() {
@@ -130,19 +133,169 @@ void Kleicha::start() {
 
 	while (!glfwWindowShouldClose(m_window)) {
 		glfwPollEvents();
+		draw();
 	}
 	// wait for all driver access to conclude before cleanup
 	vkDeviceWaitIdle(m_device.device);
+}
+
+void Kleicha::draw() {
+	// get references to current frame
+	vkt::Frame frame{ get_current_frame() };
+	VK_CHECK(vkWaitForFences(m_device.device, 1, &frame.inFlightFence, VK_TRUE, std::numeric_limits<uint64_t>::max()));
+	VK_CHECK(vkResetFences(m_device.device, 1, &frame.inFlightFence));
+	uint32_t imageIndex{};
+	// acquire image from swapchain
+	VK_CHECK(vkAcquireNextImageKHR(m_device.device, m_swapchain.swapchain, std::numeric_limits<uint64_t>::max(), frame.acquiredSemaphore, VK_NULL_HANDLE, &imageIndex));
+
+	VkCommandBufferBeginInfo cmdBufferBeginInfo{ 
+		.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+		.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+	};
+
+	// implicitly resets command buffer and places it in recording state
+	VK_CHECK(vkBeginCommandBuffer(frame.cmdBuffer, &cmdBufferBeginInfo));
+
+	VkImageMemoryBarrier2 imageBarrier{ .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
+	imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+	imageBarrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+	imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+	imageBarrier.dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT | VK_ACCESS_2_TRANSFER_WRITE_BIT;
+	imageBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	imageBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+	imageBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	imageBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	imageBarrier.image = m_swapchain.images[imageIndex];
+	imageBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	imageBarrier.subresourceRange.baseArrayLayer = 0;
+	imageBarrier.subresourceRange.layerCount = 1;
+	imageBarrier.subresourceRange.baseMipLevel = 0;
+	imageBarrier.subresourceRange.levelCount = 1;
+
+	// transition swapchain image to VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+	VkDependencyInfo dependencyInfo{ .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
+	dependencyInfo.pNext = nullptr;
+	dependencyInfo.imageMemoryBarrierCount = 1;
+	dependencyInfo.pImageMemoryBarriers = &imageBarrier;
+
+	// image memory barrier
+	vkCmdPipelineBarrier2(frame.cmdBuffer, &dependencyInfo);
+
+	// TO-DO: clear image with vkCmdClearColorImage
+	VkImageSubresourceRange subresourceRange{};
+	subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	subresourceRange.baseArrayLayer = 0;
+	subresourceRange.baseMipLevel = 0;
+	subresourceRange.layerCount = 1;
+	subresourceRange.levelCount = 1;
+
+	VkClearColorValue clearColor{ { 0.3f, 0.1f, 0.7f, 1.0f} };
+
+	vkCmdClearColorImage(frame.cmdBuffer, m_swapchain.images[imageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearColor, 1, &subresourceRange);
+
+	// transition image back to presentable
+	VkImageMemoryBarrier2 imageBarrierPresent{ .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
+	imageBarrierPresent.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+	imageBarrierPresent.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+	imageBarrierPresent.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+	imageBarrierPresent.dstAccessMask = 0;
+	imageBarrierPresent.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+	imageBarrierPresent.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+	imageBarrierPresent.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	imageBarrierPresent.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	imageBarrierPresent.image = m_swapchain.images[imageIndex];
+	imageBarrierPresent.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	imageBarrierPresent.subresourceRange.baseArrayLayer = 0;
+	imageBarrierPresent.subresourceRange.layerCount = 1;
+	imageBarrierPresent.subresourceRange.baseMipLevel = 0;
+	imageBarrierPresent.subresourceRange.levelCount = 1;
+
+	// transition swapchain image to VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+	VkDependencyInfo dependencyInfoPresent{ .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
+	dependencyInfoPresent.pNext = nullptr;
+	dependencyInfoPresent.imageMemoryBarrierCount = 1;
+	dependencyInfoPresent.pImageMemoryBarriers = &imageBarrierPresent;
+
+	// image memory barrier
+	vkCmdPipelineBarrier2(frame.cmdBuffer, &dependencyInfoPresent);
+
+	{
+	/* boilerplate for when we use a graphics pipeline
+	VkRenderingAttachmentInfo colorAttachment{.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO};
+	colorAttachment.pNext = nullptr;
+	colorAttachment.imageView = m_swapchain.imageViews[imageIndex];
+	colorAttachment.imageLayout = VK_IMAGE_LAYOUT_GENERAL;;
+	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+
+	VkRenderingInfo renderingInfo{ .sType = VK_STRUCTURE_TYPE_RENDERING_INFO };
+	renderingInfo.pNext = nullptr;
+	renderingInfo.renderArea.extent = m_swapchain.imageExtent;
+	renderingInfo.renderArea.offset = { 0,0 };
+	renderingInfo.layerCount = 1;
+	renderingInfo.viewMask = 0; //we're not using multiview
+	renderingInfo.colorAttachmentCount = 1;
+	renderingInfo.pColorAttachments = &colorAttachment;
+	// begin a render pass
+	vkCmdBeginRendering(frame.cmdBuffer, &renderingInfo);
+
+	vkCmdEndRendering(frame.cmdBuffer);*/
+	}
+
+	VK_CHECK(vkEndCommandBuffer(frame.cmdBuffer));
+	
+	VkSemaphoreSubmitInfo acquiredSemSubmitInfo{ .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO };
+	acquiredSemSubmitInfo.pNext = nullptr;
+	acquiredSemSubmitInfo.semaphore = frame.acquiredSemaphore;
+	// forms a dependency chain with the image memory barrier at the beginning of the batch to ensure the image transition happens before vkCmdClearColorImage
+	acquiredSemSubmitInfo.stageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+	acquiredSemSubmitInfo.deviceIndex = 0;
+
+	VkSemaphoreSubmitInfo renderedSemSubmitInfo{ .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO };
+	renderedSemSubmitInfo.pNext = nullptr;
+	renderedSemSubmitInfo.semaphore = m_renderedSemaphores[imageIndex];
+	renderedSemSubmitInfo.stageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+	renderedSemSubmitInfo.deviceIndex = 0;
+
+	VkCommandBufferSubmitInfo cmdBufferSubmitInfo{ .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO };
+	cmdBufferSubmitInfo.commandBuffer = frame.cmdBuffer;
+	cmdBufferSubmitInfo.deviceMask = 0;
+
+	VkSubmitInfo2 submitInfo{ .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2 };
+	submitInfo.pNext = nullptr;
+	submitInfo.waitSemaphoreInfoCount = 1;
+	submitInfo.pWaitSemaphoreInfos = &acquiredSemSubmitInfo;
+	submitInfo.commandBufferInfoCount = 1;
+	submitInfo.pCommandBufferInfos = &cmdBufferSubmitInfo;
+	submitInfo.signalSemaphoreInfoCount = 1;
+	submitInfo.pSignalSemaphoreInfos = &renderedSemSubmitInfo;
+	vkQueueSubmit2(m_device.queue, 1, &submitInfo, frame.inFlightFence);
+
+
+	VkPresentInfoKHR presentInfo{ .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
+	presentInfo.pNext = nullptr;
+	presentInfo.waitSemaphoreCount = 1;
+	presentInfo.pWaitSemaphores = &m_renderedSemaphores[imageIndex];
+	presentInfo.swapchainCount = 1;
+	presentInfo.pSwapchains = &m_swapchain.swapchain;
+	presentInfo.pImageIndices = &imageIndex;
+	VK_CHECK(vkQueuePresentKHR(m_device.queue, &presentInfo));
+
+	++m_framesRendered;
 }
 
 void Kleicha::cleanup() const {
 
 	vkDestroyPipeline(m_device.device, m_graphicsPipeline, nullptr);
 	vkDestroyPipelineLayout(m_device.device, m_dummyPipelineLayout, nullptr);
+
+	for (std::size_t i{ 0 }; i < m_swapchain.imageCount; ++i) {
+		vkDestroySemaphore(m_device.device, m_renderedSemaphores[i], nullptr);
+	}
+
 	for (const auto& frame : m_frames) {
 		vkDestroyFence(m_device.device, frame.inFlightFence, nullptr);
 		vkDestroySemaphore(m_device.device, frame.acquiredSemaphore, nullptr);
-		vkDestroySemaphore(m_device.device, frame.renderedSemaphore, nullptr);
 	}
 
 	vkDestroyCommandPool(m_device.device, m_commandPool, nullptr);

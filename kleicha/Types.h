@@ -36,7 +36,9 @@ namespace vkt {
 	struct Swapchain {
 		VkSwapchainKHR swapchain{};
 		std::vector<VkImage> images{};
+		std::size_t imageCount{};
 		std::vector<VkImageView> imageViews{};
+		VkExtent2D imageExtent{};
 	};
 
 	// encapsulates data needed for each frame
@@ -44,7 +46,6 @@ namespace vkt {
 		VkCommandBuffer cmdBuffer{};
 		VkFence inFlightFence{};
 		VkSemaphore acquiredSemaphore{};
-		VkSemaphore renderedSemaphore{};
 	};
 
 	// chained and encapsulated device features struct
