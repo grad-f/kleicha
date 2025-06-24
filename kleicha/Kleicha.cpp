@@ -130,6 +130,36 @@ void Kleicha::init_graphics_pipelines() {
 	vkDestroyShaderModule(m_device.device, fragModule, nullptr);
 }
 
+void Kleicha::recreate_swapchain() {
+
+	// handle case where window is minimized
+	int width{}, height{};
+	glfwGetFramebufferSize(m_window, &width, &height);
+
+	// keep polling 
+	while (width == 0 || height == 0) {
+		glfwGetFramebufferSize(m_window, &width, &height);
+		glfwPollEvents();
+	}
+
+	// host waits for all work in queue to conclude
+	VK_CHECK(vkDeviceWaitIdle(m_device.device));
+
+	// first we cleanup the existing swapchain
+	for (const auto& view : m_swapchain.imageViews)
+		vkDestroyImageView(m_device.device, view, nullptr);
+
+	vkDestroySwapchainKHR(m_device.device, m_swapchain.swapchain, nullptr);
+
+	// get updated surface support details
+	DeviceBuilder builder{ m_instance.instance, m_surface };
+	std::optional<vkt::SurfaceSupportDetails> supportDetails{ builder.get_surface_support_details(m_device.physicalDevice.device).value() };
+	if (!supportDetails.has_value())
+		throw std::runtime_error{ "[Kleicha] Failed to recreate swapchain" };
+	m_device.physicalDevice.surfaceSupportDetails = supportDetails.value();
+	init_swapchain();
+}
+
 void Kleicha::start() {
 
 	while (!glfwWindowShouldClose(m_window)) {
@@ -137,17 +167,22 @@ void Kleicha::start() {
 		draw();
 	}
 	// wait for all driver access to conclude before cleanup
-	vkDeviceWaitIdle(m_device.device);
+	VK_CHECK(vkDeviceWaitIdle(m_device.device));
 }
 
 void Kleicha::draw() {
 	// get references to current frame
 	vkt::Frame frame{ get_current_frame() };
 	VK_CHECK(vkWaitForFences(m_device.device, 1, &frame.inFlightFence, VK_TRUE, std::numeric_limits<uint64_t>::max()));
-	VK_CHECK(vkResetFences(m_device.device, 1, &frame.inFlightFence));
 	uint32_t imageIndex{};
 	// acquire image from swapchain
-	VK_CHECK(vkAcquireNextImageKHR(m_device.device, m_swapchain.swapchain, std::numeric_limits<uint64_t>::max(), frame.acquiredSemaphore, VK_NULL_HANDLE, &imageIndex));
+	VkResult acquireResult{ vkAcquireNextImageKHR(m_device.device, m_swapchain.swapchain, std::numeric_limits<uint64_t>::max(), frame.acquiredSemaphore, VK_NULL_HANDLE, &imageIndex) };
+
+	if (acquireResult == VK_ERROR_OUT_OF_DATE_KHR)
+		recreate_swapchain();
+
+	// we should only set fence to unsignaled when we know the command buffer will be submitted to the queue.
+	VK_CHECK(vkResetFences(m_device.device, 1, &frame.inFlightFence));
 
 	VkCommandBufferBeginInfo cmdBufferBeginInfo{ 
 		.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -256,7 +291,10 @@ void Kleicha::draw() {
 	presentInfo.swapchainCount = 1;
 	presentInfo.pSwapchains = &m_swapchain.swapchain;
 	presentInfo.pImageIndices = &imageIndex;
-	VK_CHECK(vkQueuePresentKHR(m_device.queue, &presentInfo));
+	VkResult presentResult{ vkQueuePresentKHR(m_device.queue, &presentInfo) };
+
+	if (presentResult == VK_ERROR_OUT_OF_DATE_KHR)
+		recreate_swapchain();
 
 	++m_framesRendered;
 }

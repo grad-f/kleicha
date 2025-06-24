@@ -21,6 +21,8 @@ public:
 		m_requestedFeatures = deviceFeatures;
 		return *this;
 	}
+
+	std::optional<vkt::SurfaceSupportDetails> get_surface_support_details(VkPhysicalDevice device) const;
 private:
 	std::vector<const char*> m_extensions{};
 	vkt::DeviceFeatures m_requestedFeatures{};
@@ -29,7 +31,6 @@ private:
 	bool are_extensions_supported(VkPhysicalDevice device) const;
 	bool are_features_supported(VkPhysicalDevice device) const;
 	std::optional<uint32_t> get_queue_family(VkPhysicalDevice device) const;
-	std::optional<vkt::SurfaceSupportDetails> get_surface_support_details(VkPhysicalDevice device) const;
 	bool check_features_struct(const VkBool32* p_reqFeaturesStart, const VkBool32* p_reqFeaturesEnd, const VkBool32* p_DeviceFeaturesStart) const;
 	vkt::PhysicalDevice select_physical_device(VkInstance instance) const;
 };

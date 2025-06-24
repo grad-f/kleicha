@@ -16,7 +16,7 @@ public:
 	void start();
 	void cleanup() const;
 
-	vkt::Frame get_current_frame()	{ 
+	vkt::Frame get_current_frame() const	{ 
 		return m_frames[m_framesRendered % 2];
 	}
 	uint32_t m_framesRendered{};
@@ -41,6 +41,7 @@ private:
 	void init_graphics_pipelines();
 
 	void draw();
+	void recreate_swapchain();
 };
 
 #endif // !KLEICHA_H
