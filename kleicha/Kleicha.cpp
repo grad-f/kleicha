@@ -4,6 +4,7 @@
 #include "DeviceBuilder.h"
 #include "SwapchainBuilder.h"
 #include "PipelineBuilder.h"
+#include "Initializers.h"
 #include "Types.h"
 #include <iostream>
 
@@ -156,27 +157,15 @@ void Kleicha::draw() {
 	// implicitly resets command buffer and places it in recording state
 	VK_CHECK(vkBeginCommandBuffer(frame.cmdBuffer, &cmdBufferBeginInfo));
 
-	VkImageMemoryBarrier2 imageBarrier{ .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
-	imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
-	imageBarrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
-	imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
-	imageBarrier.dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT | VK_ACCESS_2_TRANSFER_WRITE_BIT;
-	imageBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	imageBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-	imageBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	imageBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	imageBarrier.image = m_swapchain.images[imageIndex];
-	imageBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	imageBarrier.subresourceRange.baseArrayLayer = 0;
-	imageBarrier.subresourceRange.layerCount = 1;
-	imageBarrier.subresourceRange.baseMipLevel = 0;
-	imageBarrier.subresourceRange.levelCount = 1;
+	// forms a dependency chain with vkAcquireNextImageKHR signal semaphore
+	VkImageMemoryBarrier2 toTransferLayoutBarrier{init::create_image_barrier_info(VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, 
+		VK_PIPELINE_STAGE_2_TRANSFER_BIT,VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, m_swapchain.images[imageIndex])};
 
 	// transition swapchain image to VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
 	VkDependencyInfo dependencyInfo{ .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
 	dependencyInfo.pNext = nullptr;
 	dependencyInfo.imageMemoryBarrierCount = 1;
-	dependencyInfo.pImageMemoryBarriers = &imageBarrier;
+	dependencyInfo.pImageMemoryBarriers = &toTransferLayoutBarrier;
 
 	// image memory barrier
 	vkCmdPipelineBarrier2(frame.cmdBuffer, &dependencyInfo);
@@ -189,32 +178,20 @@ void Kleicha::draw() {
 	subresourceRange.layerCount = 1;
 	subresourceRange.levelCount = 1;
 
-	VkClearColorValue clearColor{ { 0.3f, 0.1f, 0.7f, 1.0f} };
+
+	VkClearColorValue clearColor{ { std::sinf(static_cast<float>(m_framesRendered)/1000.0f), 0.0f, 0.0f, 1.0f}};
 
 	vkCmdClearColorImage(frame.cmdBuffer, m_swapchain.images[imageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearColor, 1, &subresourceRange);
 
 	// transition image back to presentable
-	VkImageMemoryBarrier2 imageBarrierPresent{ .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
-	imageBarrierPresent.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
-	imageBarrierPresent.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
-	imageBarrierPresent.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
-	imageBarrierPresent.dstAccessMask = 0;
-	imageBarrierPresent.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-	imageBarrierPresent.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-	imageBarrierPresent.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	imageBarrierPresent.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	imageBarrierPresent.image = m_swapchain.images[imageIndex];
-	imageBarrierPresent.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	imageBarrierPresent.subresourceRange.baseArrayLayer = 0;
-	imageBarrierPresent.subresourceRange.layerCount = 1;
-	imageBarrierPresent.subresourceRange.baseMipLevel = 0;
-	imageBarrierPresent.subresourceRange.levelCount = 1;
+	VkImageMemoryBarrier2 toPresentLayoutBarrier{ init::create_image_barrier_info(VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, 
+		VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, m_swapchain.images[imageIndex])};
 
 	// transition swapchain image to VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
 	VkDependencyInfo dependencyInfoPresent{ .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
 	dependencyInfoPresent.pNext = nullptr;
 	dependencyInfoPresent.imageMemoryBarrierCount = 1;
-	dependencyInfoPresent.pImageMemoryBarriers = &imageBarrierPresent;
+	dependencyInfoPresent.pImageMemoryBarriers = &toPresentLayoutBarrier;
 
 	// image memory barrier
 	vkCmdPipelineBarrier2(frame.cmdBuffer, &dependencyInfoPresent);
@@ -269,7 +246,7 @@ void Kleicha::draw() {
 	submitInfo.pCommandBufferInfos = &cmdBufferSubmitInfo;
 	submitInfo.signalSemaphoreInfoCount = 1;
 	submitInfo.pSignalSemaphoreInfos = &renderedSemSubmitInfo;
-	vkQueueSubmit2(m_device.queue, 1, &submitInfo, frame.inFlightFence);
+	VK_CHECK(vkQueueSubmit2(m_device.queue, 1, &submitInfo, frame.inFlightFence));
 
 
 	VkPresentInfoKHR presentInfo{ .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };

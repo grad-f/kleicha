@@ -168,11 +168,13 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="DeviceBuilder.cpp" />
+    <ClCompile Include="Initializers.cpp" />
     <ClCompile Include="InstanceBuilder.cpp" />
     <ClCompile Include="Kleicha.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="PipelineBuilder.cpp" />
     <ClCompile Include="SwapchainBuilder.cpp" />
+    <ClCompile Include="Utils.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Initializers.h" />
