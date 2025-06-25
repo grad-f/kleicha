@@ -152,27 +152,11 @@ void Kleicha::init_vma() {
 
 void Kleicha::init_images() {
 
-	// TO-DO: Abstract image create info creation into its own function
-
-	VkImageCreateInfo imageInfo{ .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
-	imageInfo.pNext = nullptr;
-	imageInfo.imageType = VK_IMAGE_TYPE_2D;
-	imageInfo.format = VK_FORMAT_R16G16B16A16_SFLOAT;
-	imageInfo.extent = VkExtent3D{ m_windowExtent.width, m_windowExtent.height, 1U };
-	imageInfo.mipLevels = 1;
-	imageInfo.arrayLayers = 1;
-	imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-	imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-	imageInfo.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-	imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	imageInfo.queueFamilyIndexCount = 1;
-	imageInfo.pQueueFamilyIndices = &m_device.physicalDevice.queueFamilyIndex;
-	imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-
+	VkImageCreateInfo imageInfo{ init::create_image_info(VK_FORMAT_R16G16B16A16_SFLOAT, m_windowExtent, 
+		VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT)};
 	VmaAllocationCreateInfo allocationInfo{};
 	allocationInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
 	allocationInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-
 	VK_CHECK(vmaCreateImage(m_allocator, &imageInfo, &allocationInfo, &m_rasterImage.image, &m_rasterImage.allocation, &m_rasterImage.allocationInfo));
 }
 
