@@ -191,11 +191,12 @@ void Kleicha::recreate_swapchain() {
 	// host waits for all work in queue to conclude
 	VK_CHECK(vkDeviceWaitIdle(m_device.device));
 
-	// first we cleanup the existing swapchain
+	// cleanup swapchain and raster images
 	for (const auto& view : m_swapchain.imageViews)
 		vkDestroyImageView(m_device.device, view, nullptr);
 
 	vkDestroySwapchainKHR(m_device.device, m_swapchain.swapchain, nullptr);
+	vmaDestroyImage(m_allocator, m_rasterImage.image, m_rasterImage.allocation);
 
 	// get updated surface support details
 	DeviceBuilder builder{ m_instance.instance, m_surface };
@@ -206,6 +207,7 @@ void Kleicha::recreate_swapchain() {
 	set_window_extent(supportDetails.value().capabilities.currentExtent);
 	m_device.physicalDevice.surfaceSupportDetails = supportDetails.value();
 	init_swapchain();
+	init_images();
 }
 
 void Kleicha::start() {
