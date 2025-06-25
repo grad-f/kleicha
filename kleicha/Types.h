@@ -44,6 +44,7 @@ namespace vkt {
 
 	struct Image {
 		VkImage image{};
+		VkImageView imageView{};
 		VmaAllocation allocation{};
 		VmaAllocationInfo allocationInfo{};
 	};

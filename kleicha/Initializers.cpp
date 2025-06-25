@@ -52,4 +52,27 @@ namespace init {
 
 		return imageInfo;
 	}
+
+	VkImageViewCreateInfo create_image_view_info(VkImage image, VkFormat format, VkImageAspectFlags aspectMask) {
+		VkImageViewCreateInfo imageViewInfo{ .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
+		imageViewInfo.pNext = nullptr;
+		imageViewInfo.image = image;
+		imageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		imageViewInfo.format = format;
+		// allows us to remap image pixel components (changes how the image viewer interprets the image)
+		// VK_COMPONENT_SWIZZLE_IDENTITY effectively means don't remap.
+		imageViewInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+		imageViewInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+		imageViewInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+		imageViewInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+
+		// specify which sub region of the image we'd like to make an imageview of
+		imageViewInfo.subresourceRange.aspectMask = aspectMask;
+		imageViewInfo.subresourceRange.baseMipLevel = 0;
+		imageViewInfo.subresourceRange.levelCount = 1;
+		imageViewInfo.subresourceRange.baseArrayLayer = 0;
+		imageViewInfo.subresourceRange.layerCount = 1;
+
+		return imageViewInfo;
+	}
 }

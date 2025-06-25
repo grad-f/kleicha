@@ -8,6 +8,7 @@
 #include "vk_mem_alloc.h"
 
 constexpr uint32_t MAX_FRAMES_IN_FLIGHT{ 2 };
+constexpr VkFormat INTERMEDIATE_IMAGE_FORMAT{ VK_FORMAT_R16G16B16A16_SFLOAT };
 
 class Kleicha {
 public:
@@ -45,7 +46,7 @@ private:
 	void init_sync_primitives();
 	void init_graphics_pipelines();
 	void init_vma();
-	void init_images();
+	void init_intermediate_images();
 
 	void draw();
 	void recreate_swapchain();

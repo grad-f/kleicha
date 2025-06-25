@@ -1,5 +1,6 @@
 #include <stdexcept>
 #include "Utils.h"
+#include "Initializers.h"
 #include "SwapchainBuilder.h"
 
 VkSurfaceFormatKHR SwapchainBuilder::get_swapchain_format() const {
@@ -89,24 +90,7 @@ vkt::Swapchain SwapchainBuilder::build() {
 	// create image views
 	std::vector<VkImageView> imageViews(imageCount);
 	for (std::size_t i{ 0 }; i < imageCount; ++i) {
-		VkImageViewCreateInfo imageViewInfo{ .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
-		imageViewInfo.pNext = nullptr;
-		imageViewInfo.image = images[i];
-		imageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-		imageViewInfo.format = swapchainImageFormat.format;
-		// allows us to remap image pixel components (changes how the image viewer interprets the image)
-		// VK_COMPONENT_SWIZZLE_IDENTITY effectively means don't remap.
-		imageViewInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-		imageViewInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-		imageViewInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-		imageViewInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-
-		// specify which sub region of the image we'd like to make an imageview of
-		imageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		imageViewInfo.subresourceRange.baseMipLevel = 0;
-		imageViewInfo.subresourceRange.levelCount = 1;
-		imageViewInfo.subresourceRange.baseArrayLayer = 0;
-		imageViewInfo.subresourceRange.layerCount = 1;
+		VkImageViewCreateInfo imageViewInfo{ init::create_image_view_info(images[i], swapchainImageFormat.format, VK_IMAGE_ASPECT_COLOR_BIT)};
 		VK_CHECK(vkCreateImageView(m_device, &imageViewInfo, nullptr, &imageViews[i]));
 	}
 	return vkt::Swapchain{ .swapchain = swapchain, .images = images, .imageCount = imageCount, .imageViews = imageViews, .imageExtent = swapchainImageExtent };

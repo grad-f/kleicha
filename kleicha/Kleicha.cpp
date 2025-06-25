@@ -37,7 +37,7 @@ void Kleicha::init() {
 	init_sync_primitives();
 	init_graphics_pipelines();
 	init_vma();
-	init_images();
+	init_intermediate_images();
 }
 
 // core vulkan init
@@ -131,7 +131,7 @@ void Kleicha::init_graphics_pipelines() {
 	pipelineBuilder.set_shaders(vertModule, fragModule);								//ccw winding
 	pipelineBuilder.set_rasterizer_state(VK_POLYGON_MODE_FILL, VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE);
 	pipelineBuilder.set_depth_stencil_state(VK_FALSE);
-	pipelineBuilder.set_color_attachment_format(VK_FORMAT_R8G8B8A8_UNORM);
+	pipelineBuilder.set_color_attachment_format(INTERMEDIATE_IMAGE_FORMAT);
 	m_graphicsPipeline = pipelineBuilder.build();
 
 	// we're free to destroy shader modules after pipeline creation
@@ -150,18 +150,21 @@ void Kleicha::init_vma() {
 	VK_CHECK(vmaCreateAllocator(&allocatorInfo, &m_allocator));
 }
 
-void Kleicha::init_images() {
+void Kleicha::init_intermediate_images() {
 
-	VkImageCreateInfo imageInfo{ init::create_image_info(VK_FORMAT_R16G16B16A16_SFLOAT, m_windowExtent, 
-		VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT)};
+	VkImageCreateInfo imageInfo{ init::create_image_info(INTERMEDIATE_IMAGE_FORMAT, m_swapchain.imageExtent,
+		VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)};
 	VmaAllocationCreateInfo allocationInfo{};
 	allocationInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
 	allocationInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
-	// create an intermediate frame for each potential frame in flight
-	
-	for (auto& frame : m_frames)
+	// create an intermediate image for each potential frame in flight and a corresponding image view
+	for (auto& frame : m_frames) {
 		VK_CHECK(vmaCreateImage(m_allocator, &imageInfo, &allocationInfo, &frame.rasterImage.image, &frame.rasterImage.allocation, &frame.rasterImage.allocationInfo));
+
+		VkImageViewCreateInfo imageViewInfo{ init::create_image_view_info(frame.rasterImage.image, INTERMEDIATE_IMAGE_FORMAT, VK_IMAGE_ASPECT_COLOR_BIT) };
+		VK_CHECK(vkCreateImageView(m_device.device, &imageViewInfo, nullptr, &frame.rasterImage.imageView));
+	}
 }
 
 void Kleicha::recreate_swapchain() {
@@ -185,8 +188,10 @@ void Kleicha::recreate_swapchain() {
 
 	vkDestroySwapchainKHR(m_device.device, m_swapchain.swapchain, nullptr);
 
-	for (const auto& frame : m_frames)
+	for (const auto& frame : m_frames) {
 		vmaDestroyImage(m_allocator, frame.rasterImage.image, frame.rasterImage.allocation);
+		vkDestroyImageView(m_device.device, frame.rasterImage.imageView, nullptr);
+	}
 
 	// get updated surface support details
 	DeviceBuilder builder{ m_instance.instance, m_surface };
@@ -197,7 +202,7 @@ void Kleicha::recreate_swapchain() {
 	set_window_extent(supportDetails.value().capabilities.currentExtent);
 	m_device.physicalDevice.surfaceSupportDetails = supportDetails.value();
 	init_swapchain();
-	init_images();
+	init_intermediate_images();
 }
 
 void Kleicha::start() {
@@ -233,14 +238,14 @@ void Kleicha::draw() {
 	VK_CHECK(vkBeginCommandBuffer(frame.cmdBuffer, &cmdBufferBeginInfo));
 
 	// forms a dependency chain with vkAcquireNextImageKHR signal semaphore
-	VkImageMemoryBarrier2 toTransferDst{init::create_image_barrier_info(VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, 
+	VkImageMemoryBarrier2 rastertoTransferDst{init::create_image_barrier_info(VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, 
 		VK_PIPELINE_STAGE_2_TRANSFER_BIT,VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, frame.rasterImage.image)};
 
-	VkImageMemoryBarrier2 presentToTransferDst{ init::create_image_barrier_info(VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
+	VkImageMemoryBarrier2 scToTransferDst{ init::create_image_barrier_info(VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
 		VK_PIPELINE_STAGE_2_TRANSFER_BIT,VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, m_swapchain.images[imageIndex])};
 
 	// batch this to avoid unnecessary driver overhead
-	VkImageMemoryBarrier2 imageBarriers[]{ toTransferDst, presentToTransferDst };
+	VkImageMemoryBarrier2 imageBarriers[]{ rastertoTransferDst, scToTransferDst };
 
 	// transition swapchain image to VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
 	VkDependencyInfo dependencyInfo{ .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
@@ -251,33 +256,9 @@ void Kleicha::draw() {
 	// image memory barrier
 	vkCmdPipelineBarrier2(frame.cmdBuffer, &dependencyInfo);
 
-	VkImageSubresourceRange subresourceRange{};
-	subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	subresourceRange.baseArrayLayer = 0;
-	subresourceRange.baseMipLevel = 0;
-	subresourceRange.layerCount = 1;
-	subresourceRange.levelCount = 1;
-
-	VkClearColorValue clearColor{ { std::sinf(static_cast<float>(m_framesRendered)/1000.0f), 0.0f, 0.0f, 1.0f}};
-
-	vkCmdClearColorImage(frame.cmdBuffer, frame.rasterImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearColor, 1, &subresourceRange);
-
-	// transition image to transfer src
-	utils::image_memory_barrier(frame.cmdBuffer, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, 
-		VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_READ_BIT | VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, frame.rasterImage.image);
-
-	// blit from intermediate raster image to swapchain image
-	utils::blit_image(frame.cmdBuffer, frame.rasterImage.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,m_swapchain.images[imageIndex],VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,m_windowExtent, m_windowExtent);
-
-	// transition swapchain image to VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
-	utils::image_memory_barrier(frame.cmdBuffer, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
-		VK_PIPELINE_STAGE_2_TRANSFER_BIT,VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, m_swapchain.images[imageIndex]);
-
-	{
-	/* boilerplate for when we use a graphics pipeline
-	VkRenderingAttachmentInfo colorAttachment{.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO};
+	/*VkRenderingAttachmentInfo colorAttachment{.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO};
 	colorAttachment.pNext = nullptr;
-	colorAttachment.imageView = m_swapchain.imageViews[imageIndex];
+	colorAttachment.imageView = frame.rasterImage.imageView;
 	colorAttachment.imageLayout = VK_IMAGE_LAYOUT_GENERAL;;
 	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -292,9 +273,23 @@ void Kleicha::draw() {
 	renderingInfo.pColorAttachments = &colorAttachment;
 	// begin a render pass
 	vkCmdBeginRendering(frame.cmdBuffer, &renderingInfo);
+	vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
+
+	// invoke the vertex shader 3 times.
+	vkCmdDraw(frame.cmdBuffer, 3, 1, 0, 0);
 
 	vkCmdEndRendering(frame.cmdBuffer);*/
-	}
+
+	// transition image to transfer src
+	utils::image_memory_barrier(frame.cmdBuffer, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, 
+		VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_READ_BIT | VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, frame.rasterImage.image);
+
+	// blit from intermediate raster image to swapchain image
+	utils::blit_image(frame.cmdBuffer, frame.rasterImage.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,m_swapchain.images[imageIndex],VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,m_swapchain.imageExtent, m_swapchain.imageExtent);
+
+	// transition swapchain image to VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+	utils::image_memory_barrier(frame.cmdBuffer, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
+		VK_PIPELINE_STAGE_2_TRANSFER_BIT,VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, m_swapchain.images[imageIndex]);
 
 	VK_CHECK(vkEndCommandBuffer(frame.cmdBuffer));
 	
@@ -343,8 +338,12 @@ void Kleicha::draw() {
 
 void Kleicha::cleanup() const {
 
-	for (const auto& frame : m_frames)
+	for (const auto& frame : m_frames) {
+		vkDestroyFence(m_device.device, frame.inFlightFence, nullptr);
+		vkDestroySemaphore(m_device.device, frame.acquiredSemaphore, nullptr);
 		vmaDestroyImage(m_allocator, frame.rasterImage.image, frame.rasterImage.allocation);
+		vkDestroyImageView(m_device.device, frame.rasterImage.imageView, nullptr);
+	}
 
 	vmaDestroyAllocator(m_allocator);
 
@@ -353,11 +352,6 @@ void Kleicha::cleanup() const {
 
 	for (const auto& renderedSemaphore : m_renderedSemaphores) {
 		vkDestroySemaphore(m_device.device, renderedSemaphore, nullptr);
-	}
-
-	for (const auto& frame : m_frames) {
-		vkDestroyFence(m_device.device, frame.inFlightFence, nullptr);
-		vkDestroySemaphore(m_device.device, frame.acquiredSemaphore, nullptr);
 	}
 
 	vkDestroyCommandPool(m_device.device, m_commandPool, nullptr);
