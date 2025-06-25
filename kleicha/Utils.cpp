@@ -43,4 +43,35 @@ namespace utils {
 
         vkCmdPipelineBarrier2(cmdBuffer, &dependencyInfo);
     }
+
+    void blit_image(VkCommandBuffer cmdBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkImage dstImage, VkImageLayout dstImageLayout, VkExtent2D srcExtent, VkExtent2D dstExtent) {
+        VkImageBlit2 blitRegion{ .sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2 };
+        blitRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        blitRegion.srcSubresource.baseArrayLayer = 0;
+        blitRegion.srcSubresource.layerCount = 1;
+        blitRegion.srcSubresource.mipLevel = 0;
+
+        blitRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        blitRegion.dstSubresource.baseArrayLayer = 0;
+        blitRegion.dstSubresource.layerCount = 1;
+        blitRegion.dstSubresource.mipLevel = 0;
+
+        blitRegion.srcOffsets[1].x = static_cast<int32_t>(srcExtent.width);
+        blitRegion.srcOffsets[1].y = static_cast<int32_t>(srcExtent.height);
+        blitRegion.srcOffsets[1].z = 1;
+
+        blitRegion.dstOffsets[1].x = static_cast<int32_t>(dstExtent.width);
+        blitRegion.dstOffsets[1].y = static_cast<int32_t>(dstExtent.height);
+        blitRegion.dstOffsets[1].z = 1;
+
+        VkBlitImageInfo2 blitImageInfo{ .sType = VK_STRUCTURE_TYPE_BLIT_IMAGE_INFO_2 };
+        blitImageInfo.srcImage = srcImage;
+        blitImageInfo.srcImageLayout = srcImageLayout;
+        blitImageInfo.dstImage = dstImage;
+        blitImageInfo.dstImageLayout = dstImageLayout;
+        blitImageInfo.regionCount = 1;
+        blitImageInfo.pRegions = &blitRegion;
+
+        vkCmdBlitImage2(cmdBuffer, &blitImageInfo);
+    }
 }

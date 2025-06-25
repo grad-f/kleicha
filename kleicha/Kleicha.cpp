@@ -258,7 +258,6 @@ void Kleicha::draw() {
 	subresourceRange.layerCount = 1;
 	subresourceRange.levelCount = 1;
 
-
 	VkClearColorValue clearColor{ { std::sinf(static_cast<float>(m_framesRendered)/1000.0f), 0.0f, 0.0f, 1.0f}};
 
 	vkCmdClearColorImage(frame.cmdBuffer, frame.rasterImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearColor, 1, &subresourceRange);
@@ -267,34 +266,8 @@ void Kleicha::draw() {
 	utils::image_memory_barrier(frame.cmdBuffer, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, 
 		VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_READ_BIT | VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, frame.rasterImage.image);
 
-	VkImageBlit2 blitRegion{ .sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2 };
-	blitRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	blitRegion.srcSubresource.baseArrayLayer = 0;
-	blitRegion.srcSubresource.layerCount = 1;
-	blitRegion.srcSubresource.mipLevel = 0;
-
-	blitRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	blitRegion.dstSubresource.baseArrayLayer = 0;
-	blitRegion.dstSubresource.layerCount = 1;
-	blitRegion.dstSubresource.mipLevel = 0;
-
-	blitRegion.srcOffsets[1].x = static_cast<int32_t>(m_windowExtent.width);
-	blitRegion.srcOffsets[1].y = static_cast<int32_t>(m_windowExtent.height);
-	blitRegion.srcOffsets[1].z = 1;
-
-	blitRegion.dstOffsets[1].x = static_cast<int32_t>(m_windowExtent.width);
-	blitRegion.dstOffsets[1].y = static_cast<int32_t>(m_windowExtent.height);
-	blitRegion.dstOffsets[1].z = 1;
-
-	VkBlitImageInfo2 blitImageInfo{ .sType = VK_STRUCTURE_TYPE_BLIT_IMAGE_INFO_2 };
-	blitImageInfo.srcImage = frame.rasterImage.image;
-	blitImageInfo.srcImageLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-	blitImageInfo.dstImage = m_swapchain.images[imageIndex];
-	blitImageInfo.dstImageLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-	blitImageInfo.regionCount = 1;
-	blitImageInfo.pRegions = &blitRegion;
-
-	vkCmdBlitImage2(frame.cmdBuffer, &blitImageInfo);
+	// blit from intermediate raster image to swapchain image
+	utils::blit_image(frame.cmdBuffer, frame.rasterImage.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,m_swapchain.images[imageIndex],VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,m_windowExtent, m_windowExtent);
 
 	// transition swapchain image to VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
 	utils::image_memory_barrier(frame.cmdBuffer, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
