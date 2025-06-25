@@ -1,4 +1,5 @@
 #include "Utils.h"
+#include "Initializers.h"
 
 namespace utils {
     VkShaderModule create_shader_module(VkDevice device, const char* path) {
@@ -28,5 +29,18 @@ namespace utils {
         VK_CHECK(vkCreateShaderModule(device, &shaderModuleInfo, nullptr, &shaderModule));
 
         return shaderModule;
+    }
+
+    void image_memory_barrier(VkCommandBuffer cmdBuffer, VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 srcAccessMask,
+        VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask, VkImageLayout oldLayout, VkImageLayout newLayout, VkImage image) {
+
+        VkImageMemoryBarrier2 barrier{ init::create_image_barrier_info(srcStageMask, srcAccessMask, dstStageMask, dstAccessMask, oldLayout, newLayout, image) };
+
+        VkDependencyInfo dependencyInfo{ .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
+        dependencyInfo.pNext = nullptr;
+        dependencyInfo.imageMemoryBarrierCount = 1;
+        dependencyInfo.pImageMemoryBarriers = &barrier;
+
+        vkCmdPipelineBarrier2(cmdBuffer, &dependencyInfo);
     }
 }

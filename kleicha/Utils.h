@@ -18,5 +18,8 @@
 
 namespace utils {
     VkShaderModule create_shader_module(VkDevice device, const char* path);
+
+    void image_memory_barrier(VkCommandBuffer cmdBuffer, VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 srcAccessMask,
+        VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask, VkImageLayout oldLayout, VkImageLayout newLayout, VkImage image);
 }
 #endif // !UTILS_H

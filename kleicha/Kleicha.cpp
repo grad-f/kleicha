@@ -239,6 +239,7 @@ void Kleicha::draw() {
 	VkImageMemoryBarrier2 presentToTransferDst{ init::create_image_barrier_info(VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
 		VK_PIPELINE_STAGE_2_TRANSFER_BIT,VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, m_swapchain.images[imageIndex])};
 
+	// batch this to avoid unnecessary driver overhead
 	VkImageMemoryBarrier2 imageBarriers[]{ toTransferDst, presentToTransferDst };
 
 	// transition swapchain image to VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
@@ -263,16 +264,8 @@ void Kleicha::draw() {
 	vkCmdClearColorImage(frame.cmdBuffer, frame.rasterImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearColor, 1, &subresourceRange);
 
 	// transition image to transfer src
-	VkImageMemoryBarrier2 toTransferSrc{ init::create_image_barrier_info(VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, 
-		VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_READ_BIT | VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, frame.rasterImage.image)};
-
-	// transition swapchain image to VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
-	VkDependencyInfo dependencyInfo2{ .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
-	dependencyInfo2.pNext = nullptr;
-	dependencyInfo2.imageMemoryBarrierCount = 1;
-	dependencyInfo2.pImageMemoryBarriers = &toTransferSrc;
-	// image memory barrier
-	vkCmdPipelineBarrier2(frame.cmdBuffer, &dependencyInfo2);
+	utils::image_memory_barrier(frame.cmdBuffer, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, 
+		VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_READ_BIT | VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, frame.rasterImage.image);
 
 	VkImageBlit2 blitRegion{ .sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2 };
 	blitRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -303,17 +296,9 @@ void Kleicha::draw() {
 
 	vkCmdBlitImage2(frame.cmdBuffer, &blitImageInfo);
 
-	VkImageMemoryBarrier2 transferDstToPresent{ init::create_image_barrier_info(VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
-		VK_PIPELINE_STAGE_2_TRANSFER_BIT,VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, m_swapchain.images[imageIndex]) };
-
 	// transition swapchain image to VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
-	VkDependencyInfo dependencyInfoPresent{ .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
-	dependencyInfoPresent.pNext = nullptr;
-	dependencyInfoPresent.imageMemoryBarrierCount = 1;
-	dependencyInfoPresent.pImageMemoryBarriers = &transferDstToPresent;
-	
-	vkCmdPipelineBarrier2(frame.cmdBuffer, &dependencyInfoPresent);
-
+	utils::image_memory_barrier(frame.cmdBuffer, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
+		VK_PIPELINE_STAGE_2_TRANSFER_BIT,VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, m_swapchain.images[imageIndex]);
 
 	{
 	/* boilerplate for when we use a graphics pipeline
