@@ -108,7 +108,9 @@ VkPipeline PipelineBuilder::build() {
 
 	pipelineInfo.pDepthStencilState = &m_depthStencilInfo;
 
-	VkPipelineColorBlendAttachmentState colorBlendAttachmentState{ .blendEnable = VK_FALSE };
+	VkPipelineColorBlendAttachmentState colorBlendAttachmentState{};
+	colorBlendAttachmentState.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+	colorBlendAttachmentState.blendEnable = VK_FALSE;
 	m_colorBlendInfo.logicOpEnable = VK_FALSE;
 	m_colorBlendInfo.logicOp = VK_LOGIC_OP_COPY;
 	m_colorBlendInfo.attachmentCount = 1;
