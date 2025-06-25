@@ -157,7 +157,11 @@ void Kleicha::init_images() {
 	VmaAllocationCreateInfo allocationInfo{};
 	allocationInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
 	allocationInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-	VK_CHECK(vmaCreateImage(m_allocator, &imageInfo, &allocationInfo, &m_rasterImage.image, &m_rasterImage.allocation, &m_rasterImage.allocationInfo));
+
+	// create an intermediate frame for each potential frame in flight
+	
+	for (auto& frame : m_frames)
+		VK_CHECK(vmaCreateImage(m_allocator, &imageInfo, &allocationInfo, &frame.rasterImage.image, &frame.rasterImage.allocation, &frame.rasterImage.allocationInfo));
 }
 
 void Kleicha::recreate_swapchain() {
@@ -180,7 +184,9 @@ void Kleicha::recreate_swapchain() {
 		vkDestroyImageView(m_device.device, view, nullptr);
 
 	vkDestroySwapchainKHR(m_device.device, m_swapchain.swapchain, nullptr);
-	vmaDestroyImage(m_allocator, m_rasterImage.image, m_rasterImage.allocation);
+
+	for (const auto& frame : m_frames)
+		vmaDestroyImage(m_allocator, frame.rasterImage.image, frame.rasterImage.allocation);
 
 	// get updated surface support details
 	DeviceBuilder builder{ m_instance.instance, m_surface };
@@ -228,7 +234,7 @@ void Kleicha::draw() {
 
 	// forms a dependency chain with vkAcquireNextImageKHR signal semaphore
 	VkImageMemoryBarrier2 toTransferDst{init::create_image_barrier_info(VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, 
-		VK_PIPELINE_STAGE_2_TRANSFER_BIT,VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, m_rasterImage.image)};
+		VK_PIPELINE_STAGE_2_TRANSFER_BIT,VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, frame.rasterImage.image)};
 
 	VkImageMemoryBarrier2 presentToTransferDst{ init::create_image_barrier_info(VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
 		VK_PIPELINE_STAGE_2_TRANSFER_BIT,VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, m_swapchain.images[imageIndex])};
@@ -254,11 +260,11 @@ void Kleicha::draw() {
 
 	VkClearColorValue clearColor{ { std::sinf(static_cast<float>(m_framesRendered)/1000.0f), 0.0f, 0.0f, 1.0f}};
 
-	vkCmdClearColorImage(frame.cmdBuffer, m_rasterImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearColor, 1, &subresourceRange);
+	vkCmdClearColorImage(frame.cmdBuffer, frame.rasterImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearColor, 1, &subresourceRange);
 
 	// transition image to transfer src
 	VkImageMemoryBarrier2 toTransferSrc{ init::create_image_barrier_info(VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, 
-		VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_READ_BIT | VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, m_rasterImage.image)};
+		VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_READ_BIT | VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, frame.rasterImage.image)};
 
 	// transition swapchain image to VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
 	VkDependencyInfo dependencyInfo2{ .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
@@ -288,7 +294,7 @@ void Kleicha::draw() {
 	blitRegion.dstOffsets[1].z = 1;
 
 	VkBlitImageInfo2 blitImageInfo{ .sType = VK_STRUCTURE_TYPE_BLIT_IMAGE_INFO_2 };
-	blitImageInfo.srcImage = m_rasterImage.image;
+	blitImageInfo.srcImage = frame.rasterImage.image;
 	blitImageInfo.srcImageLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
 	blitImageInfo.dstImage = m_swapchain.images[imageIndex];
 	blitImageInfo.dstImageLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
@@ -379,7 +385,8 @@ void Kleicha::draw() {
 
 void Kleicha::cleanup() const {
 
-	vmaDestroyImage(m_allocator, m_rasterImage.image, m_rasterImage.allocation);
+	for (const auto& frame : m_frames)
+		vmaDestroyImage(m_allocator, frame.rasterImage.image, frame.rasterImage.allocation);
 
 	vmaDestroyAllocator(m_allocator);
 

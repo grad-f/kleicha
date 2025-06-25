@@ -35,7 +35,6 @@ private:
 	VkPipelineLayout m_dummyPipelineLayout{};
 	VkPipeline m_graphicsPipeline{};
 	VmaAllocator m_allocator{};
-	vkt::Image m_rasterImage{};
 
 	vkt::Frame m_frames[MAX_FRAMES_IN_FLIGHT]{};
 	std::vector<VkSemaphore> m_renderedSemaphores{};

@@ -42,11 +42,20 @@ namespace vkt {
 		VkExtent2D imageExtent{};
 	};
 
+	struct Image {
+		VkImage image{};
+		VmaAllocation allocation{};
+		VmaAllocationInfo allocationInfo{};
+	};
+
 	// encapsulates data needed for each frame
 	struct Frame {
 		VkCommandBuffer cmdBuffer{};
 		VkFence inFlightFence{};
 		VkSemaphore acquiredSemaphore{};
+
+		// raster image we'll be drawing into -- greater color accuracy that is then copied into the swapchain image
+		vkt::Image rasterImage{};
 	};
 
 	// chained and encapsulated device features struct
@@ -56,12 +65,6 @@ namespace vkt {
 		VkPhysicalDeviceVulkan12Features Vk12Features{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES, .pNext = &Vk13Features };
 		VkPhysicalDeviceVulkan13Features Vk13Features{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES, .pNext = &Vk14Features };
 		VkPhysicalDeviceVulkan14Features Vk14Features{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_4_FEATURES };
-	};
-
-	struct Image {
-		VkImage image{};
-		VmaAllocation allocation{};
-		VmaAllocationInfo allocationInfo{};
 	};
 }
 #endif // !TYPES_H
