@@ -2,6 +2,7 @@
 #define TYPES_H
 
 #include <vector>
+#include "vk_mem_alloc.h"
 #include "vulkan/vulkan.h"
 
 namespace vkt {
@@ -55,6 +56,12 @@ namespace vkt {
 		VkPhysicalDeviceVulkan12Features Vk12Features{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES, .pNext = &Vk13Features };
 		VkPhysicalDeviceVulkan13Features Vk13Features{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES, .pNext = &Vk14Features };
 		VkPhysicalDeviceVulkan14Features Vk14Features{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_4_FEATURES };
+	};
+
+	struct Image {
+		VkImage image{};
+		VmaAllocation allocation{};
+		VmaAllocationInfo allocationInfo{};
 	};
 }
 #endif // !TYPES_H

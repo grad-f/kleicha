@@ -5,6 +5,7 @@
 
 #include "vulkan/vulkan.h"
 #include "Types.h"
+#include "vk_mem_alloc.h"
 
 constexpr uint32_t MAX_FRAMES_IN_FLIGHT{ 2 };
 
@@ -20,6 +21,9 @@ public:
 		return m_frames[m_framesRendered % 2];
 	}
 	uint32_t m_framesRendered{};
+	void set_window_extent(VkExtent2D extent) {
+		m_windowExtent = extent;
+	}
 private:
 	VkSurfaceKHR m_surface{};
 	VkExtent2D m_windowExtent{ 1600,900 };
@@ -30,6 +34,8 @@ private:
 	VkCommandBuffer m_immCmdBuffer{};
 	VkPipelineLayout m_dummyPipelineLayout{};
 	VkPipeline m_graphicsPipeline{};
+	VmaAllocator m_allocator{};
+	vkt::Image m_rasterImage{};
 
 	vkt::Frame m_frames[MAX_FRAMES_IN_FLIGHT]{};
 	std::vector<VkSemaphore> m_renderedSemaphores{};
@@ -39,6 +45,8 @@ private:
 	void init_command_buffers();
 	void init_sync_primitives();
 	void init_graphics_pipelines();
+	void init_vma();
+	void init_images();
 
 	void draw();
 	void recreate_swapchain();
