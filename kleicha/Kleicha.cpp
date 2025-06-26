@@ -69,7 +69,7 @@ void Kleicha::init_vulkan() {
 void Kleicha::init_swapchain() {
 	// create swapchain
 	SwapchainBuilder swapchainBuilder{ m_instance.instance, m_window, m_surface, m_device };
-	VkSurfaceFormatKHR surfaceFormat{ .format = VK_FORMAT_R8G8B8A8_UNORM, .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR };
+	VkSurfaceFormatKHR surfaceFormat{ .format = VK_FORMAT_R8G8B8A8_SRGB, .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR };
 	m_swapchain = swapchainBuilder.desired_image_usage(VK_IMAGE_USAGE_TRANSFER_DST_BIT).desired_image_format(surfaceFormat).desired_present_mode(VK_PRESENT_MODE_FIFO_KHR).build();
 }
 
@@ -275,6 +275,7 @@ void Kleicha::draw() {
 
 	// begin a render pass
 	vkCmdBeginRendering(frame.cmdBuffer, &renderingInfo);
+
 	vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
 
 	// will be used to compute the viewport transformation (NDC to screen space)

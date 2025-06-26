@@ -7,8 +7,9 @@ VkSurfaceFormatKHR SwapchainBuilder::get_swapchain_format() const {
 	// choose image format
 	for (const auto& deviceCompatibleFormat : m_surfaceSupportDetails.formats) {
 		// use desired image format if supported by the physical device and surface
-		if (deviceCompatibleFormat.format == m_desiredImageFormat.format && deviceCompatibleFormat.colorSpace == m_desiredImageFormat.colorSpace)
+		if (deviceCompatibleFormat.format == m_desiredImageFormat.format && deviceCompatibleFormat.colorSpace == m_desiredImageFormat.colorSpace) {
 			return m_desiredImageFormat;
+		}
 	}
 	return m_surfaceSupportDetails.formats[0];
 }

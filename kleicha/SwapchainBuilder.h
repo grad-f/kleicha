@@ -38,7 +38,7 @@ private:
 	vkt::SurfaceSupportDetails m_surfaceSupportDetails{};
 
 	VkSurfaceFormatKHR m_desiredImageFormat{};
-	VkImageUsageFlags m_desiredImageUsage{ VK_IMAGE_USAGE_STORAGE_BIT };
+	VkImageUsageFlags m_desiredImageUsage{ VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT };
 	VkPresentModeKHR m_desiredPresentMode{};
 
 	VkSurfaceFormatKHR get_swapchain_format() const;
