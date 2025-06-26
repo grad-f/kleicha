@@ -208,12 +208,46 @@ void Kleicha::upload_mesh_data() {
 	VK_CHECK(vmaCreateBuffer(m_allocator, &stagingBufferInfo, &allocationInfo, &stagingBuffer.buffer, &stagingBuffer.allocation, &stagingBuffer.allocationInfo));
 	memcpy(stagingBuffer.allocation->GetMappedData(), vertexPositions, sizeof(vertexPositions));
 
-	float* pFloats{ reinterpret_cast<float*>(stagingBuffer.allocation->GetMappedData()) };
+	VkCommandBufferBeginInfo cmdBufferBeginInfo{
+		.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+		.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+	};
 
-	for (std::size_t i{ 0 }; i < std::size(vertexPositions); ++i) {
-		fmt::println("{}", pFloats[i]);
+	// transition to recording state
+	VK_CHECK(vkBeginCommandBuffer(m_immCmdBuffer, &cmdBufferBeginInfo));
+
+	VkBufferCopy bufferCopy{.srcOffset = 0, .dstOffset = 0, .size = sizeof(vertexPositions)};
+	vkCmdCopyBuffer(m_immCmdBuffer, stagingBuffer.buffer, m_cubeMesh.buffer, 1, &bufferCopy);
+
+	VK_CHECK(vkEndCommandBuffer(m_immCmdBuffer));
+
+	VkFenceCreateInfo fenceInfo{ .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
+	fenceInfo.pNext = nullptr;
+	VkFence immFence{};
+	// we should probably create this once and store the handle in header
+	VK_CHECK(vkCreateFence(m_device.device, &fenceInfo, nullptr, &immFence));
+
+	// submit
+	VkCommandBufferSubmitInfo cmdBufferSubmitInfo{ .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO };
+	cmdBufferSubmitInfo.commandBuffer = m_immCmdBuffer;
+	cmdBufferSubmitInfo.deviceMask = 0;
+
+	VkSubmitInfo2 submitInfo{ .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2 };
+	submitInfo.pNext = nullptr;
+	submitInfo.commandBufferInfoCount = 1;
+	submitInfo.pCommandBufferInfos = &cmdBufferSubmitInfo;
+	vkQueueSubmit2(m_device.queue, 1, &submitInfo, immFence);
+
+	{/*
+		float* pFloats{ reinterpret_cast<float*>(stagingBuffer.allocation->GetMappedData()) };
+
+		for (std::size_t i{ 0 }; i < std::size(vertexPositions); ++i) {
+			fmt::println("{}", pFloats[i]);
+		}*/
 	}
 
+	vkWaitForFences(m_device.device, 1, &immFence, VK_TRUE, std::numeric_limits<uint64_t>::max());
+	vkDestroyFence(m_device.device, immFence, nullptr);
 	vmaDestroyBuffer(m_allocator, stagingBuffer.buffer, stagingBuffer.allocation);
 }
 
