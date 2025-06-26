@@ -38,6 +38,8 @@ void Kleicha::init() {
 	init_graphics_pipelines();
 	init_vma();
 	init_intermediate_images();
+	
+	upload_mesh_data();
 }
 
 // core vulkan init
@@ -69,7 +71,7 @@ void Kleicha::init_vulkan() {
 void Kleicha::init_swapchain() {
 	// create swapchain
 	SwapchainBuilder swapchainBuilder{ m_instance.instance, m_window, m_surface, m_device };
-	VkSurfaceFormatKHR surfaceFormat{ .format = VK_FORMAT_R8G8B8A8_SRGB, .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR };
+	VkSurfaceFormatKHR surfaceFormat{ .format = VK_FORMAT_B8G8R8A8_SRGB, .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR };
 	m_swapchain = swapchainBuilder.desired_image_usage(VK_IMAGE_USAGE_TRANSFER_DST_BIT).desired_image_format(surfaceFormat).desired_present_mode(VK_PRESENT_MODE_FIFO_KHR).build();
 }
 
@@ -80,7 +82,6 @@ void Kleicha::init_command_buffers() {
 	cmdPoolInfo.queueFamilyIndex = m_device.physicalDevice.queueFamilyIndex;
 	VK_CHECK(vkCreateCommandPool(m_device.device, &cmdPoolInfo, nullptr, &m_commandPool));
 	fmt::println("[Kleicha] Created command pool.");
-
 
 	VkCommandBufferAllocateInfo cmdBufferInfo{ .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
 	cmdBufferInfo.pNext = nullptr;
@@ -165,6 +166,55 @@ void Kleicha::init_intermediate_images() {
 		VkImageViewCreateInfo imageViewInfo{ init::create_image_view_info(frame.rasterImage.image, INTERMEDIATE_IMAGE_FORMAT, VK_IMAGE_ASPECT_COLOR_BIT) };
 		VK_CHECK(vkCreateImageView(m_device.device, &imageViewInfo, nullptr, &frame.rasterImage.imageView));
 	}
+}
+
+void Kleicha::upload_mesh_data() {
+	// for now let's upload a cube mesh to the gpu
+	float vertexPositions[108] = {
+		-1.0f,  1.0f, -1.0f, -1.0f, -1.0f, -1.0f, 1.0f, -1.0f, -1.0f,
+		1.0f, -1.0f, -1.0f, 1.0f,  1.0f, -1.0f, -1.0f,  1.0f, -1.0f,
+		1.0f, -1.0f, -1.0f, 1.0f, -1.0f,  1.0f, 1.0f,  1.0f, -1.0f,
+		1.0f, -1.0f,  1.0f, 1.0f,  1.0f,  1.0f, 1.0f,  1.0f, -1.0f,
+		1.0f, -1.0f,  1.0f, -1.0f, -1.0f,  1.0f, 1.0f,  1.0f,  1.0f,
+		-1.0f, -1.0f,  1.0f, -1.0f,  1.0f,  1.0f, 1.0f,  1.0f,  1.0f,
+		-1.0f, -1.0f,  1.0f, -1.0f, -1.0f, -1.0f, -1.0f,  1.0f,  1.0f,
+		-1.0f, -1.0f, -1.0f, -1.0f,  1.0f, -1.0f, -1.0f,  1.0f,  1.0f,
+		-1.0f, -1.0f,  1.0f,  1.0f, -1.0f,  1.0f,  1.0f, -1.0f, -1.0f,
+		1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f,  1.0f,
+		-1.0f,  1.0f, -1.0f, 1.0f,  1.0f, -1.0f, 1.0f,  1.0f,  1.0f,
+		1.0f,  1.0f,  1.0f, -1.0f,  1.0f,  1.0f, -1.0f,  1.0f, -1.0f
+	};
+
+	VkBufferCreateInfo bufferInfo{ init::create_buffer_info(sizeof(vertexPositions), 
+		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) };
+
+	VmaAllocationCreateInfo allocationInfo{};
+	allocationInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+	allocationInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+	// allocate device local buffer
+	VK_CHECK(vmaCreateBuffer(m_allocator, &bufferInfo, &allocationInfo, &m_cubeMesh.buffer, &m_cubeMesh.allocation, &m_cubeMesh.allocationInfo));
+	// get buffer device address
+	VkBufferDeviceAddressInfo deviceAddressInfo{ .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = m_cubeMesh.buffer };
+	m_cubeMesh.bufferDeviceAddress = vkGetBufferDeviceAddress(m_device.device, &deviceAddressInfo);
+
+	// create staging buffer on host to copy cube vertex positions into device allocation
+	vkt::Buffer stagingBuffer{};
+	VkBufferCreateInfo stagingBufferInfo{ init::create_buffer_info(sizeof(vertexPositions), VK_BUFFER_USAGE_TRANSFER_SRC_BIT) };
+	allocationInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+	allocationInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+	// ensure host visible and coherent so that we can map and our writes are seen by the device to ensure the copy isn't copying stale data
+	allocationInfo.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+	VK_CHECK(vmaCreateBuffer(m_allocator, &stagingBufferInfo, &allocationInfo, &stagingBuffer.buffer, &stagingBuffer.allocation, &stagingBuffer.allocationInfo));
+	memcpy(stagingBuffer.allocation->GetMappedData(), vertexPositions, sizeof(vertexPositions));
+
+	float* pFloats{ reinterpret_cast<float*>(stagingBuffer.allocation->GetMappedData()) };
+
+	for (std::size_t i{ 0 }; i < std::size(vertexPositions); ++i) {
+		fmt::println("{}", pFloats[i]);
+	}
+
+	vmaDestroyBuffer(m_allocator, stagingBuffer.buffer, stagingBuffer.allocation);
 }
 
 void Kleicha::recreate_swapchain() {
@@ -357,6 +407,8 @@ void Kleicha::draw() {
 }
 
 void Kleicha::cleanup() const {
+
+	vmaDestroyBuffer(m_allocator, m_cubeMesh.buffer, m_cubeMesh.allocation);
 
 	for (const auto& frame : m_frames) {
 		vkDestroyFence(m_device.device, frame.inFlightFence, nullptr);

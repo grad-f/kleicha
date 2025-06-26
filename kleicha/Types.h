@@ -49,6 +49,13 @@ namespace vkt {
 		VmaAllocationInfo allocationInfo{};
 	};
 
+	struct Buffer {
+		VkBuffer buffer{};
+		VmaAllocation allocation{};
+		VmaAllocationInfo allocationInfo{};
+		VkDeviceSize bufferDeviceAddress{ 0 };
+	};
+
 	// encapsulates data needed for each frame
 	struct Frame {
 		VkCommandBuffer cmdBuffer{};

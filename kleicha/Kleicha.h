@@ -40,6 +40,8 @@ private:
 	vkt::Frame m_frames[MAX_FRAMES_IN_FLIGHT]{};
 	std::vector<VkSemaphore> m_renderedSemaphores{};
 
+	vkt::Buffer m_cubeMesh{};
+
 	void init_vulkan();
 	void init_swapchain();
 	void init_command_buffers();
@@ -47,6 +49,8 @@ private:
 	void init_graphics_pipelines();
 	void init_vma();
 	void init_intermediate_images();
+
+	void upload_mesh_data();
 
 	void draw();
 	void recreate_swapchain();

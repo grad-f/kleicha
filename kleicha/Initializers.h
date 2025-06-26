@@ -13,6 +13,8 @@ namespace init {
 
 	VkImageCreateInfo create_image_info(VkFormat format, VkExtent2D extent, VkImageUsageFlags usage);
 
+	VkBufferCreateInfo create_buffer_info(VkDeviceSize size, VkBufferUsageFlags usage);
+
 	VkImageViewCreateInfo create_image_view_info(VkImage image, VkFormat format, VkImageAspectFlags aspectMask);
 }
 #endif // !INITIALIZERS_H

@@ -53,6 +53,17 @@ namespace init {
 		return imageInfo;
 	}
 
+	VkBufferCreateInfo create_buffer_info(VkDeviceSize size, VkBufferUsageFlags usage) {
+		VkBufferCreateInfo bufferInfo{ .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
+		bufferInfo.pNext = nullptr;
+		bufferInfo.size = size;
+		bufferInfo.usage = usage;
+		bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+		return bufferInfo;
+	}
+
+
 	VkImageViewCreateInfo create_image_view_info(VkImage image, VkFormat format, VkImageAspectFlags aspectMask) {
 		VkImageViewCreateInfo imageViewInfo{ .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
 		imageViewInfo.pNext = nullptr;
