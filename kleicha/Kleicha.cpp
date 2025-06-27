@@ -56,11 +56,12 @@ void Kleicha::init_vulkan() {
 	/*		create logical device		*/		
 	std::vector<const char*> deviceExtensions{ VK_KHR_SWAPCHAIN_EXTENSION_NAME,
 		VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME, VK_EXT_PIPELINE_CREATION_CACHE_CONTROL_EXTENSION_NAME,
-		VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME, VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME };
+		VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME, VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME, VK_EXT_SCALAR_BLOCK_LAYOUT_EXTENSION_NAME };
 	vkt::DeviceFeatures deviceFeatures{};
 	deviceFeatures.Vk12Features.timelineSemaphore = true;
 	deviceFeatures.Vk12Features.bufferDeviceAddress = true;
 	deviceFeatures.Vk12Features.descriptorIndexing = true;
+	deviceFeatures.Vk12Features.scalarBlockLayout = true;
 	deviceFeatures.Vk13Features.dynamicRendering = true;
 	deviceFeatures.Vk13Features.synchronization2 = true;
 	deviceFeatures.Vk13Features.pipelineCreationCacheControl = true;
@@ -121,12 +122,19 @@ void Kleicha::init_sync_primitives() {
 void Kleicha::init_graphics_pipelines() {
 
 	// create dummy shader modules to test pipeline builder.
+	VkPushConstantRange pushConstantRange{ .stageFlags = VK_SHADER_STAGE_VERTEX_BIT, .offset = 0, .size = sizeof(VkDeviceAddress)};
 
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo{ .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
+	pipelineLayoutInfo.pushConstantRangeCount = 1;
+	pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
 	vkCreatePipelineLayout(m_device.device, &pipelineLayoutInfo, nullptr, &m_dummyPipelineLayout);
 
-	VkShaderModule vertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_basic.spv") };
-	VkShaderModule fragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_basic.spv") };
+	/*VkShaderModule vertModule{utils::create_shader_module(m_device.device, "../shaders/vert_basic.spv")};
+	VkShaderModule fragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_basic.spv") };*/
+
+	VkShaderModule vertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_cube.spv") };
+	VkShaderModule fragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_cube.spv") };
+
 	PipelineBuilder pipelineBuilder{ m_device.device };
 	pipelineBuilder.pipelineLayout = m_dummyPipelineLayout;
 	pipelineBuilder.set_shaders(vertModule, fragModule);								//ccw winding
@@ -171,21 +179,24 @@ void Kleicha::init_intermediate_images() {
 void Kleicha::upload_mesh_data() {
 	// for now let's upload a cube mesh to the gpu
 	float vertexPositions[108] = {
-		-1.0f,  1.0f, -1.0f, -1.0f, -1.0f, -1.0f, 1.0f, -1.0f, -1.0f,
-		1.0f, -1.0f, -1.0f, 1.0f,  1.0f, -1.0f, -1.0f,  1.0f, -1.0f,
-		1.0f, -1.0f, -1.0f, 1.0f, -1.0f,  1.0f, 1.0f,  1.0f, -1.0f,
-		1.0f, -1.0f,  1.0f, 1.0f,  1.0f,  1.0f, 1.0f,  1.0f, -1.0f,
-		1.0f, -1.0f,  1.0f, -1.0f, -1.0f,  1.0f, 1.0f,  1.0f,  1.0f,
-		-1.0f, -1.0f,  1.0f, -1.0f,  1.0f,  1.0f, 1.0f,  1.0f,  1.0f,
-		-1.0f, -1.0f,  1.0f, -1.0f, -1.0f, -1.0f, -1.0f,  1.0f,  1.0f,
-		-1.0f, -1.0f, -1.0f, -1.0f,  1.0f, -1.0f, -1.0f,  1.0f,  1.0f,
-		-1.0f, -1.0f,  1.0f,  1.0f, -1.0f,  1.0f,  1.0f, -1.0f, -1.0f,
-		1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f,  1.0f,
-		-1.0f,  1.0f, -1.0f, 1.0f,  1.0f, -1.0f, 1.0f,  1.0f,  1.0f,
-		1.0f,  1.0f,  1.0f, -1.0f,  1.0f,  1.0f, -1.0f,  1.0f, -1.0f
+	-0.5f,  0.5f, 0.25f,   -0.5f, -0.5f, 0.25f,    0.5f, -0.5f, 0.25f,
+	 0.5f, -0.5f, 0.25f,    0.5f,  0.5f, 0.25f,   -0.5f,  0.5f, 0.25f,
+	 0.5f, -0.5f, 0.25f,    0.5f, -0.5f, 0.75f,    0.5f,  0.5f, 0.25f,
+	 0.5f, -0.5f, 0.75f,    0.5f,  0.5f, 0.75f,    0.5f,  0.5f, 0.25f,
+	 0.5f, -0.5f, 0.75f,   -0.5f, -0.5f, 0.75f,    0.5f,  0.5f, 0.75f,
+	-0.5f, -0.5f, 0.75f,   -0.5f,  0.5f, 0.75f,    0.5f,  0.5f, 0.75f,
+	-0.5f, -0.5f, 0.75f,   -0.5f, -0.5f, 0.25f,   -0.5f,  0.5f, 0.75f,
+	-0.5f, -0.5f, 0.25f,   -0.5f,  0.5f, 0.25f,   -0.5f,  0.5f, 0.75f,
+	-0.5f, -0.5f, 0.75f,    0.5f, -0.5f, 0.75f,    0.5f, -0.5f, 0.25f,
+	 0.5f, -0.5f, 0.25f,   -0.5f, -0.5f, 0.25f,   -0.5f, -0.5f, 0.75f,
+	-0.5f,  0.5f, 0.25f,    0.5f,  0.5f, 0.25f,    0.5f,  0.5f, 0.75f,
+	 0.5f,  0.5f, 0.75f,   -0.5f,  0.5f, 0.75f,   -0.5f,  0.5f, 0.25f
 	};
 
-	VkBufferCreateInfo bufferInfo{ init::create_buffer_info(sizeof(vertexPositions), 
+
+	VkDeviceSize bufferSize{sizeof(float) * std::size(vertexPositions)};
+
+	VkBufferCreateInfo bufferInfo{ init::create_buffer_info(bufferSize,
 		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) };
 
 	VmaAllocationCreateInfo allocationInfo{};
@@ -200,13 +211,13 @@ void Kleicha::upload_mesh_data() {
 
 	// create staging buffer on host to copy cube vertex positions into device allocation
 	vkt::Buffer stagingBuffer{};
-	VkBufferCreateInfo stagingBufferInfo{ init::create_buffer_info(sizeof(vertexPositions), VK_BUFFER_USAGE_TRANSFER_SRC_BIT) };
+	VkBufferCreateInfo stagingBufferInfo{ init::create_buffer_info(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT) };
 	allocationInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
 	allocationInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
 	// ensure host visible and coherent so that we can map and our writes are seen by the device to ensure the copy isn't copying stale data
 	allocationInfo.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
 	VK_CHECK(vmaCreateBuffer(m_allocator, &stagingBufferInfo, &allocationInfo, &stagingBuffer.buffer, &stagingBuffer.allocation, &stagingBuffer.allocationInfo));
-	memcpy(stagingBuffer.allocation->GetMappedData(), vertexPositions, sizeof(vertexPositions));
+	memcpy(stagingBuffer.allocation->GetMappedData(), vertexPositions, bufferSize);
 
 	VkCommandBufferBeginInfo cmdBufferBeginInfo{
 		.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -216,7 +227,7 @@ void Kleicha::upload_mesh_data() {
 	// transition to recording state
 	VK_CHECK(vkBeginCommandBuffer(m_immCmdBuffer, &cmdBufferBeginInfo));
 
-	VkBufferCopy bufferCopy{.srcOffset = 0, .dstOffset = 0, .size = sizeof(vertexPositions)};
+	VkBufferCopy bufferCopy{.srcOffset = 0, .dstOffset = 0, .size = bufferSize };
 	vkCmdCopyBuffer(m_immCmdBuffer, stagingBuffer.buffer, m_cubeMesh.buffer, 1, &bufferCopy);
 
 	VK_CHECK(vkEndCommandBuffer(m_immCmdBuffer));
@@ -238,12 +249,12 @@ void Kleicha::upload_mesh_data() {
 	submitInfo.pCommandBufferInfos = &cmdBufferSubmitInfo;
 	vkQueueSubmit2(m_device.queue, 1, &submitInfo, immFence);
 
-	{/*
+	{
 		float* pFloats{ reinterpret_cast<float*>(stagingBuffer.allocation->GetMappedData()) };
 
 		for (std::size_t i{ 0 }; i < std::size(vertexPositions); ++i) {
 			fmt::println("{}", pFloats[i]);
-		}*/
+		}
 	}
 
 	vkWaitForFences(m_device.device, 1, &immFence, VK_TRUE, std::numeric_limits<uint64_t>::max());
@@ -379,8 +390,12 @@ void Kleicha::draw() {
 
 	vkCmdSetViewport(frame.cmdBuffer, 0, 1, &viewport);
 	vkCmdSetScissor(frame.cmdBuffer, 0, 1, &scissor);
+
+	// push constants
+	vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(VkDeviceAddress), &m_cubeMesh.bufferDeviceAddress);
+
 	// invoke the vertex shader 3 times.
-	vkCmdDraw(frame.cmdBuffer, 3, 1, 0, 0);
+	vkCmdDraw(frame.cmdBuffer, 36, 1, 0, 0);
 
 	vkCmdEndRendering(frame.cmdBuffer);
 

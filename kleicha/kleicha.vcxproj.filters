@@ -76,5 +76,11 @@
     <None Include="..\shaders\basic.frag">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="..\shaders\cube.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shaders\cube.vert">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>
