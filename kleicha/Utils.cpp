@@ -74,4 +74,58 @@ namespace utils {
 
         vkCmdBlitImage2(cmdBuffer, &blitImageInfo);
     }
+
+    vkt::Buffer create_buffer(VmaAllocator allocator, VkDeviceSize bufferSize, VkBufferUsageFlags bufferUsage,
+        VmaMemoryUsage memoryUsage, VkMemoryPropertyFlags requiredFlags, VmaAllocationCreateFlags flags) {
+
+        VkBufferCreateInfo bufferInfo{ init::create_buffer_info(bufferSize, bufferUsage) };
+        VmaAllocationCreateInfo allocationInfo{};
+        allocationInfo.flags = flags;
+        allocationInfo.usage = memoryUsage;
+        allocationInfo.requiredFlags = requiredFlags;
+        vkt::Buffer buf{};
+        VK_CHECK(vmaCreateBuffer(allocator, &bufferInfo, &allocationInfo, &buf.buffer, &buf.allocation, &buf.allocationInfo));
+
+        return buf;
+    }
+
+
+
+    vkt::IndexedMesh generate_cube_mesh() {
+        return {
+            .tInd { //triangles
+                // top
+                {2, 6, 7},
+                {2, 3, 7},
+                // bottom
+                {0, 4, 5},
+                {0, 1, 5},
+                // left
+                {0, 2, 6},
+                {0, 4, 6},
+                // right
+                {1, 3, 7},
+                {1, 5, 7},
+                // front
+                {0, 2, 3},
+                {0, 1, 3},
+                // back
+                {4, 6, 7},
+                {4, 5, 7},
+        },
+
+            .verts {
+            {	{-0.5f, -0.5f, 0.75f}  },	//0
+            {	{0.5f, -0.5f, 0.75f}  },	//1
+            {	{-0.5f, 0.5f, 0.75f}  },	//2
+            {	{0.5f, 0.5f, 0.75f}  },		//3
+            {	{-0.5f, -0.5f, 0.25f}  },	//4
+            {	{0.5f, -0.5f, 0.25f}  },	//5
+            {	{-0.5f, 0.5f, 0.25f}  },	//6
+            {	{0.5f, 0.5f, 0.25f}  },		//7
+        }
+
+        };
+    }
+
 }

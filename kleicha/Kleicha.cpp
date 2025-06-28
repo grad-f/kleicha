@@ -38,8 +38,7 @@ void Kleicha::init() {
 	init_graphics_pipelines();
 	init_vma();
 	init_intermediate_images();
-	
-	upload_mesh_data();
+	init_meshes();
 }
 
 // core vulkan init
@@ -112,6 +111,9 @@ void Kleicha::init_sync_primitives() {
 		VK_CHECK(vkCreateSemaphore(m_device.device, &semaphoreInfo, nullptr, &frame.acquiredSemaphore));
 	}
 
+	// create immediate submit fence
+	VK_CHECK(vkCreateFence(m_device.device, &fenceInfo, nullptr, &m_immFence));
+
 	//allocate present semaphores for each swap chain image
 	m_renderedSemaphores.resize(m_swapchain.imageCount);
 	for (auto& renderedSemaphore : m_renderedSemaphores) {
@@ -176,95 +178,51 @@ void Kleicha::init_intermediate_images() {
 	}
 }
 
-void Kleicha::upload_mesh_data() {
+void Kleicha::init_meshes() {
 	// for now let's upload a cube mesh to the gpu
-	vkt::IndexedMesh cube{
+	vkt::IndexedMesh cubeMesh{ utils::generate_cube_mesh() };
+	m_cubeAllocation = upload_mesh_data(cubeMesh);
+}
 
-		.tInd { //triangles
-				// top
-				{2, 6, 7},
-				{2, 3, 7},
-				// bottom
-				{0, 4, 5},
-				{0, 1, 5},
-				// left
-				{0, 2, 6},
-				{0, 4, 6},
-				// right
-				{1, 3, 7},
-				{1, 5, 7},
-				// front
-				{0, 2, 3},
-				{0, 1, 3},
-				// back
-				{4, 6, 7},
-				{4, 5, 7},
-		},
+vkt::GPUMeshAllocation Kleicha::upload_mesh_data(const vkt::IndexedMesh& mesh) {
+	// Create mesh vertex and index buffers
+	vkt::Buffer GPUvertsAllocation{ utils::create_buffer(m_allocator, mesh.vertsBufferSize,
+		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT_COPY,
+		VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) };
 
-		.verts {
-			{	{-0.5f, -0.5f, 0.75f}  },	//0
-			{	{0.5f, -0.5f, 0.75f}  },	//1
-			{	{-0.5f, 0.5f, 0.75f}  },	//2
-			{	{0.5f, 0.5f, 0.75f}  },		//3
-			{	{-0.5f, -0.5f, 0.25f}  },	//4
-			{	{0.5f, -0.5f, 0.25f}  },	//5
-			{	{-0.5f, 0.5f, 0.25f}  },	//6
-			{	{0.5f, 0.5f, 0.25f}  },		//7
-		}
-	};
+	vkt::Buffer GPUindAllocation{ utils::create_buffer(m_allocator, mesh.tIndBufferSize,
+		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+		VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) };
 
-	VkBufferCreateInfo vertexBufferInfo{ init::create_buffer_info(cube.vertsBufferSize,
-		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) };
-
-	VkBufferCreateInfo indexBufferInfo{ init::create_buffer_info(cube.tIndBufferSize,
-		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT) };
-
-	VmaAllocationCreateInfo allocationInfo{};
-	allocationInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
-	allocationInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-
-	// allocate device local buffer
-	VK_CHECK(vmaCreateBuffer(m_allocator, &vertexBufferInfo, &allocationInfo, &m_cubeMesh.vertexBuffer, &m_cubeMesh.vertexAllocation, &m_cubeMesh.vertexAllocationInfo));
-	VK_CHECK(vmaCreateBuffer(m_allocator, &indexBufferInfo, &allocationInfo, &m_cubeMesh.indexBuffer, &m_cubeMesh.indexAllocation, &m_cubeMesh.indexAllocationInfo));
 	// get buffer device address
-	VkBufferDeviceAddressInfo deviceAddressInfo{ .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = m_cubeMesh.vertexBuffer };
-	m_cubeMesh.vertexBufferDeviceAddress = vkGetBufferDeviceAddress(m_device.device, &deviceAddressInfo);
+	VkBufferDeviceAddressInfo GPUvertexBufferAddr{ .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = GPUvertsAllocation.buffer };
+	VkDeviceAddress vertexBufferDeviceAddress{ vkGetBufferDeviceAddress(m_device.device, &GPUvertexBufferAddr) };
 
-	// create staging buffer on host to copy cube vertex positions into device allocation
-	vkt::MeshBuffer stagingBuffer{};
-	VkBufferCreateInfo vertexStagingBufferInfo{ init::create_buffer_info(cube.vertsBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT) };
-	VkBufferCreateInfo indexStagingBufferInfo{ init::create_buffer_info(cube.tIndBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT) };
-	allocationInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
-	allocationInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
-	// ensure host visible and coherent so that we can map and our writes are seen by the device to ensure the copy isn't copying stale data
-	allocationInfo.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-	VK_CHECK(vmaCreateBuffer(m_allocator, &vertexStagingBufferInfo, &allocationInfo, &stagingBuffer.vertexBuffer, &stagingBuffer.vertexAllocation, &stagingBuffer.vertexAllocationInfo));
-	VK_CHECK(vmaCreateBuffer(m_allocator, &indexStagingBufferInfo, &allocationInfo, &stagingBuffer.indexBuffer, &stagingBuffer.indexAllocation, &stagingBuffer.indexAllocationInfo));
-	memcpy(stagingBuffer.vertexAllocation->GetMappedData(), cube.verts.data(), cube.vertsBufferSize);
-	memcpy(stagingBuffer.indexAllocation->GetMappedData(), cube.tInd.data(), cube.tIndBufferSize);
+	// Create staging buffers
+	vkt::Buffer STGvertexBuffer{ utils::create_buffer(m_allocator, mesh.vertsBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,  VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT) };
+
+	vkt::Buffer STGindexBuffer{ utils::create_buffer(m_allocator, mesh.tIndBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,  VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT) };
+
+	// copy to mapped device visible memory
+	memcpy(STGvertexBuffer.allocation->GetMappedData(), mesh.verts.data(), mesh.vertsBufferSize);
+	memcpy(STGindexBuffer.allocation->GetMappedData(), mesh.tInd.data(), mesh.tIndBufferSize);
 
 	VkCommandBufferBeginInfo cmdBufferBeginInfo{
 		.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
 		.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
 	};
 
+	vkResetFences(m_device.device, 1, &m_immFence);
 	// transition to recording state
 	VK_CHECK(vkBeginCommandBuffer(m_immCmdBuffer, &cmdBufferBeginInfo));
-
-	VkBufferCopy bufferCopy{.srcOffset = 0, .dstOffset = 0, .size = cube.vertsBufferSize };
-	vkCmdCopyBuffer(m_immCmdBuffer, stagingBuffer.vertexBuffer, m_cubeMesh.vertexBuffer, 1, &bufferCopy);
-	bufferCopy.size = cube.tIndBufferSize;
-	vkCmdCopyBuffer(m_immCmdBuffer, stagingBuffer.indexBuffer, m_cubeMesh.indexBuffer, 1, &bufferCopy);
-
+	VkBufferCopy bufferCopy{ .srcOffset = 0, .dstOffset = 0, .size = mesh.vertsBufferSize };
+	vkCmdCopyBuffer(m_immCmdBuffer, STGvertexBuffer.buffer, GPUvertsAllocation.buffer, 1, &bufferCopy);
+	bufferCopy.size = mesh.tIndBufferSize;
+	vkCmdCopyBuffer(m_immCmdBuffer, STGindexBuffer.buffer, GPUindAllocation.buffer, 1, &bufferCopy);
 	VK_CHECK(vkEndCommandBuffer(m_immCmdBuffer));
 
-	VkFenceCreateInfo fenceInfo{ .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
-	fenceInfo.pNext = nullptr;
-	VkFence immFence{};
-	// we should probably create this once and store the handle in header
-	VK_CHECK(vkCreateFence(m_device.device, &fenceInfo, nullptr, &immFence));
-
-	// submit
 	VkCommandBufferSubmitInfo cmdBufferSubmitInfo{ .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO };
 	cmdBufferSubmitInfo.commandBuffer = m_immCmdBuffer;
 	cmdBufferSubmitInfo.deviceMask = 0;
@@ -273,7 +231,7 @@ void Kleicha::upload_mesh_data() {
 	submitInfo.pNext = nullptr;
 	submitInfo.commandBufferInfoCount = 1;
 	submitInfo.pCommandBufferInfos = &cmdBufferSubmitInfo;
-	vkQueueSubmit2(m_device.queue, 1, &submitInfo, immFence);
+	vkQueueSubmit2(m_device.queue, 1, &submitInfo, m_immFence);
 
 	{/*
 		glm::ivec3* pFloats{ reinterpret_cast<glm::ivec3*>(stagingBuffer.indexAllocation->GetMappedData()) };
@@ -282,12 +240,14 @@ void Kleicha::upload_mesh_data() {
 			fmt::println("{0} | {1} | {2}", pFloats[i].x, pFloats[i].y, pFloats[i].z);
 		}
 
-	*/}
+	*/
+	}
 
-	vkWaitForFences(m_device.device, 1, &immFence, VK_TRUE, std::numeric_limits<uint64_t>::max());
-	vkDestroyFence(m_device.device, immFence, nullptr);
-	vmaDestroyBuffer(m_allocator, stagingBuffer.vertexBuffer, stagingBuffer.vertexAllocation);
-	vmaDestroyBuffer(m_allocator, stagingBuffer.indexBuffer, stagingBuffer.indexAllocation);
+	vkWaitForFences(m_device.device, 1, &m_immFence, VK_TRUE, std::numeric_limits<uint64_t>::max());
+	vmaDestroyBuffer(m_allocator, STGvertexBuffer.buffer, STGvertexBuffer.allocation);
+	vmaDestroyBuffer(m_allocator, STGindexBuffer.buffer, STGindexBuffer.allocation);
+
+	return { .vertsAllocation = GPUvertsAllocation, .indAllocation = GPUindAllocation, .indexCount = mesh.indexCount, .vertsBufferAddress = vertexBufferDeviceAddress };
 }
 
 void Kleicha::recreate_swapchain() {
@@ -361,7 +321,7 @@ void Kleicha::draw() {
 	VK_CHECK(vkBeginCommandBuffer(frame.cmdBuffer, &cmdBufferBeginInfo));
 
 	// forms a dependency chain with vkAcquireNextImageKHR signal semaphore. when semaphores are signaled, all pending writes are made available. i dont need to do this manually here
-	VkImageMemoryBarrier2 rastertoTransferDst{init::create_image_barrier_info(VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0, 
+	VkImageMemoryBarrier2 rastertoTransferDst{init::create_image_barrier_info(VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_PIPELINE_STAGE_2_NONE, 
 		VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, 
 		VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, frame.rasterImage.image)};
 
@@ -420,12 +380,12 @@ void Kleicha::draw() {
 	vkCmdSetScissor(frame.cmdBuffer, 0, 1, &scissor);
 
 	// push constants
-	vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(VkDeviceAddress), &m_cubeMesh.vertexBufferDeviceAddress);
+	vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(VkDeviceAddress), &m_cubeAllocation.vertsBufferAddress);
 
-	vkCmdBindIndexBuffer(frame.cmdBuffer, m_cubeMesh.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+	vkCmdBindIndexBuffer(frame.cmdBuffer, m_cubeAllocation.indAllocation.buffer, 0, VK_INDEX_TYPE_UINT32);
 
 	// invoke the vertex shader 3 times.
-	vkCmdDrawIndexed(frame.cmdBuffer, 36, 1, 0, 0, 0);
+	vkCmdDrawIndexed(frame.cmdBuffer, m_cubeAllocation.indexCount, 1, 0, 0, 0);
 
 	vkCmdEndRendering(frame.cmdBuffer);
 
@@ -487,8 +447,11 @@ void Kleicha::draw() {
 
 void Kleicha::cleanup() const {
 
-	vmaDestroyBuffer(m_allocator, m_cubeMesh.vertexBuffer, m_cubeMesh.vertexAllocation);
-	vmaDestroyBuffer(m_allocator, m_cubeMesh.indexBuffer, m_cubeMesh.indexAllocation);
+	// model cleanup
+	vmaDestroyBuffer(m_allocator, m_cubeAllocation.vertsAllocation.buffer, m_cubeAllocation.vertsAllocation.allocation);
+	vmaDestroyBuffer(m_allocator, m_cubeAllocation.indAllocation.buffer, m_cubeAllocation.indAllocation.allocation);
+
+	vkDestroyFence(m_device.device, m_immFence, nullptr);
 
 	for (const auto& frame : m_frames) {
 		vkDestroyFence(m_device.device, frame.inFlightFence, nullptr);

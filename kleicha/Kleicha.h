@@ -33,6 +33,7 @@ private:
 	vkt::Swapchain m_swapchain{};
 	VkCommandPool m_commandPool{};
 	VkCommandBuffer m_immCmdBuffer{};
+	VkFence m_immFence{};
 	VkPipelineLayout m_dummyPipelineLayout{};
 	VkPipeline m_graphicsPipeline{};
 	VmaAllocator m_allocator{};
@@ -40,7 +41,7 @@ private:
 	vkt::Frame m_frames[MAX_FRAMES_IN_FLIGHT]{};
 	std::vector<VkSemaphore> m_renderedSemaphores{};
 
-	vkt::MeshBuffer m_cubeMesh{};
+	vkt::GPUMeshAllocation m_cubeAllocation{};
 
 	void init_vulkan();
 	void init_swapchain();
@@ -50,7 +51,9 @@ private:
 	void init_vma();
 	void init_intermediate_images();
 
-	void upload_mesh_data();
+	void init_meshes();
+
+	vkt::GPUMeshAllocation upload_mesh_data(const vkt::IndexedMesh& mesh);
 
 	void draw();
 	void recreate_swapchain();

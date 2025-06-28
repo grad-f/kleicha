@@ -51,14 +51,17 @@ namespace vkt {
 		VmaAllocationInfo allocationInfo{};
 	};
 
-	struct MeshBuffer {
-		VkBuffer vertexBuffer{};
-		VkBuffer indexBuffer{};
-		VmaAllocation vertexAllocation{};
-		VmaAllocation indexAllocation{};
-		VmaAllocationInfo vertexAllocationInfo{};
-		VmaAllocationInfo indexAllocationInfo{};
-		VkDeviceSize vertexBufferDeviceAddress{ 0 };
+	struct Buffer {
+		VkBuffer buffer{};
+		VmaAllocation allocation{};
+		VmaAllocationInfo allocationInfo{};
+	};
+
+	struct GPUMeshAllocation {
+		Buffer vertsAllocation{};
+		Buffer indAllocation{};
+		uint32_t indexCount{};
+		VkDeviceSize vertsBufferAddress{ 0 };
 	};
 
 	struct Vertex {
@@ -71,6 +74,7 @@ namespace vkt {
 		std::vector<Vertex> verts{};
 		VkDeviceSize tIndBufferSize{ tInd.size() * sizeof(glm::uvec3) };
 		VkDeviceSize vertsBufferSize{ verts.size() * sizeof(Vertex) };
+		uint32_t indexCount{ static_cast<uint32_t>(tInd.size() * glm::uvec3::length()) };
 	};
 
 	// encapsulates data needed for each frame
@@ -79,7 +83,7 @@ namespace vkt {
 		VkFence inFlightFence{};
 		VkSemaphore acquiredSemaphore{};
 
-		// raster image we'll be drawing into -- greater color accuracy that is then copied into the swapchain image
+		// higher precision intermediate raster image we'll be performing our rendering computations with
 		vkt::Image rasterImage{};
 	};
 
