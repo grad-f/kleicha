@@ -1,6 +1,8 @@
 #ifndef TYPES_H
 #define TYPES_H
 
+#include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
 #include <vector>
 #include "vk_mem_alloc.h"
 #include "vulkan/vulkan.h"
@@ -49,11 +51,26 @@ namespace vkt {
 		VmaAllocationInfo allocationInfo{};
 	};
 
-	struct Buffer {
-		VkBuffer buffer{};
-		VmaAllocation allocation{};
-		VmaAllocationInfo allocationInfo{};
-		VkDeviceSize bufferDeviceAddress{ 0 };
+	struct MeshBuffer {
+		VkBuffer vertexBuffer{};
+		VkBuffer indexBuffer{};
+		VmaAllocation vertexAllocation{};
+		VmaAllocation indexAllocation{};
+		VmaAllocationInfo vertexAllocationInfo{};
+		VmaAllocationInfo indexAllocationInfo{};
+		VkDeviceSize vertexBufferDeviceAddress{ 0 };
+	};
+
+	struct Vertex {
+		glm::vec3 position{};
+	};
+
+	struct IndexedMesh {
+		// triangle indices
+		std::vector<glm::uvec3> tInd{};
+		std::vector<Vertex> verts{};
+		VkDeviceSize tIndBufferSize{ tInd.size() * sizeof(glm::uvec3) };
+		VkDeviceSize vertsBufferSize{ verts.size() * sizeof(Vertex) };
 	};
 
 	// encapsulates data needed for each frame
