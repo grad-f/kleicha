@@ -124,7 +124,7 @@ void Kleicha::init_sync_primitives() {
 void Kleicha::init_graphics_pipelines() {
 
 	// create dummy shader modules to test pipeline builder.
-	VkPushConstantRange pushConstantRange{ .stageFlags = VK_SHADER_STAGE_VERTEX_BIT, .offset = 0, .size = sizeof(VkDeviceAddress)};
+	VkPushConstantRange pushConstantRange{ .stageFlags = VK_SHADER_STAGE_VERTEX_BIT, .offset = 0, .size = sizeof(vkt::PushConstants)};
 
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo{ .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
 	pipelineLayoutInfo.pushConstantRangeCount = 1;
@@ -380,7 +380,12 @@ void Kleicha::draw() {
 	vkCmdSetScissor(frame.cmdBuffer, 0, 1, &scissor);
 
 	// push constants
-	vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(VkDeviceAddress), &m_cubeAllocation.vertsBufferAddress);
+
+	vkt::PushConstants pushConstants{ .vertexBufferAddress = m_cubeAllocation.vertsBufferAddress};
+	pushConstants.matix = utils::orthographicProj(-1.21f, 1.21f, -0.684f, 0.684f, 0.1f, 1000.0f);
+
+
+	vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(vkt::PushConstants), &pushConstants);
 
 	vkCmdBindIndexBuffer(frame.cmdBuffer, m_cubeAllocation.indAllocation.buffer, 0, VK_INDEX_TYPE_UINT32);
 

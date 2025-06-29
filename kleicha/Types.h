@@ -1,13 +1,23 @@
 #ifndef TYPES_H
 #define TYPES_H
 
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
+#include <glm/mat4x4.hpp>
+#include <ext/matrix_clip_space.hpp>
+#include <ext/matrix_transform.hpp>
 #include <vector>
 #include "vk_mem_alloc.h"
 #include "vulkan/vulkan.h"
 
 namespace vkt {
+
+	struct PushConstants {
+		VkDeviceAddress vertexBufferAddress{};
+		glm::mat4 matix{1.0f};
+	};
+
 	struct Instance {
 		VkInstance instance{};
 		VkDebugUtilsMessengerEXT debugMessenger{};

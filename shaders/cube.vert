@@ -13,8 +13,9 @@ layout(scalar, buffer_reference) readonly buffer ptrBuffer {
 
 layout(scalar, push_constant) uniform constants {
 	ptrBuffer pVertexBuffer;
+	mat4 perspectiveProj;
 } PushConstants;
 
 void main() {
-	gl_Position = vec4(PushConstants.pVertexBuffer.vertices[gl_VertexIndex].position, 1.0f);
+	gl_Position = PushConstants.perspectiveProj * vec4(PushConstants.pVertexBuffer.vertices[gl_VertexIndex].position, 1.0f);
 }

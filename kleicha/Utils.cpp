@@ -89,8 +89,6 @@ namespace utils {
         return buf;
     }
 
-
-
     vkt::IndexedMesh generate_cube_mesh() {
         return {
             .tInd { //triangles
@@ -125,6 +123,17 @@ namespace utils {
             {	{0.5f, 0.5f, 0.25f}  },		//7
         }
 
+        };
+    }
+
+        glm::mat4 orthographicProj(float left, float right, float bottom, float top, float near, float far) {
+
+        // TO-DO: derive the orthographic view volume from the aspect ratio and vertical field-of-view
+        return glm::mat4{
+            2 / (right - left), 0, 0, -(right + left) / (right - left),
+            0, 2 / (bottom - top), 0, (bottom + top) / (bottom - top),
+            0, 0, 1 / (far - near), -near / (far - near),
+            0, 0, 0, 1 
         };
     }
 

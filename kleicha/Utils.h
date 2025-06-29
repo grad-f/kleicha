@@ -31,5 +31,8 @@ namespace utils {
 
     vkt::Buffer create_buffer(VmaAllocator allocator, VkDeviceSize bufferSize, VkBufferUsageFlags bufferUsage,
                                 VmaMemoryUsage memoryUsage, VkMemoryPropertyFlags requiredFlags, VmaAllocationCreateFlags flags = 0);
+
+    glm::mat4 orthographicProj(float left, float right, float bottom, float top, float near, float far);
+
 }
 #endif // !UTILS_H
