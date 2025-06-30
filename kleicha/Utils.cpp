@@ -126,15 +126,24 @@ namespace utils {
         };
     }
 
-        glm::mat4 orthographicProj(float left, float right, float bottom, float top, float near, float far) {
-
+    // depth reversed (far maps to 0, near maps to 1) and y flip is baked in. Effectively taking the left-hand coordinate system and mapping it to right-hand with y pointing down
+    glm::mat4 orthographicProj(float left, float right, float bottom, float top, float near, float far) {
         // TO-DO: derive the orthographic view volume from the aspect ratio and vertical field-of-view
         return glm::mat4{
             2 / (right - left), 0, 0, -(right + left) / (right - left),
             0, 2 / (bottom - top), 0, (bottom + top) / (bottom - top),
-            0, 0, 1 / (far - near), -near / (far - near),
-            0, 0, 0, 1 
+            0, 0, 1 / (near - far), -near / (far - near),
+            0, 0, 0, 1
         };
     }
+
+    glm::mat4 orthographicProj(float vFov, float aspectRatio, float near, float far) {
+        // far replaces near here as depth is reversed
+        float top{ std::tan(vFov / 2.0f) * std::abs(far) };
+        float right{ aspectRatio * top };
+
+        return orthographicProj(-right, right, -top, top, near, far);
+    }
+
 
 }
