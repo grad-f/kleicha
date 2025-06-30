@@ -132,7 +132,7 @@ namespace utils {
         return glm::mat4{
             2 / (right - left), 0, 0, -(right + left) / (right - left),
             0, 2 / (bottom - top), 0, (bottom + top) / (bottom - top),
-            0, 0, 1 / (near - far), -far / (near - far),
+            0, 0, 1 / (near - far), -near / (far - near),
             0, 0, 0, 1
         };
     }
