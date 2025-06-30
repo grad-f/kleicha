@@ -382,7 +382,7 @@ void Kleicha::draw() {
 	// push constants
 
 	vkt::PushConstants pushConstants{ .vertexBufferAddress = m_cubeAllocation.vertsBufferAddress};
-	pushConstants.matix = utils::orthographicProj(glm::radians(75.0f), static_cast<float>(m_windowExtent.width) / m_windowExtent.height, 1000.0f, 0.1f) * glm::scale(glm::mat4{ 1.0f }, glm::vec3(.1f, .1f, 1.0f));
+	pushConstants.matix = utils::orthographicProj(glm::radians(75.0f), static_cast<float>(m_windowExtent.width) / m_windowExtent.height, 1000.0f, 0.1f) * glm::translate(glm::mat4{ 1.0f }, glm::vec3{ -0.03f, -0.03f, 800.0f }) * glm::scale(glm::mat4{ 1.0f }, glm::vec3(0.05f, 0.05f, 1.0f));
 
 	vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(vkt::PushConstants), &pushConstants);
 
