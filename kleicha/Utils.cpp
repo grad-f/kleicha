@@ -152,13 +152,12 @@ namespace utils {
         return glm::mat4{
             2.0f / (right - left), 0.0f, 0.0f, -(right + left) / (right - left),
             0.0f, 2.0f / (bottom - top), 0.0f, (bottom + top) / (bottom - top),
-            0.0f, 0.0f, -1.0f / (far - near), -near / (far - near),
+            0.0f, 0.0f, -1.0f / (near - far), -far / (near - far),
             0.0f, 0.0f, 0.0f, 1.0f
         };
     }
 
     glm::mat4 orthographicProj(float vFov, float aspectRatio, float near, float far) {
-        // far replaces near here as depth is reversed
         float top{ std::tan(vFov / 2.0f) * std::abs(near) };
         float right{ aspectRatio * top };
 

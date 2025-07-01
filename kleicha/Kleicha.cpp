@@ -382,8 +382,8 @@ void Kleicha::draw() {
 	// push constants
 
 	vkt::PushConstants pushConstants{ .vertexBufferAddress = m_cubeAllocation.vertsBufferAddress};
-	pushConstants.matix = utils::orthographicProj(glm::radians(60.0f), static_cast<float>(m_windowExtent.width) / m_windowExtent.height, 0.1f, 30.0f) *
-		utils::perspective(0.1f, 30.0f) * utils::lookAt(glm::vec3{ 1.0f, 1.0f, 0.0f }, glm::vec3{ 0.0f, 0.0f, -1.0f }, glm::vec3{ 0.0f, 1.0f, 0.0f }) * glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 1.0f, 1.0f, -5.5f }) *
+	pushConstants.matix = utils::orthographicProj(glm::radians(60.0f), static_cast<float>(m_windowExtent.width) / m_windowExtent.height, 100.0f, 0.1f) *
+		utils::perspective(100.0f, 0.1f) * utils::lookAt(glm::vec3{ 1.0f, 1.0f, 6.0f }, glm::vec3{ 0.0f, 0.0f, -1.0f }, glm::vec3{ 0.0f, 1.0f, 0.0f }) * glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, 0.0f, -3.0f }) *
 		glm::rotate(glm::mat4{ 1.0f }, glm::radians(m_framesRendered / 100.0f), glm::vec3{ 0.5f, 1.0f, 0.3f }) /** glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 0.02f,0.02f,0.02f })*/;
 	
 	glm::lookAt(glm::vec3{ 0.0f, 0.0f, 2.0f }, glm::vec3{ 0.0f, 0.0f, -1.0f }, glm::vec3{ 0.0f, 1.0f, 0.0f });
