@@ -113,37 +113,55 @@ namespace utils {
         },
 
             .verts {
-            {	{-0.5f, -0.5f, 0.75f}  },	//0
-            {	{0.5f, -0.5f, 0.75f}  },	//1
-            {	{-0.5f, 0.5f, 0.75f}  },	//2
-            {	{0.5f, 0.5f, 0.75f}  },		//3
-            {	{-0.5f, -0.5f, 0.25f}  },	//4
-            {	{0.5f, -0.5f, 0.25f}  },	//5
-            {	{-0.5f, 0.5f, 0.25f}  },	//6
-            {	{0.5f, 0.5f, 0.25f}  },		//7
+            {	{-1.0f, -1.0f, 1.0f}  },	//0
+            {	{1.0f, -1.0f, 1.0f}  },	//1
+            {	{-1.0f, 1.0f, 1.0f}  },	//2
+            {	{1.0f, 1.0f, 1.0f}  },		//3
+            {	{-1.0f, -1.0f, -1.0f}  },	//4
+            {	{1.0f, -1.0f, -1.0f}  },	//5
+            {	{-1.0f, 1.0f, -1.0f}  },	//6
+            {	{1.0f, 1.0f, -1.0f}  },		//7
         }
-
         };
     }
 
-    // depth reversed (far maps to 0, near maps to 1) and y flip is baked in. Effectively taking the left-hand coordinate system and mapping it to right-hand with y pointing down
-    glm::mat4 orthographicProj(float left, float right, float bottom, float top, float near, float far) {
-        // TO-DO: derive the orthographic view volume from the aspect ratio and vertical field-of-view
+    glm::mat4 lookAt(glm::vec3 eyePos, glm::vec3 lookAt, glm::vec3 up) {
+        // create rh uvw basis
+        glm::vec3 w{ glm::normalize(lookAt - eyePos) };
+        glm::vec3 u{glm::normalize(glm::cross(w, up))};
+        glm::vec3 v{ glm::cross(u, w) };
+
         return glm::mat4{
-            2 / (right - left), 0, 0, -(right + left) / (right - left),
-            0, 2 / (bottom - top), 0, (bottom + top) / (bottom - top),
-            0, 0, 1 / (near - far), -far / (near - far),
-            0, 0, 0, 1
+            u.x, u.y, u.z, -glm::dot(u, eyePos),
+            v.x, v.y, v.z, -glm::dot(up, eyePos),
+            -w.x, -w.y, -w.z, glm::dot(w, eyePos),
+            0.0f, 0.0f, 0.0f, 1.0f
+        };
+    }
+
+    glm::mat4 perspective(float near, float far) {
+        return glm::mat4{
+            near, 0.0f, 0.0f, 0.0f,
+            0.0f, near, 0.0f, 0.0f,
+            0.0f, 0.0f, (far + near), -far * near,
+            0.0f, 0.0f, 1.0f, 0.0f
+        };
+    }
+
+    glm::mat4 orthographicProj(float left, float right, float bottom, float top, float near, float far) {
+        return glm::mat4{
+            2.0f / (right - left), 0.0f, 0.0f, -(right + left) / (right - left),
+            0.0f, 2.0f / (bottom - top), 0.0f, (bottom + top) / (bottom - top),
+            0.0f, 0.0f, -1.0f / (far - near), -near / (far - near),
+            0.0f, 0.0f, 0.0f, 1.0f
         };
     }
 
     glm::mat4 orthographicProj(float vFov, float aspectRatio, float near, float far) {
         // far replaces near here as depth is reversed
-        float top{ std::tan(vFov / 2.0f) * std::abs(far) };
+        float top{ std::tan(vFov / 2.0f) * std::abs(near) };
         float right{ aspectRatio * top };
 
         return orthographicProj(-right, right, -top, top, near, far);
     }
-
-
 }
