@@ -32,7 +32,7 @@ namespace utils {
     vkt::Buffer create_buffer(VmaAllocator allocator, VkDeviceSize bufferSize, VkBufferUsageFlags bufferUsage,
                                 VmaMemoryUsage memoryUsage, VkMemoryPropertyFlags requiredFlags, VmaAllocationCreateFlags flags = 0);
 
-    glm::mat4 lookAt(glm::vec3 eyePos, glm::vec3 lookAt, glm::vec3 up);
+    glm::mat4 lookAt(glm::vec3 eye, glm::vec3 lookat, glm::vec3 up);
     glm::mat4 perspective(float near, float far);
     glm::mat4 orthographicProj(float left, float right, float bottom, float top, float near, float far);
     glm::mat4 orthographicProj(float vFov, float aspectRatio, float near, float far);

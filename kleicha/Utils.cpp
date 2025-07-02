@@ -125,17 +125,17 @@ namespace utils {
         };
     }
 
-    glm::mat4 lookAt(glm::vec3 eyePos, glm::vec3 lookAt, glm::vec3 up) {
+    glm::mat4 lookAt(glm::vec3 eye, glm::vec3 lookat, glm::vec3 up) {
         // create rh uvw basis
-        glm::vec3 w{ glm::normalize(lookAt - eyePos) };
-        glm::vec3 u{glm::normalize(glm::cross(w, up))};
+        glm::vec3 w{ glm::normalize(lookat - eye) };
+        glm::vec3 u{ glm::normalize(glm::cross(w, up)) };
         glm::vec3 v{ glm::cross(u, w) };
 
         return glm::mat4{
-            u.x, u.y, u.z, -glm::dot(u, eyePos),
-            v.x, v.y, v.z, -glm::dot(up, eyePos),
-            -w.x, -w.y, -w.z, glm::dot(w, eyePos),
-            0.0f, 0.0f, 0.0f, 1.0f
+            u.x, v.x, -w.x, 0.0f,
+            u.y, v.y, -w.y, 0.0f,
+            u.z, v.z, -w.z, 0.0f,
+            -glm::dot(u,eye), -glm::dot(v,eye), glm::dot(w,eye), 1.0f
         };
     }
 
