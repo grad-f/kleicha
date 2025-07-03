@@ -8,6 +8,7 @@
 #include "vulkan/vulkan.h"
 #include "Types.h"
 #include "vk_mem_alloc.h"
+#include "Camera.h"
 
 constexpr uint32_t MAX_FRAMES_IN_FLIGHT{ 2 };
 constexpr VkFormat INTERMEDIATE_IMAGE_FORMAT{ VK_FORMAT_R16G16B16A16_SFLOAT };
@@ -16,9 +17,12 @@ constexpr VkFormat DEPTH_IMAGE_FORMAT{ VK_FORMAT_D32_SFLOAT };
 class Kleicha {
 public:
 	GLFWwindow* m_window{};
-
+							// pos								// lookat				//up
+	Camera m_camera{ glm::vec3{0.0f, 0.0f, 4.0f}, glm::vec3{0.0f, 0.0f, 0.0f}, glm::vec3{0.0f, 1.0f, 0.0f} };
+	
 	void init();
 	void start();
+	void processInputs();
 	void cleanup() const;
 
 	vkt::Frame get_current_frame() const	{ 

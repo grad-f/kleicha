@@ -127,33 +127,42 @@ namespace utils {
 
     glm::mat4 lookAt(glm::vec3 eye, glm::vec3 lookat, glm::vec3 up) {
         // create rh uvw basis
-        glm::vec3 w{ glm::normalize(lookat - eye) };
-        glm::vec3 u{ glm::normalize(glm::cross(w, up)) };
-        glm::vec3 v{ glm::cross(u, w) };
+        glm::vec3 w{ -glm::normalize(lookat - eye) };
+        glm::vec3 u{ glm::normalize(glm::cross(up, w)) };
+        glm::vec3 v{ glm::cross(w, u) };
 
-        return glm::mat4{
+        glm::mat4 invTranslate{
+            1.0f, 0.0f, 0.0f, 0.0f,
+            0.0f, 1.0f, 0.0f, 0.0f,
+            0.0f, 0.0f, 1.0f, 0.0f,
+            -eye.x, -eye.y, -eye.z, 1.0f
+        };
+
+        glm::mat4 invRotate{
             u.x, v.x, -w.x, 0.0f,
             u.y, v.y, -w.y, 0.0f,
             u.z, v.z, -w.z, 0.0f,
-            -glm::dot(u,eye), -glm::dot(v,eye), glm::dot(w,eye), 1.0f
+            0.0f, 0.0f, 0.0f, 1.0f
         };
+
+        return invRotate * invTranslate;
     }
 
     glm::mat4 perspective(float near, float far) {
         return glm::mat4{
             near, 0.0f, 0.0f, 0.0f,
             0.0f, near, 0.0f, 0.0f,
-            0.0f, 0.0f, (far + near), -far * near,
-            0.0f, 0.0f, -1.0f, 0.0f
+            0.0f, 0.0f, near + far, 1.0f,
+            0.0f, 0.0f, -far * near, 0.0f
         };
     }
 
     glm::mat4 orthographicProj(float left, float right, float bottom, float top, float near, float far) {
         return glm::mat4{
-            2.0f / (right - left), 0.0f, 0.0f, -(right + left) / (right - left),
-            0.0f, 2.0f / (bottom - top), 0.0f, (bottom + top) / (bottom - top),
-            0.0f, 0.0f, -1.0f / (near - far), -far / (near - far),
-            0.0f, 0.0f, 0.0f, 1.0f
+            2.0f / (right - left), 0.0f, 0.0f, 0.0f,
+            0.0f, 2.0f / (bottom - top), 0.0f, 0.0f,
+            0.0f, 0.0f, 1.0f / (far-near), 0.0f,
+            -(right + left)/(right-left), (bottom + top)/(bottom-top), -near/(far-near), 1.0f
         };
     }
 

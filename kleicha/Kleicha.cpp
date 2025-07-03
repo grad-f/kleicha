@@ -16,6 +16,7 @@
 #pragma warning(pop)
 
 static void key_callback(GLFWwindow* window, int key, [[maybe_unused]]int scancode, int action, [[maybe_unused]]int mods) {
+
 	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, GLFW_TRUE);
 }
@@ -29,6 +30,7 @@ void Kleicha::init() {
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	// set glfw key callback function
 	m_window = glfwCreateWindow(static_cast<int>(m_windowExtent.width), static_cast<int>(m_windowExtent.height), "kleicha", NULL, NULL);
+	glfwSetWindowUserPointer(m_window, this);
 	glfwSetKeyCallback(m_window, key_callback);
 
 	init_vulkan();
@@ -419,13 +421,12 @@ void Kleicha::draw() {
 	vkCmdSetViewport(frame.cmdBuffer, 0, 1, &viewport);
 	vkCmdSetScissor(frame.cmdBuffer, 0, 1, &scissor);
 
+	
 	// push constants
-
 	vkt::PushConstants pushConstants{ .vertexBufferAddress = m_cubeAllocation.vertsBufferAddress};
-	pushConstants.matrix = utils::orthographicProj(glm::radians(60.0f), static_cast<float>(m_windowExtent.width) / m_windowExtent.height, 20.0f, 0.1f) *
-		utils::perspective(20.0f, 0.1f) * utils::lookAt(glm::vec3{ 0.0f, 0.0f, 2.0f }, glm::vec3{ 0.0f, 0.0f, 0.0f }, glm::vec3{ 0.0f, 1.0f, 0.0f }) * glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, 0.0f, -1.0f }) *
-		glm::rotate(glm::mat4{ 1.0f }, glm::radians(m_framesRendered / 100.0f), glm::vec3{ 0.5f, 1.0f, 0.3f }) /** glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 0.02f,0.02f,0.02f })*/;
-
+	pushConstants.matrix = utils::orthographicProj(glm::radians(60.0f), static_cast<float>(m_windowExtent.width) / m_windowExtent.height, 1000.0f, 0.1f) *
+		utils::perspective(1000.0f, 0.1f) * m_camera.getViewMatrix() * glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, 0.0f, -2.0f }) /**
+		glm::rotate(glm::mat4{1.0f}, glm::radians(m_framesRendered / 100.0f), glm::vec3{0.5f, 1.0f, 0.3f}) *//** glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 0.02f,0.02f,0.02f })*/;
 
 	vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(vkt::PushConstants), &pushConstants);
 
@@ -490,6 +491,18 @@ void Kleicha::draw() {
 		recreate_swapchain();
 
 	++m_framesRendered;
+	processInputs();
+}
+
+void Kleicha::processInputs() {
+	if (glfwGetKey(m_window, GLFW_KEY_W) == GLFW_PRESS)
+		m_camera.moveCameraPosition(FORWARD, 0.005f);
+	if (glfwGetKey(m_window, GLFW_KEY_S) == GLFW_PRESS)
+		m_camera.moveCameraPosition(BACKWARD, 0.005f);
+	if (glfwGetKey(m_window, GLFW_KEY_D) == GLFW_PRESS)
+		m_camera.moveCameraPosition(RIGHT, 0.005f);
+	if (glfwGetKey(m_window, GLFW_KEY_A) == GLFW_PRESS)
+		m_camera.moveCameraPosition(LEFT, 0.005f);
 }
 
 void Kleicha::cleanup() const {

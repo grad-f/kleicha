@@ -1,11 +1,9 @@
 #ifndef TYPES_H
 #define TYPES_H
 
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 #include <glm/mat4x4.hpp>
-#include <ext/matrix_clip_space.hpp>
 #include <ext/matrix_transform.hpp>
 #include <vector>
 #include "vk_mem_alloc.h"
@@ -106,5 +104,6 @@ namespace vkt {
 		VkPhysicalDeviceVulkan13Features Vk13Features{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES, .pNext = &Vk14Features };
 		VkPhysicalDeviceVulkan14Features Vk14Features{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_4_FEATURES };
 	};
+
 }
 #endif // !TYPES_H
