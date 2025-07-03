@@ -15,7 +15,7 @@ namespace vkt {
 
 	struct PushConstants {
 		VkDeviceAddress vertexBufferAddress{};
-		glm::mat4 matix{1.0f};
+		glm::mat4 matrix{1.0f};
 	};
 
 	struct Instance {
@@ -95,6 +95,7 @@ namespace vkt {
 
 		// higher precision intermediate raster image we'll be performing our rendering computations with
 		vkt::Image rasterImage{};
+		vkt::Image depthImage{};
 	};
 
 	// chained and encapsulated device features struct

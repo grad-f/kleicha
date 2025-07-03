@@ -37,7 +37,7 @@ void Kleicha::init() {
 	init_sync_primitives();
 	init_graphics_pipelines();
 	init_vma();
-	init_intermediate_images();
+	init_image_buffers();
 	init_meshes();
 }
 
@@ -141,7 +141,8 @@ void Kleicha::init_graphics_pipelines() {
 	pipelineBuilder.pipelineLayout = m_dummyPipelineLayout;
 	pipelineBuilder.set_shaders(vertModule, fragModule);								//ccw winding
 	pipelineBuilder.set_rasterizer_state(VK_POLYGON_MODE_FILL, VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE);
-	pipelineBuilder.set_depth_stencil_state(VK_FALSE);
+	pipelineBuilder.set_depth_stencil_state(VK_TRUE);
+	pipelineBuilder.set_depth_attachment_format(DEPTH_IMAGE_FORMAT);
 	pipelineBuilder.set_color_attachment_format(INTERMEDIATE_IMAGE_FORMAT);
 	m_graphicsPipeline = pipelineBuilder.build();
 
@@ -161,20 +162,32 @@ void Kleicha::init_vma() {
 	VK_CHECK(vmaCreateAllocator(&allocatorInfo, &m_allocator));
 }
 
-void Kleicha::init_intermediate_images() {
+void Kleicha::init_image_buffers() {
 
-	VkImageCreateInfo imageInfo{ init::create_image_info(INTERMEDIATE_IMAGE_FORMAT, m_swapchain.imageExtent,
+	VkImageCreateInfo rasterImageInfo{ init::create_image_info(INTERMEDIATE_IMAGE_FORMAT, m_swapchain.imageExtent,
 		VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)};
+
+	VkImageCreateInfo depthImageInfo{ init::create_image_info(DEPTH_IMAGE_FORMAT, m_swapchain.imageExtent,
+		VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) };
+
 	VmaAllocationCreateInfo allocationInfo{};
 	allocationInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
 	allocationInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
 	// create an intermediate image for each potential frame in flight and a corresponding image view
 	for (auto& frame : m_frames) {
-		VK_CHECK(vmaCreateImage(m_allocator, &imageInfo, &allocationInfo, &frame.rasterImage.image, &frame.rasterImage.allocation, &frame.rasterImage.allocationInfo));
+		VK_CHECK(vmaCreateImage(m_allocator, &rasterImageInfo, &allocationInfo, &frame.rasterImage.image, &frame.rasterImage.allocation, &frame.rasterImage.allocationInfo));
+		VkImageViewCreateInfo rasterViewInfo{ init::create_image_view_info(frame.rasterImage.image, INTERMEDIATE_IMAGE_FORMAT, VK_IMAGE_ASPECT_COLOR_BIT) };
+		VK_CHECK(vkCreateImageView(m_device.device, &rasterViewInfo, nullptr, &frame.rasterImage.imageView));
 
-		VkImageViewCreateInfo imageViewInfo{ init::create_image_view_info(frame.rasterImage.image, INTERMEDIATE_IMAGE_FORMAT, VK_IMAGE_ASPECT_COLOR_BIT) };
-		VK_CHECK(vkCreateImageView(m_device.device, &imageViewInfo, nullptr, &frame.rasterImage.imageView));
+		VK_CHECK(vmaCreateImage(m_allocator, &depthImageInfo, &allocationInfo, &frame.depthImage.image, &frame.depthImage.allocation, &frame.depthImage.allocationInfo));
+		VkImageViewCreateInfo depthViewInfo{ init::create_image_view_info(frame.depthImage.image, DEPTH_IMAGE_FORMAT, VK_IMAGE_ASPECT_DEPTH_BIT) };
+		VK_CHECK(vkCreateImageView(m_device.device, &depthViewInfo, nullptr, &frame.depthImage.imageView));
+
+		// transition depth image layouts
+		immediate_submit([&](VkCommandBuffer cmdBuffer) {
+			utils::image_memory_barrier(cmdBuffer, VK_PIPELINE_STAGE_NONE, VK_ACCESS_2_NONE, VK_PIPELINE_STAGE_NONE, VK_ACCESS_2_NONE, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, frame.depthImage.image);
+			});
 	}
 }
 
@@ -208,30 +221,15 @@ vkt::GPUMeshAllocation Kleicha::upload_mesh_data(const vkt::IndexedMesh& mesh) {
 	// copy to mapped device visible memory
 	memcpy(STGvertexBuffer.allocation->GetMappedData(), mesh.verts.data(), mesh.vertsBufferSize);
 	memcpy(STGindexBuffer.allocation->GetMappedData(), mesh.tInd.data(), mesh.tIndBufferSize);
-
-	VkCommandBufferBeginInfo cmdBufferBeginInfo{
-		.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-		.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-	};
-
-	vkResetFences(m_device.device, 1, &m_immFence);
-	// transition to recording state
-	VK_CHECK(vkBeginCommandBuffer(m_immCmdBuffer, &cmdBufferBeginInfo));
+	
 	VkBufferCopy bufferCopy{ .srcOffset = 0, .dstOffset = 0, .size = mesh.vertsBufferSize };
-	vkCmdCopyBuffer(m_immCmdBuffer, STGvertexBuffer.buffer, GPUvertsAllocation.buffer, 1, &bufferCopy);
-	bufferCopy.size = mesh.tIndBufferSize;
-	vkCmdCopyBuffer(m_immCmdBuffer, STGindexBuffer.buffer, GPUindAllocation.buffer, 1, &bufferCopy);
-	VK_CHECK(vkEndCommandBuffer(m_immCmdBuffer));
 
-	VkCommandBufferSubmitInfo cmdBufferSubmitInfo{ .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO };
-	cmdBufferSubmitInfo.commandBuffer = m_immCmdBuffer;
-	cmdBufferSubmitInfo.deviceMask = 0;
-
-	VkSubmitInfo2 submitInfo{ .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2 };
-	submitInfo.pNext = nullptr;
-	submitInfo.commandBufferInfoCount = 1;
-	submitInfo.pCommandBufferInfos = &cmdBufferSubmitInfo;
-	vkQueueSubmit2(m_device.queue, 1, &submitInfo, m_immFence);
+	// copy staging buffers to device
+	immediate_submit([&](VkCommandBuffer cmdBuffer) {
+		vkCmdCopyBuffer(cmdBuffer, STGvertexBuffer.buffer, GPUvertsAllocation.buffer, 1, &bufferCopy);
+		bufferCopy.size = mesh.tIndBufferSize;
+		vkCmdCopyBuffer(cmdBuffer, STGindexBuffer.buffer, GPUindAllocation.buffer, 1, &bufferCopy);
+		});
 
 	{/*
 		glm::ivec3* pFloats{ reinterpret_cast<glm::ivec3*>(stagingBuffer.indexAllocation->GetMappedData()) };
@@ -242,12 +240,47 @@ vkt::GPUMeshAllocation Kleicha::upload_mesh_data(const vkt::IndexedMesh& mesh) {
 
 	*/
 	}
-
-	vkWaitForFences(m_device.device, 1, &m_immFence, VK_TRUE, std::numeric_limits<uint64_t>::max());
 	vmaDestroyBuffer(m_allocator, STGvertexBuffer.buffer, STGvertexBuffer.allocation);
 	vmaDestroyBuffer(m_allocator, STGindexBuffer.buffer, STGindexBuffer.allocation);
 
 	return { .vertsAllocation = GPUvertsAllocation, .indAllocation = GPUindAllocation, .indexCount = mesh.indexCount, .vertsBufferAddress = vertexBufferDeviceAddress };
+}
+
+void Kleicha::deallocate_frame_images() const {
+	for (const auto& frame : m_frames) {
+		vmaDestroyImage(m_allocator, frame.rasterImage.image, frame.rasterImage.allocation);
+		vkDestroyImageView(m_device.device, frame.rasterImage.imageView, nullptr);
+
+		vmaDestroyImage(m_allocator, frame.depthImage.image, frame.depthImage.allocation);
+		vkDestroyImageView(m_device.device, frame.depthImage.imageView, nullptr);
+	}
+}
+
+void Kleicha::immediate_submit(std::function<void(VkCommandBuffer cmdBuffer)>&& func) const {
+	vkResetFences(m_device.device, 1, &m_immFence);
+	vkResetCommandBuffer(m_immCmdBuffer, 0);
+
+	VkCommandBufferBeginInfo cmdBufferBeginInfo{ .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+	cmdBufferBeginInfo.pNext = nullptr;
+	cmdBufferBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+	VK_CHECK(vkBeginCommandBuffer(m_immCmdBuffer, &cmdBufferBeginInfo));
+
+	func(m_immCmdBuffer);
+
+	VK_CHECK(vkEndCommandBuffer(m_immCmdBuffer));
+
+	VkCommandBufferSubmitInfo cmdBufferSubmitInfo{ .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO };
+	cmdBufferSubmitInfo.pNext = nullptr;
+	cmdBufferSubmitInfo.commandBuffer = m_immCmdBuffer;
+	cmdBufferSubmitInfo.deviceMask = 0;
+
+	VkSubmitInfo2 submitInfo{ .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2 };
+	submitInfo.commandBufferInfoCount = 1;
+	submitInfo.pCommandBufferInfos = &cmdBufferSubmitInfo;
+
+	VK_CHECK(vkQueueSubmit2(m_device.queue, 1, &submitInfo, m_immFence));
+
+	vkWaitForFences(m_device.device, 1, &m_immFence, VK_TRUE, std::numeric_limits<uint64_t>::max());
 }
 
 void Kleicha::recreate_swapchain() {
@@ -271,10 +304,7 @@ void Kleicha::recreate_swapchain() {
 
 	vkDestroySwapchainKHR(m_device.device, m_swapchain.swapchain, nullptr);
 
-	for (const auto& frame : m_frames) {
-		vmaDestroyImage(m_allocator, frame.rasterImage.image, frame.rasterImage.allocation);
-		vkDestroyImageView(m_device.device, frame.rasterImage.imageView, nullptr);
-	}
+	deallocate_frame_images();
 
 	// get updated surface support details
 	DeviceBuilder builder{ m_instance.instance, m_surface };
@@ -285,7 +315,7 @@ void Kleicha::recreate_swapchain() {
 	set_window_extent(supportDetails.value().capabilities.currentExtent);
 	m_device.physicalDevice.surfaceSupportDetails = supportDetails.value();
 	init_swapchain();
-	init_intermediate_images();
+	init_image_buffers();
 }
 
 void Kleicha::start() {
@@ -316,7 +346,6 @@ void Kleicha::draw() {
 		.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
 		.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
 	};
-
 	// implicitly resets command buffer and places it in recording state
 	VK_CHECK(vkBeginCommandBuffer(frame.cmdBuffer, &cmdBufferBeginInfo));
 
@@ -340,6 +369,7 @@ void Kleicha::draw() {
 	// image memory barrier
 	vkCmdPipelineBarrier2(frame.cmdBuffer, &dependencyInfo);
 
+	// specify the attachments to be used during the rendering pass
 	VkRenderingAttachmentInfo colorAttachment{.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO};
 	colorAttachment.pNext = nullptr;
 	colorAttachment.imageView = frame.rasterImage.imageView;
@@ -347,6 +377,15 @@ void Kleicha::draw() {
 	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 	colorAttachment.clearValue.color = { {0.2f, 0.5f, 0.7f} };
+
+	VkRenderingAttachmentInfo depthAttachment{ .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
+	depthAttachment.pNext = nullptr;
+	depthAttachment.imageView = frame.depthImage.imageView;
+	depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
+	depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	// depth ranges from 0 to 1. since our depth is reversed, we set this to zero as that is our furthest depth.
+	depthAttachment.clearValue.depthStencil.depth = 0.0f;
 
 	VkRenderingInfo renderingInfo{ .sType = VK_STRUCTURE_TYPE_RENDERING_INFO };
 	renderingInfo.pNext = nullptr;
@@ -356,6 +395,7 @@ void Kleicha::draw() {
 	renderingInfo.viewMask = 0; //we're not using multiview
 	renderingInfo.colorAttachmentCount = 1;
 	renderingInfo.pColorAttachments = &colorAttachment;
+	renderingInfo.pDepthAttachment = &depthAttachment;
 
 	// begin a render pass
 	vkCmdBeginRendering(frame.cmdBuffer, &renderingInfo);
@@ -382,10 +422,11 @@ void Kleicha::draw() {
 	// push constants
 
 	vkt::PushConstants pushConstants{ .vertexBufferAddress = m_cubeAllocation.vertsBufferAddress};
-	pushConstants.matix = utils::orthographicProj(glm::radians(60.0f), static_cast<float>(m_windowExtent.width) / m_windowExtent.height, 30.0f, 0.1f) *
-		utils::perspective(30.0f, 0.1f) * utils::lookAt(glm::vec3{ 0.0f, 0.0f, 3.0f }, glm::vec3{ 2.0f, 2.0f, -1.0f }, glm::vec3{ 0.0f, 1.0f, 0.0f }) * glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, 0.0f, -5.0f }) *
+	pushConstants.matrix = utils::orthographicProj(glm::radians(60.0f), static_cast<float>(m_windowExtent.width) / m_windowExtent.height, 20.0f, 0.1f) *
+		utils::perspective(20.0f, 0.1f) * utils::lookAt(glm::vec3{ 0.0f, 0.0f, 2.0f }, glm::vec3{ 0.0f, 0.0f, 0.0f }, glm::vec3{ 0.0f, 1.0f, 0.0f }) * glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, 0.0f, -1.0f }) *
 		glm::rotate(glm::mat4{ 1.0f }, glm::radians(m_framesRendered / 100.0f), glm::vec3{ 0.5f, 1.0f, 0.3f }) /** glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 0.02f,0.02f,0.02f })*/;
-	
+
+
 	vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(vkt::PushConstants), &pushConstants);
 
 	vkCmdBindIndexBuffer(frame.cmdBuffer, m_cubeAllocation.indAllocation.buffer, 0, VK_INDEX_TYPE_UINT32);
@@ -462,9 +503,9 @@ void Kleicha::cleanup() const {
 	for (const auto& frame : m_frames) {
 		vkDestroyFence(m_device.device, frame.inFlightFence, nullptr);
 		vkDestroySemaphore(m_device.device, frame.acquiredSemaphore, nullptr);
-		vmaDestroyImage(m_allocator, frame.rasterImage.image, frame.rasterImage.allocation);
-		vkDestroyImageView(m_device.device, frame.rasterImage.imageView, nullptr);
 	}
+
+	deallocate_frame_images();
 
 	vmaDestroyAllocator(m_allocator);
 

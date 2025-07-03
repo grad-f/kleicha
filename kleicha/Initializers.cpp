@@ -27,7 +27,7 @@ namespace init {
 		imageBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 		imageBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 		imageBarrier.image = image;
-		imageBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		imageBarrier.subresourceRange.aspectMask = (newLayout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
 		imageBarrier.subresourceRange.baseArrayLayer = 0;
 		imageBarrier.subresourceRange.layerCount = 1;
 		imageBarrier.subresourceRange.baseMipLevel = 0;

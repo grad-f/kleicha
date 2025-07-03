@@ -3,12 +3,15 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
+#include <functional>
+
 #include "vulkan/vulkan.h"
 #include "Types.h"
 #include "vk_mem_alloc.h"
 
 constexpr uint32_t MAX_FRAMES_IN_FLIGHT{ 2 };
 constexpr VkFormat INTERMEDIATE_IMAGE_FORMAT{ VK_FORMAT_R16G16B16A16_SFLOAT };
+constexpr VkFormat DEPTH_IMAGE_FORMAT{ VK_FORMAT_D32_SFLOAT };
 
 class Kleicha {
 public:
@@ -49,7 +52,7 @@ private:
 	void init_sync_primitives();
 	void init_graphics_pipelines();
 	void init_vma();
-	void init_intermediate_images();
+	void init_image_buffers();
 
 	void init_meshes();
 
@@ -57,6 +60,9 @@ private:
 
 	void draw();
 	void recreate_swapchain();
+	void deallocate_frame_images() const;
+	// must be r-value reference as we'll be supplying lambda's
+	void immediate_submit(std::function<void(VkCommandBuffer cmdBuffer)>&& func) const;
 };
 
 #endif // !KLEICHA_H
