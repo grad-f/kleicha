@@ -167,6 +167,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Camera.cpp" />
     <ClCompile Include="DeviceBuilder.cpp" />
     <ClCompile Include="Initializers.cpp" />
     <ClCompile Include="InstanceBuilder.cpp" />

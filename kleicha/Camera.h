@@ -12,42 +12,40 @@ enum CameraMoveFlags {
 	LEFT
 };
 
+constexpr glm::vec3 WORLD_UP{ 0.0f, 1.0f, 0.0f };
+constexpr float X_SENS{ 0.1f };
+constexpr float Y_SENS{ 0.1f };
+constexpr float MOVEMENT_FACTOR{ 14.0f };
+
 class Camera {
 public:
-
-	Camera(const glm::vec3& pos, const glm::vec3& lookAt, const glm::vec3& up)
-		: m_pos{ pos }, m_lookAt{ lookAt }, m_up{ up }
+	Camera(const glm::vec3& pos, const VkExtent2D& windowExtent)
+		: m_pos{ pos }
 	{
-		m_gazeDir = glm::normalize(lookAt - pos);
-		m_u = glm::normalize(glm::cross(m_gazeDir, up));
+		lastX = windowExtent.width / 2.0f;
+		lastY = windowExtent.height / 2.0f;
+		computeBasis();
 	};
-
-	void moveCameraPosition(CameraMoveFlags direction, float deltaTime) {
-		float velocity{ 2.5f * deltaTime };
-
-		if (direction == FORWARD)
-			m_pos += velocity * m_gazeDir;
-		else if (direction == BACKWARD)
-			m_pos -= velocity * m_gazeDir;
-		else if (direction == RIGHT)
-			m_pos += velocity * m_u;
-		else if (direction == LEFT)
-			m_pos -= velocity * m_u;
-	}
-
 	glm::mat4 getViewMatrix() {
-		return utils::lookAt(m_pos, m_pos + m_gazeDir, m_up);
+		return utils::lookAt(m_pos, m_pos + m_gazeDir, WORLD_UP);
 	}
+
+	void moveCameraPosition(CameraMoveFlags direction, float deltaTime);
+	void updateEulerAngles(float xpos, float ypos);
 
 private:
-	glm::vec3 m_pos{};
-	glm::vec3 m_lookAt{};
-	glm::vec3 m_up{};
-	glm::vec3 m_gazeDir{};
 
+	glm::vec3 m_pos{};
+	glm::vec3 m_gazeDir{};
 	glm::vec3 m_u{};
-	glm::vec3 m_v{};
-	glm::vec3 m_w{};
+
+	float lastX{ 0.0f };
+	float lastY{ 0.0f };
+	// euler angles
+	float yaw{ -90.0f }; // rotate -90 degrees to look down the negative z by default.
+	float pitch{ 0.0f };
+
+	void computeBasis();
 };
 
 #endif // !CAMERA_H

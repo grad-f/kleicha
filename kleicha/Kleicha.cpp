@@ -21,6 +21,12 @@ static void key_callback(GLFWwindow* window, int key, [[maybe_unused]]int scanco
 		glfwSetWindowShouldClose(window, GLFW_TRUE);
 }
 
+static void cursor_callback(GLFWwindow* window, double xpos, double ypos) {
+	// xpos and ypos are effectively measures of displacement
+	Kleicha* kleicha{ reinterpret_cast<Kleicha*>(glfwGetWindowUserPointer(window)) };
+	kleicha->m_camera.updateEulerAngles(static_cast<float>(xpos), static_cast<float>(ypos));
+}
+
 // init calls the required functions to initialize vulkan
 void Kleicha::init() {
 	if (!glfwInit()) {
@@ -30,7 +36,10 @@ void Kleicha::init() {
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	// set glfw key callback function
 	m_window = glfwCreateWindow(static_cast<int>(m_windowExtent.width), static_cast<int>(m_windowExtent.height), "kleicha", NULL, NULL);
+	glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 	glfwSetWindowUserPointer(m_window, this);
+	glfwSetCursorPos(m_window, m_windowExtent.width / 2.0f, m_windowExtent.height / 2.0f);
+	glfwSetCursorPosCallback(m_window, cursor_callback);
 	glfwSetKeyCallback(m_window, key_callback);
 
 	init_vulkan();
@@ -325,6 +334,10 @@ void Kleicha::start() {
 	while (!glfwWindowShouldClose(m_window)) {
 		glfwPollEvents();
 		draw();
+		
+		float currentTime{ static_cast<float>(glfwGetTime()) };
+		m_deltaTime = currentTime - m_lastFrame;
+		m_lastFrame = currentTime;
 	}
 	// wait for all driver access to conclude before cleanup
 	VK_CHECK(vkDeviceWaitIdle(m_device.device));
@@ -425,8 +438,8 @@ void Kleicha::draw() {
 	// push constants
 	vkt::PushConstants pushConstants{ .vertexBufferAddress = m_cubeAllocation.vertsBufferAddress};
 	pushConstants.matrix = utils::orthographicProj(glm::radians(60.0f), static_cast<float>(m_windowExtent.width) / m_windowExtent.height, 1000.0f, 0.1f) *
-		utils::perspective(1000.0f, 0.1f) * m_camera.getViewMatrix() * glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, 0.0f, -2.0f }) /**
-		glm::rotate(glm::mat4{1.0f}, glm::radians(m_framesRendered / 100.0f), glm::vec3{0.5f, 1.0f, 0.3f}) *//** glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 0.02f,0.02f,0.02f })*/;
+		utils::perspective(1000.0f, 0.1f) * m_camera.getViewMatrix() * glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, 0.0f, -2.0f }) *
+		glm::rotate(glm::mat4{1.0f}, static_cast<float>(glfwGetTime()), glm::vec3{0.5f, 1.0f, 0.3f}) /* glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 0.02f,0.02f,0.02f })*/;
 
 	vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(vkt::PushConstants), &pushConstants);
 
@@ -496,13 +509,13 @@ void Kleicha::draw() {
 
 void Kleicha::processInputs() {
 	if (glfwGetKey(m_window, GLFW_KEY_W) == GLFW_PRESS)
-		m_camera.moveCameraPosition(FORWARD, 0.005f);
+		m_camera.moveCameraPosition(FORWARD, m_deltaTime);
 	if (glfwGetKey(m_window, GLFW_KEY_S) == GLFW_PRESS)
-		m_camera.moveCameraPosition(BACKWARD, 0.005f);
+		m_camera.moveCameraPosition(BACKWARD, m_deltaTime);
 	if (glfwGetKey(m_window, GLFW_KEY_D) == GLFW_PRESS)
-		m_camera.moveCameraPosition(RIGHT, 0.005f);
+		m_camera.moveCameraPosition(RIGHT, m_deltaTime);
 	if (glfwGetKey(m_window, GLFW_KEY_A) == GLFW_PRESS)
-		m_camera.moveCameraPosition(LEFT, 0.005f);
+		m_camera.moveCameraPosition(LEFT, m_deltaTime);
 }
 
 void Kleicha::cleanup() const {
