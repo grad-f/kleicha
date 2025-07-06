@@ -16,12 +16,15 @@ layout(scalar, buffer_reference) readonly buffer ptrBuffer {
 layout(scalar, push_constant) uniform constants {
 	ptrBuffer pVertexBuffer;
 	mat4 perspectiveProj;
+	mat4 view;
+	mat4 model;
 } PushConstants;
 
 void main() {
 	
 	ptrBuffer pVertBuffer = PushConstants.pVertexBuffer;
+	mat4 viewingTransform = PushConstants.perspectiveProj * PushConstants.view * PushConstants.model;
 	
-	gl_Position = PushConstants.perspectiveProj * vec4(pVertBuffer.vertices[gl_VertexIndex].position, 1.0f);
+	gl_Position = viewingTransform * vec4(pVertBuffer.vertices[gl_VertexIndex].position, 1.0f);
 	outVertColor = vec4(pVertBuffer.vertices[gl_VertexIndex].position, 1.0f) * 0.5f + vec4(0.5f, 0.5f, 0.5f, 0.5f);
 }

@@ -88,5 +88,8 @@
     <None Include="..\shaders\cube.vert">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="..\shaders\cubeInstanced.vert">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

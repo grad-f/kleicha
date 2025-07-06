@@ -193,6 +193,7 @@
     <None Include="..\shaders\basic.vert" />
     <None Include="..\shaders\cube.frag" />
     <None Include="..\shaders\cube.vert" />
+    <None Include="..\shaders\cubeInstanced.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

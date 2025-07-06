@@ -13,7 +13,10 @@ namespace vkt {
 
 	struct PushConstants {
 		VkDeviceAddress vertexBufferAddress{};
-		glm::mat4 matrix{1.0f};
+		glm::mat4 perspectiveProjection{};
+		glm::mat4 view{};
+		glm::mat4 model{};
+		float timeFactor;
 	};
 
 	struct Instance {

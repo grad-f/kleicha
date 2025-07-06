@@ -143,9 +143,9 @@ void Kleicha::init_graphics_pipelines() {
 	vkCreatePipelineLayout(m_device.device, &pipelineLayoutInfo, nullptr, &m_dummyPipelineLayout);
 
 	/*VkShaderModule vertModule{utils::create_shader_module(m_device.device, "../shaders/vert_basic.spv")};
-	VkShaderModule fragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_basic.spv") };*/
-
-	VkShaderModule vertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_cube.spv") };
+	VkShaderModule fragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_basic.spv") };
+	VkShaderModule vertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_cube.spv") };*/
+	VkShaderModule vertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_cubeInstanced.spv") };
 	VkShaderModule fragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_cube.spv") };
 
 	PipelineBuilder pipelineBuilder{ m_device.device };
@@ -391,7 +391,7 @@ void Kleicha::draw() {
 	colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-	colorAttachment.clearValue.color = { {0.2f, 0.5f, 0.7f} };
+	colorAttachment.clearValue.color = { {0.0f, 0.0f, 0.0f} };
 
 	VkRenderingAttachmentInfo depthAttachment{ .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
 	depthAttachment.pNext = nullptr;
@@ -433,20 +433,24 @@ void Kleicha::draw() {
 
 	vkCmdSetViewport(frame.cmdBuffer, 0, 1, &viewport);
 	vkCmdSetScissor(frame.cmdBuffer, 0, 1, &scissor);
-
 	
 	// push constants
 	vkt::PushConstants pushConstants{ .vertexBufferAddress = m_cubeAllocation.vertsBufferAddress};
-	pushConstants.matrix = utils::orthographicProj(glm::radians(60.0f), static_cast<float>(m_windowExtent.width) / m_windowExtent.height, 1000.0f, 0.1f) *
-		utils::perspective(1000.0f, 0.1f) * m_camera.getViewMatrix() * glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, 0.0f, -2.0f }) *
+
+	pushConstants.perspectiveProjection = utils::orthographicProj(glm::radians(60.0f), static_cast<float>(m_windowExtent.width) / m_windowExtent.height, 1000.0f, 0.1f) *
+		utils::perspective(1000.0f, 0.1f);
+	pushConstants.view = m_camera.getViewMatrix();
+	/* for our instancing example we will compute the model matrix within the vertex shader for each instance
+	pushConstants.model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, 0.0f, -2.0f }) *
 		glm::rotate(glm::mat4{1.0f}, static_cast<float>(glfwGetTime()), glm::vec3{0.5f, 1.0f, 0.3f}) /* glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 0.02f,0.02f,0.02f })*/;
+	pushConstants.timeFactor = static_cast<float>(glfwGetTime());
 
 	vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(vkt::PushConstants), &pushConstants);
 
 	vkCmdBindIndexBuffer(frame.cmdBuffer, m_cubeAllocation.indAllocation.buffer, 0, VK_INDEX_TYPE_UINT32);
 
-	// invoke the vertex shader 3 times.
-	vkCmdDrawIndexed(frame.cmdBuffer, m_cubeAllocation.indexCount, 1, 0, 0, 0);
+	// creates indexCount vertex threads, each thread reading from a subset of the index buffer and making it accessible via gl_VertexIndex in
+	vkCmdDrawIndexed(frame.cmdBuffer, m_cubeAllocation.indexCount, 300000, 0, 0, 0);
 
 	vkCmdEndRendering(frame.cmdBuffer);
 
@@ -469,7 +473,7 @@ void Kleicha::draw() {
 	// forms a dependency chain with the image memory barrier at the beginning of the batch to ensure the image transition happens before vkCmdClearColorImage
 	acquiredSemSubmitInfo.stageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
 	acquiredSemSubmitInfo.deviceIndex = 0;
-
+	
 	VkSemaphoreSubmitInfo renderedSemSubmitInfo{ .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO };
 	renderedSemSubmitInfo.pNext = nullptr;
 	renderedSemSubmitInfo.semaphore = m_renderedSemaphores[imageIndex];
