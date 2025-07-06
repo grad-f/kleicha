@@ -38,6 +38,8 @@ private:
 	VmaAllocator m_allocator{};
 
 	vkt::Frame m_frames[MAX_FRAMES_IN_FLIGHT]{};
+	vkt::Image rasterImage{};
+	vkt::Image depthImage{};
 	std::vector<VkSemaphore> m_renderedSemaphores{};
 
 	vkt::GPUMeshAllocation m_cubeAllocation{};

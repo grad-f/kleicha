@@ -185,21 +185,18 @@ void Kleicha::init_image_buffers() {
 	allocationInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
 	allocationInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
-	// create an intermediate image for each potential frame in flight and a corresponding image view
-	for (auto& frame : m_frames) {
-		VK_CHECK(vmaCreateImage(m_allocator, &rasterImageInfo, &allocationInfo, &frame.rasterImage.image, &frame.rasterImage.allocation, &frame.rasterImage.allocationInfo));
-		VkImageViewCreateInfo rasterViewInfo{ init::create_image_view_info(frame.rasterImage.image, INTERMEDIATE_IMAGE_FORMAT, VK_IMAGE_ASPECT_COLOR_BIT) };
-		VK_CHECK(vkCreateImageView(m_device.device, &rasterViewInfo, nullptr, &frame.rasterImage.imageView));
+	VK_CHECK(vmaCreateImage(m_allocator, &rasterImageInfo, &allocationInfo, &rasterImage.image, &rasterImage.allocation, &rasterImage.allocationInfo));
+	VkImageViewCreateInfo rasterViewInfo{ init::create_image_view_info(rasterImage.image, INTERMEDIATE_IMAGE_FORMAT, VK_IMAGE_ASPECT_COLOR_BIT) };
+	VK_CHECK(vkCreateImageView(m_device.device, &rasterViewInfo, nullptr, &rasterImage.imageView));
 
-		VK_CHECK(vmaCreateImage(m_allocator, &depthImageInfo, &allocationInfo, &frame.depthImage.image, &frame.depthImage.allocation, &frame.depthImage.allocationInfo));
-		VkImageViewCreateInfo depthViewInfo{ init::create_image_view_info(frame.depthImage.image, DEPTH_IMAGE_FORMAT, VK_IMAGE_ASPECT_DEPTH_BIT) };
-		VK_CHECK(vkCreateImageView(m_device.device, &depthViewInfo, nullptr, &frame.depthImage.imageView));
+	VK_CHECK(vmaCreateImage(m_allocator, &depthImageInfo, &allocationInfo, &depthImage.image, &depthImage.allocation, &depthImage.allocationInfo));
+	VkImageViewCreateInfo depthViewInfo{ init::create_image_view_info(depthImage.image, DEPTH_IMAGE_FORMAT, VK_IMAGE_ASPECT_DEPTH_BIT) };
+	VK_CHECK(vkCreateImageView(m_device.device, &depthViewInfo, nullptr, &depthImage.imageView));
 
-		// transition depth image layouts
-		immediate_submit([&](VkCommandBuffer cmdBuffer) {
-			utils::image_memory_barrier(cmdBuffer, VK_PIPELINE_STAGE_NONE, VK_ACCESS_2_NONE, VK_PIPELINE_STAGE_NONE, VK_ACCESS_2_NONE, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, frame.depthImage.image);
-			});
-	}
+	// transition depth image layouts
+	immediate_submit([&](VkCommandBuffer cmdBuffer) {
+		utils::image_memory_barrier(cmdBuffer, VK_PIPELINE_STAGE_NONE, VK_ACCESS_2_NONE, VK_PIPELINE_STAGE_NONE, VK_ACCESS_2_NONE, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, depthImage.image);
+		});
 }
 
 void Kleicha::init_meshes() {
@@ -258,13 +255,12 @@ vkt::GPUMeshAllocation Kleicha::upload_mesh_data(const vkt::IndexedMesh& mesh) {
 }
 
 void Kleicha::deallocate_frame_images() const {
-	for (const auto& frame : m_frames) {
-		vmaDestroyImage(m_allocator, frame.rasterImage.image, frame.rasterImage.allocation);
-		vkDestroyImageView(m_device.device, frame.rasterImage.imageView, nullptr);
 
-		vmaDestroyImage(m_allocator, frame.depthImage.image, frame.depthImage.allocation);
-		vkDestroyImageView(m_device.device, frame.depthImage.imageView, nullptr);
-	}
+		vmaDestroyImage(m_allocator, rasterImage.image, rasterImage.allocation);
+		vkDestroyImageView(m_device.device, rasterImage.imageView, nullptr);
+
+		vmaDestroyImage(m_allocator, depthImage.image, depthImage.allocation);
+		vkDestroyImageView(m_device.device, depthImage.imageView, nullptr);
 }
 
 void Kleicha::immediate_submit(std::function<void(VkCommandBuffer cmdBuffer)>&& func) const {
@@ -367,7 +363,7 @@ void Kleicha::draw() {
 	// forms a dependency chain with vkAcquireNextImageKHR signal semaphore. when semaphores are signaled, all pending writes are made available. i dont need to do this manually here
 	VkImageMemoryBarrier2 rastertoTransferDst{init::create_image_barrier_info(VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_PIPELINE_STAGE_2_NONE, 
 		VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, 
-		VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, frame.rasterImage.image)};
+		VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, rasterImage.image)};
 
 	VkImageMemoryBarrier2 scToTransferDst{ init::create_image_barrier_info(VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0,
 		VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, m_swapchain.images[imageIndex])};
@@ -387,7 +383,7 @@ void Kleicha::draw() {
 	// specify the attachments to be used during the rendering pass
 	VkRenderingAttachmentInfo colorAttachment{.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO};
 	colorAttachment.pNext = nullptr;
-	colorAttachment.imageView = frame.rasterImage.imageView;
+	colorAttachment.imageView = rasterImage.imageView;
 	colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -395,7 +391,7 @@ void Kleicha::draw() {
 
 	VkRenderingAttachmentInfo depthAttachment{ .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
 	depthAttachment.pNext = nullptr;
-	depthAttachment.imageView = frame.depthImage.imageView;
+	depthAttachment.imageView = depthImage.imageView;
 	depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
 	depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -450,20 +446,20 @@ void Kleicha::draw() {
 	vkCmdBindIndexBuffer(frame.cmdBuffer, m_cubeAllocation.indAllocation.buffer, 0, VK_INDEX_TYPE_UINT32);
 
 	// creates indexCount vertex threads, each thread reading from a subset of the index buffer and making it accessible via gl_VertexIndex in
-	vkCmdDrawIndexed(frame.cmdBuffer, m_cubeAllocation.indexCount, 300000, 0, 0, 0);
+	vkCmdDrawIndexed(frame.cmdBuffer, m_cubeAllocation.indexCount, 1000000, 0, 0, 0);
 
 	vkCmdEndRendering(frame.cmdBuffer);
 
 	// transition image to transfer src
 	utils::image_memory_barrier(frame.cmdBuffer, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, 
 		VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_READ_BIT | VK_ACCESS_2_TRANSFER_WRITE_BIT, 
-		VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, frame.rasterImage.image);
+		VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, rasterImage.image);
 
 	// blit from intermediate raster image to swapchain image
-	utils::blit_image(frame.cmdBuffer, frame.rasterImage.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, m_swapchain.images[imageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, m_swapchain.imageExtent, m_swapchain.imageExtent);
+	utils::blit_image(frame.cmdBuffer, rasterImage.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, m_swapchain.images[imageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, m_swapchain.imageExtent, m_swapchain.imageExtent);
 
 	utils::image_memory_barrier(frame.cmdBuffer, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
-		VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT, VK_ACCESS_2_NONE, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, m_swapchain.images[imageIndex]);
+		VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_NONE, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, m_swapchain.images[imageIndex]);
 
 	VK_CHECK(vkEndCommandBuffer(frame.cmdBuffer));
 	
@@ -477,7 +473,7 @@ void Kleicha::draw() {
 	VkSemaphoreSubmitInfo renderedSemSubmitInfo{ .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO };
 	renderedSemSubmitInfo.pNext = nullptr;
 	renderedSemSubmitInfo.semaphore = m_renderedSemaphores[imageIndex];
-	renderedSemSubmitInfo.stageMask = VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT;
+	renderedSemSubmitInfo.stageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
 	renderedSemSubmitInfo.deviceIndex = 0;
 
 	VkCommandBufferSubmitInfo cmdBufferSubmitInfo{ .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO };

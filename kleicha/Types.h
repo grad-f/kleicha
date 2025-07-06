@@ -93,10 +93,6 @@ namespace vkt {
 		VkCommandBuffer cmdBuffer{};
 		VkFence inFlightFence{};
 		VkSemaphore acquiredSemaphore{};
-
-		// higher precision intermediate raster image we'll be performing our rendering computations with
-		vkt::Image rasterImage{};
-		vkt::Image depthImage{};
 	};
 
 	// chained and encapsulated device features struct
