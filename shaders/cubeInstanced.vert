@@ -29,9 +29,9 @@ mat4 buildTranslate(float x, float y, float z);
 void main() {
 	// compute cube transformations to be applied to its local coordinate frame -- gl_InstanceIndex here provides a unique translation and rotation for each cube instance.
 	float i = gl_InstanceIndex + pc.timeFactor;
-	float a = sin(203.0 * i/8000.0) * 403.0;
-	float b = sin(301.0 * i/4001.0) * 401.0;
-	float c = sin(400.0 * i/6003.0) * 405.0;
+	float a = sin(203.0 * i/8000.0) * 203.0;
+	float b = sin(301.0 * i/4001.0) * 201.0;
+	float c = sin(400.0 * i/6003.0) * 205.0;
 	mat4 translate = buildTranslate(a, b, c);
 
 	mat4 xRot = buildRotateX(i);

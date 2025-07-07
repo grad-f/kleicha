@@ -4,6 +4,7 @@
 #include <GLFW/glfw3.h>
 
 #include <functional>
+#include <stack>
 
 #include "vulkan/vulkan.h"
 #include "Types.h"
@@ -43,6 +44,7 @@ private:
 	std::vector<VkSemaphore> m_renderedSemaphores{};
 
 	vkt::GPUMeshAllocation m_cubeAllocation{};
+	vkt::GPUMeshAllocation m_pyrAllocation{};
 
 	void init_vulkan();
 	void init_swapchain();
@@ -53,14 +55,17 @@ private:
 	void init_image_buffers();
 	void init_meshes();
 
+	vkt::PushConstants m_pushConstants{};
+	std::stack<glm::mat4> m_mStack{};
 	vkt::GPUMeshAllocation upload_mesh_data(const vkt::IndexedMesh& mesh);
 
-	void draw();
+	void draw(float currentTime);
 	void recreate_swapchain();
 	void deallocate_frame_images() const;
 	// must be r-value reference as we'll be supplying lambdas
 	void immediate_submit(std::function<void(VkCommandBuffer cmdBuffer)>&& func) const;
 	void processInputs();
+	void draw_mesh(const vkt::Frame& frame, const vkt::GPUMeshAllocation& mesh, const glm::mat4& model);
 
 	uint32_t m_framesRendered{};
 	vkt::Frame get_current_frame() const {

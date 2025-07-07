@@ -1,5 +1,3 @@
-#include <iostream>
-
 #include "Kleicha.h"
 #include "Utils.h"
 #include "InstanceBuilder.h"
@@ -144,14 +142,14 @@ void Kleicha::init_graphics_pipelines() {
 
 	/*VkShaderModule vertModule{utils::create_shader_module(m_device.device, "../shaders/vert_basic.spv")};
 	VkShaderModule fragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_basic.spv") };
-	VkShaderModule vertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_cube.spv") };*/
-	VkShaderModule vertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_cubeInstanced.spv") };
+	VkShaderModule vertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_cubeInstanced.spv") };*/
+	VkShaderModule vertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_cube.spv") };
 	VkShaderModule fragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_cube.spv") };
 
 	PipelineBuilder pipelineBuilder{ m_device.device };
 	pipelineBuilder.pipelineLayout = m_dummyPipelineLayout;
 	pipelineBuilder.set_shaders(vertModule, fragModule);								//ccw winding
-	pipelineBuilder.set_rasterizer_state(VK_POLYGON_MODE_FILL, VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+	pipelineBuilder.set_rasterizer_state(VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
 	pipelineBuilder.set_depth_stencil_state(VK_TRUE);
 	pipelineBuilder.set_depth_attachment_format(DEPTH_IMAGE_FORMAT);
 	pipelineBuilder.set_color_attachment_format(INTERMEDIATE_IMAGE_FORMAT);
@@ -203,6 +201,9 @@ void Kleicha::init_meshes() {
 	// for now let's upload a cube mesh to the gpu
 	vkt::IndexedMesh cubeMesh{ utils::generate_cube_mesh() };
 	m_cubeAllocation = upload_mesh_data(cubeMesh);
+
+	vkt::IndexedMesh pyrMesh{ utils::generate_pyramid_mesh() };
+	m_pyrAllocation = upload_mesh_data(pyrMesh);
 }
 
 vkt::GPUMeshAllocation Kleicha::upload_mesh_data(const vkt::IndexedMesh& mesh) {
@@ -329,17 +330,17 @@ void Kleicha::start() {
 
 	while (!glfwWindowShouldClose(m_window)) {
 		glfwPollEvents();
-		draw();
-		
 		float currentTime{ static_cast<float>(glfwGetTime()) };
 		m_deltaTime = currentTime - m_lastFrame;
 		m_lastFrame = currentTime;
+
+		draw(currentTime);
 	}
 	// wait for all driver access to conclude before cleanup
 	VK_CHECK(vkDeviceWaitIdle(m_device.device));
 }
 
-void Kleicha::draw() {
+void Kleicha::draw(float currentTime) {
 	// get references to current frame
 	vkt::Frame frame{ get_current_frame() };
 	VK_CHECK(vkWaitForFences(m_device.device, 1, &frame.inFlightFence, VK_TRUE, std::numeric_limits<uint64_t>::max()));
@@ -387,7 +388,7 @@ void Kleicha::draw() {
 	colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-	colorAttachment.clearValue.color = { {0.0f, 0.0f, 0.0f} };
+	colorAttachment.clearValue.color = { {0.3f, 0.2f, 0.1f} };
 
 	VkRenderingAttachmentInfo depthAttachment{ .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
 	depthAttachment.pNext = nullptr;
@@ -430,23 +431,25 @@ void Kleicha::draw() {
 	vkCmdSetViewport(frame.cmdBuffer, 0, 1, &viewport);
 	vkCmdSetScissor(frame.cmdBuffer, 0, 1, &scissor);
 	
-	// push constants
-	vkt::PushConstants pushConstants{ .vertexBufferAddress = m_cubeAllocation.vertsBufferAddress};
+	m_pushConstants.view = m_camera.getViewMatrix();
+	m_pushConstants.perspectiveProjection = utils::orthographicProj(glm::radians(60.0f), static_cast<float>(m_windowExtent.width) / m_windowExtent.height, 1000.0f, 0.1f) * utils::perspective(1000.0f, 0.1f);
+	m_pushConstants.timeFactor = currentTime;
 
-	pushConstants.perspectiveProjection = utils::orthographicProj(glm::radians(60.0f), static_cast<float>(m_windowExtent.width) / m_windowExtent.height, 1000.0f, 0.1f) *
-		utils::perspective(1000.0f, 0.1f);
-	pushConstants.view = m_camera.getViewMatrix();
-	/* for our instancing example we will compute the model matrix within the vertex shader for each instance
-	pushConstants.model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, 0.0f, -2.0f }) *
-		glm::rotate(glm::mat4{1.0f}, static_cast<float>(glfwGetTime()), glm::vec3{0.5f, 1.0f, 0.3f}) /* glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 0.02f,0.02f,0.02f })*/;
-	pushConstants.timeFactor = static_cast<float>(glfwGetTime());
+	m_mStack.push(glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, 0.0f, -3.0f }));
+	m_mStack.push(m_mStack.top());
+	m_mStack.top() *= glm::rotate(glm::mat4{ 1.0f }, currentTime, glm::vec3{ 1.0f, 0.0f, 0.0f });
+	draw_mesh(frame, m_pyrAllocation, m_mStack.top());
 
-	vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(vkt::PushConstants), &pushConstants);
+	// cube: pop rotation -> translate -> rotate
+	m_mStack.pop();
+	m_mStack.push(m_mStack.top());
+	m_mStack.top() *= glm::translate(glm::mat4{ 1.0f }, glm::vec3{ cos(currentTime) * 4.0f, 0.0f, sin(currentTime) * 4.0f });
+	m_mStack.push(m_mStack.top());
+	m_mStack.top() *= glm::rotate(glm::mat4{ 1.0f }, currentTime, glm::vec3{ 0.0f, 1.0f, 0.0f });
 
-	vkCmdBindIndexBuffer(frame.cmdBuffer, m_cubeAllocation.indAllocation.buffer, 0, VK_INDEX_TYPE_UINT32);
+	draw_mesh(frame, m_cubeAllocation, m_mStack.top());
 
-	// creates indexCount vertex threads, each thread reading from a subset of the index buffer and making it accessible via gl_VertexIndex in
-	vkCmdDrawIndexed(frame.cmdBuffer, m_cubeAllocation.indexCount, 1000000, 0, 0, 0);
+	m_mStack.pop(); m_mStack.pop(); m_mStack.pop();
 
 	vkCmdEndRendering(frame.cmdBuffer);
 
@@ -507,6 +510,14 @@ void Kleicha::draw() {
 	processInputs();
 }
 
+void Kleicha::draw_mesh(const vkt::Frame& frame, const vkt::GPUMeshAllocation& mesh, const glm::mat4& model) {
+	m_pushConstants.vertexBufferAddress = mesh.vertsBufferAddress;
+	m_pushConstants.model = model;
+	vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
+	vkCmdBindIndexBuffer(frame.cmdBuffer, mesh.indAllocation.buffer, 0, VK_INDEX_TYPE_UINT32);
+	vkCmdDrawIndexed(frame.cmdBuffer, mesh.indexCount, 1, 0, 0, 0);
+}
+
 void Kleicha::processInputs() {
 	if (glfwGetKey(m_window, GLFW_KEY_W) == GLFW_PRESS)
 		m_camera.moveCameraPosition(FORWARD, m_deltaTime);
@@ -521,6 +532,9 @@ void Kleicha::processInputs() {
 void Kleicha::cleanup() const {
 
 	// model cleanup
+	vmaDestroyBuffer(m_allocator, m_pyrAllocation.vertsAllocation.buffer, m_pyrAllocation.vertsAllocation.allocation);
+	vmaDestroyBuffer(m_allocator, m_pyrAllocation.indAllocation.buffer, m_pyrAllocation.indAllocation.allocation);
+
 	vmaDestroyBuffer(m_allocator, m_cubeAllocation.vertsAllocation.buffer, m_cubeAllocation.vertsAllocation.allocation);
 	vmaDestroyBuffer(m_allocator, m_cubeAllocation.indAllocation.buffer, m_cubeAllocation.indAllocation.allocation);
 

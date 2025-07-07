@@ -28,6 +28,7 @@ namespace utils {
         VkExtent2D srcExtent, VkExtent2D dstExtent);
 
     vkt::IndexedMesh generate_cube_mesh();
+    vkt::IndexedMesh generate_pyramid_mesh();
 
     vkt::Buffer create_buffer(VmaAllocator allocator, VkDeviceSize bufferSize, VkBufferUsageFlags bufferUsage,
                                 VmaMemoryUsage memoryUsage, VkMemoryPropertyFlags requiredFlags, VmaAllocationCreateFlags flags = 0);
