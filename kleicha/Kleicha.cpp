@@ -322,6 +322,9 @@ void Kleicha::recreate_swapchain() {
 
 	set_window_extent(supportDetails.value().capabilities.currentExtent);
 	m_device.physicalDevice.surfaceSupportDetails = supportDetails.value();
+	// recompute perspective proj matrix as the aspect ratio may have changed
+	m_perspProj = utils::orthographicProj(glm::radians(60.0f),
+		static_cast<float>(m_windowExtent.width) / m_windowExtent.height, 1000.0f, 0.1f) * utils::perspective(1000.0f, 0.1f);
 	init_swapchain();
 	init_image_buffers();
 }
@@ -432,7 +435,7 @@ void Kleicha::draw(float currentTime) {
 	vkCmdSetScissor(frame.cmdBuffer, 0, 1, &scissor);
 	
 	m_pushConstants.view = m_camera.getViewMatrix();
-	m_pushConstants.perspectiveProjection = utils::orthographicProj(glm::radians(60.0f), static_cast<float>(m_windowExtent.width) / m_windowExtent.height, 1000.0f, 0.1f) * utils::perspective(1000.0f, 0.1f);
+	m_pushConstants.perspectiveProjection = m_perspProj;
 	m_pushConstants.timeFactor = currentTime;
 
 	m_mStack.push(glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, 0.0f, -3.0f }));
@@ -449,8 +452,15 @@ void Kleicha::draw(float currentTime) {
 
 	draw_mesh(frame, m_cubeAllocation, m_mStack.top());
 
-	m_mStack.pop(); m_mStack.pop(); m_mStack.pop();
+	m_mStack.pop();
+	m_mStack.push(m_mStack.top());
+	m_mStack.top() *= glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, cos(currentTime) * 2.0f, sin(currentTime) * 2.0f });
+	m_mStack.push(m_mStack.top());
+	m_mStack.top() *= glm::rotate(glm::mat4{ 1.0f }, currentTime, glm::vec3{ 0.0f, 1.0f, 0.0f }) * glm::scale(glm::mat4{ 1.0f },glm::vec3{0.2f, 0.2f, 0.2f});
+	
+	draw_mesh(frame, m_cubeAllocation, m_mStack.top());
 
+	m_mStack.pop(); m_mStack.pop(); m_mStack.pop();
 	vkCmdEndRendering(frame.cmdBuffer);
 
 	// transition image to transfer src

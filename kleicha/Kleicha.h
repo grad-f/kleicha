@@ -46,6 +46,9 @@ private:
 	vkt::GPUMeshAllocation m_cubeAllocation{};
 	vkt::GPUMeshAllocation m_pyrAllocation{};
 
+	glm::mat4 m_perspProj{ utils::orthographicProj(glm::radians(60.0f),
+		static_cast<float>(m_windowExtent.width) / m_windowExtent.height, 1000.0f, 0.1f) * utils::perspective(1000.0f, 0.1f) };
+
 	void init_vulkan();
 	void init_swapchain();
 	void init_command_buffers();
