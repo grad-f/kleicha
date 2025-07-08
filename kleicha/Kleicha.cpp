@@ -45,6 +45,7 @@ void Kleicha::init() {
 	init_command_buffers();
 	init_sync_primitives();
 	init_graphics_pipelines();
+	init_descriptors();
 	init_vma();
 	init_image_buffers();
 	init_meshes();
@@ -69,6 +70,8 @@ void Kleicha::init_vulkan() {
 	deviceFeatures.Vk12Features.timelineSemaphore = true;
 	deviceFeatures.Vk12Features.bufferDeviceAddress = true;
 	deviceFeatures.Vk12Features.descriptorIndexing = true;
+	deviceFeatures.Vk12Features.descriptorBindingPartiallyBound = true;
+	deviceFeatures.Vk12Features.descriptorBindingVariableDescriptorCount = true;
 	deviceFeatures.Vk12Features.scalarBlockLayout = true;
 	deviceFeatures.Vk13Features.dynamicRendering = true;
 	deviceFeatures.Vk13Features.synchronization2 = true;
@@ -158,6 +161,59 @@ void Kleicha::init_graphics_pipelines() {
 	// we're free to destroy shader modules after pipeline creation
 	vkDestroyShaderModule(m_device.device, vertModule, nullptr);
 	vkDestroyShaderModule(m_device.device, fragModule, nullptr);
+}
+
+// lazy descriptor set allocation for now
+void Kleicha::init_descriptors() {
+
+	// 'unbound' binding (must be last binding in a descriptor set layout) 
+	VkDescriptorBindingFlags bindingFlags{ VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT };
+	VkDescriptorSetLayoutBindingFlagsCreateInfo layoutBindingFlagsInfo{ .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO };
+	layoutBindingFlagsInfo.bindingCount = 1;
+	layoutBindingFlagsInfo.pBindingFlags = &bindingFlags;
+
+	VkDescriptorSetLayoutBinding layoutBinding{};
+	layoutBinding.binding = 1;
+	layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	layoutBinding.descriptorCount = 5;
+	layoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	layoutBinding.pImmutableSamplers = nullptr;
+
+	// create descriptor set layout
+	VkDescriptorSetLayoutCreateInfo descriptorSetLayoutInfo{ .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+	descriptorSetLayoutInfo.pNext = &layoutBindingFlagsInfo;
+	descriptorSetLayoutInfo.bindingCount = 1;
+	descriptorSetLayoutInfo.pBindings = &layoutBinding;
+
+	VK_CHECK(vkCreateDescriptorSetLayout(m_device.device, &descriptorSetLayoutInfo, nullptr, &m_globDescSetLayout));
+
+	//create descriptor set pool
+
+	VkDescriptorPoolSize poolSize{};
+	poolSize.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	poolSize.descriptorCount = 5;
+
+	VkDescriptorPoolCreateInfo descriptorPoolInfo{ .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
+	descriptorPoolInfo.pNext = nullptr;
+	descriptorPoolInfo.maxSets = 1;
+	descriptorPoolInfo.poolSizeCount = 1;
+	descriptorPoolInfo.pPoolSizes = &poolSize;
+
+	VK_CHECK(vkCreateDescriptorPool(m_device.device, &descriptorPoolInfo, nullptr, &m_descPool));
+
+	uint32_t variableSizedDescriptorSize{ 5 };
+	// we must specify the number of descriptors in our variable-sized descriptor binding in the descriptor set we are allocating
+	VkDescriptorSetVariableDescriptorCountAllocateInfo variableDescriptorCountAllocInfo{ .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO };
+	variableDescriptorCountAllocInfo.descriptorSetCount = 1;
+	variableDescriptorCountAllocInfo.pDescriptorCounts = &variableSizedDescriptorSize;
+
+	VkDescriptorSetAllocateInfo descriptorSetAllocInfo{ .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
+	descriptorSetAllocInfo.pNext = &variableDescriptorCountAllocInfo;
+	descriptorSetAllocInfo.descriptorPool = m_descPool;
+	descriptorSetAllocInfo.descriptorSetCount = 1;
+	descriptorSetAllocInfo.pSetLayouts = &m_globDescSetLayout;
+	VK_CHECK(vkAllocateDescriptorSets(m_device.device, &descriptorSetAllocInfo, &m_descSet));
+
 }
 
 void Kleicha::init_vma() {
@@ -558,6 +614,9 @@ void Kleicha::cleanup() const {
 	deallocate_frame_images();
 
 	vmaDestroyAllocator(m_allocator);
+
+	vkDestroyDescriptorPool(m_device.device, m_descPool, nullptr);
+	vkDestroyDescriptorSetLayout(m_device.device, m_globDescSetLayout, nullptr);
 
 	vkDestroyPipeline(m_device.device, m_graphicsPipeline, nullptr);
 	vkDestroyPipelineLayout(m_device.device, m_dummyPipelineLayout, nullptr);

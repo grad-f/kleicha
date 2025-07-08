@@ -38,6 +38,11 @@ private:
 	VkPipeline m_graphicsPipeline{};
 	VmaAllocator m_allocator{};
 
+	// descriptor resources
+	VkDescriptorSetLayout m_globDescSetLayout;
+	VkDescriptorPool m_descPool{};
+	VkDescriptorSet m_descSet{};
+
 	vkt::Frame m_frames[MAX_FRAMES_IN_FLIGHT]{};
 	vkt::Image rasterImage{};
 	vkt::Image depthImage{};
@@ -54,6 +59,7 @@ private:
 	void init_command_buffers();
 	void init_sync_primitives();
 	void init_graphics_pipelines();
+	void init_descriptors();
 	void init_vma();
 	void init_image_buffers();
 	void init_meshes();
