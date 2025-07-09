@@ -16,6 +16,9 @@
     <Filter Include="Shaders">
       <UniqueIdentifier>{88ce03e8-46d9-4e23-9d6f-65c9c26f4fd5}</UniqueIdentifier>
     </Filter>
+    <Filter Include="textures">
+      <UniqueIdentifier>{27bfbdfb-c2c1-4d6f-9a3e-fd31df801bcd}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -91,5 +94,10 @@
     <None Include="..\shaders\cubeInstanced.vert">
       <Filter>Shaders</Filter>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="..\textures\brick.png">
+      <Filter>textures</Filter>
+    </Image>
   </ItemGroup>
 </Project>

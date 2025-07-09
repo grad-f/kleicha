@@ -51,6 +51,9 @@ private:
 	vkt::GPUMeshAllocation m_cubeAllocation{};
 	vkt::GPUMeshAllocation m_pyrAllocation{};
 
+	VkSampler m_sampler{};
+	vkt::Image m_brickTextureImage{};
+
 	glm::mat4 m_perspProj{ utils::orthographicProj(glm::radians(60.0f),
 		static_cast<float>(m_windowExtent.width) / m_windowExtent.height, 1000.0f, 0.1f) * utils::perspective(1000.0f, 0.1f) };
 
@@ -63,10 +66,14 @@ private:
 	void init_vma();
 	void init_image_buffers();
 	void init_meshes();
+	void init_textures();
 
 	vkt::PushConstants m_pushConstants{};
 	std::stack<glm::mat4> m_mStack{};
+
+	vkt::Image upload_texture_image(const char* filePath);
 	vkt::GPUMeshAllocation upload_mesh_data(const vkt::IndexedMesh& mesh);
+
 
 	void draw(float currentTime);
 	void recreate_swapchain();

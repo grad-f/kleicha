@@ -8,10 +8,13 @@
 #include "Types.h"
 
 #pragma warning(push, 0)
-#pragma warning(disable : 26819 26110 6387 26495 6386 26813 33010 28182 26495)
+#pragma warning(disable : 26819 26110 6387 26495 6386 26813 33010 28182 26495 6262 4365)
 #define VMA_IMPLEMENTATION
-#include "vk_mem_alloc.h"
+#include <vk_mem_alloc.h>
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
 #pragma warning(pop)
+
 
 static void key_callback(GLFWwindow* window, int key, [[maybe_unused]]int scancode, int action, [[maybe_unused]]int mods) {
 
@@ -49,6 +52,7 @@ void Kleicha::init() {
 	init_vma();
 	init_image_buffers();
 	init_meshes();
+	init_textures();
 }
 
 // core vulkan init
@@ -64,9 +68,10 @@ void Kleicha::init_vulkan() {
 
 	/*		create logical device		*/		
 	std::vector<const char*> deviceExtensions{ VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-		VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME, VK_EXT_PIPELINE_CREATION_CACHE_CONTROL_EXTENSION_NAME,
-		VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME, VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME, VK_EXT_SCALAR_BLOCK_LAYOUT_EXTENSION_NAME };
+		VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME, VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME, 
+		VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME, VK_EXT_SCALAR_BLOCK_LAYOUT_EXTENSION_NAME };
 	vkt::DeviceFeatures deviceFeatures{};
+	deviceFeatures.VkFeatures.features.samplerAnisotropy = true;
 	deviceFeatures.Vk12Features.timelineSemaphore = true;
 	deviceFeatures.Vk12Features.bufferDeviceAddress = true;
 	deviceFeatures.Vk12Features.descriptorIndexing = true;
@@ -173,7 +178,7 @@ void Kleicha::init_descriptors() {
 	layoutBindingFlagsInfo.pBindingFlags = &bindingFlags;
 
 	VkDescriptorSetLayoutBinding layoutBinding{};
-	layoutBinding.binding = 1;
+	layoutBinding.binding = 0;
 	layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	layoutBinding.descriptorCount = 5;
 	layoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
@@ -213,7 +218,6 @@ void Kleicha::init_descriptors() {
 	descriptorSetAllocInfo.descriptorSetCount = 1;
 	descriptorSetAllocInfo.pSetLayouts = &m_globDescSetLayout;
 	VK_CHECK(vkAllocateDescriptorSets(m_device.device, &descriptorSetAllocInfo, &m_descSet));
-
 }
 
 void Kleicha::init_vma() {
@@ -261,7 +265,45 @@ void Kleicha::init_meshes() {
 	vkt::IndexedMesh pyrMesh{ utils::generate_pyramid_mesh() };
 	m_pyrAllocation = upload_mesh_data(pyrMesh);
 }
+void Kleicha::init_textures() {
+	m_brickTextureImage = upload_texture_image("../textures/brick.png");
+	
+	VkSamplerCreateInfo samplerInfo{ .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
+	samplerInfo.pNext = nullptr;
+	samplerInfo.magFilter = VK_FILTER_LINEAR;
+	samplerInfo.minFilter = VK_FILTER_LINEAR;
+	samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+	samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	samplerInfo.mipLodBias = 0.0f;
+	samplerInfo.anisotropyEnable = VK_TRUE;
+	samplerInfo.maxAnisotropy = m_device.physicalDevice.deviceProperties.properties.limits.maxSamplerAnisotropy;
+	samplerInfo.compareEnable = VK_FALSE;
+	samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+	samplerInfo.minLod = 0.0f;
+	samplerInfo.maxLod = 0.0f;
+	samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+	samplerInfo.unnormalizedCoordinates = VK_FALSE;
 
+	VK_CHECK(vkCreateSampler(m_device.device, &samplerInfo, nullptr, &m_sampler));
+
+	VkDescriptorImageInfo imageInfo{};
+	imageInfo.sampler = m_sampler;
+	imageInfo.imageView = m_brickTextureImage.imageView;
+	imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+	VkWriteDescriptorSet writeDescriptorSet{.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+	writeDescriptorSet.dstSet = m_descSet;
+	writeDescriptorSet.dstBinding = 0;
+	writeDescriptorSet.dstArrayElement = 0;
+	writeDescriptorSet.descriptorCount = 1;
+	writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	writeDescriptorSet.pImageInfo = &imageInfo;
+
+	vkUpdateDescriptorSets(m_device.device, 1, &writeDescriptorSet, 0, nullptr);
+
+}
 vkt::GPUMeshAllocation Kleicha::upload_mesh_data(const vkt::IndexedMesh& mesh) {
 	// Create mesh vertex and index buffers
 	vkt::Buffer GPUvertsAllocation{ utils::create_buffer(m_allocator, mesh.vertsBufferSize,
@@ -311,8 +353,64 @@ vkt::GPUMeshAllocation Kleicha::upload_mesh_data(const vkt::IndexedMesh& mesh) {
 	return { .vertsAllocation = GPUvertsAllocation, .indAllocation = GPUindAllocation, .indexCount = mesh.indexCount, .vertsBufferAddress = vertexBufferDeviceAddress };
 }
 
-void Kleicha::deallocate_frame_images() const {
+vkt::Image Kleicha::upload_texture_image(const char* filePath) {
 
+	int width, height;
+	stbi_uc* textureData{ stbi_load(filePath, &width, &height, nullptr, STBI_rgb_alpha) };
+	if (!textureData) {
+		throw std::runtime_error{ "[Kleicha] Failed to load texture image: " + std::string{ stbi_failure_reason() } };
+	}
+
+	VkExtent2D textureExtent{ static_cast<uint32_t>(width), static_cast<uint32_t>(height) };
+	VkDeviceSize bufferSize{ static_cast<VkDeviceSize>(width * height * 4) };
+
+	// allocate device_local memory to store the texture image
+	VkImageCreateInfo textureImageInfo{ init::create_image_info(VK_FORMAT_R8G8B8A8_SRGB, textureExtent, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT) };
+
+	VmaAllocationCreateInfo allocationInfo{};
+	allocationInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+	allocationInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+	vkt::Image textureImage{};
+	VK_CHECK(vmaCreateImage(m_allocator, &textureImageInfo, &allocationInfo, &textureImage.image, &textureImage.allocation, &textureImage.allocationInfo));
+	VkImageViewCreateInfo imageViewInfo{ init::create_image_view_info(textureImage.image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT) };
+	VK_CHECK(vkCreateImageView(m_device.device, &imageViewInfo, nullptr, &textureImage.imageView));
+
+	// allocate host visible mapped memory
+	vkt::Buffer stagingBuffer{ utils::create_buffer(m_allocator, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, 
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT) };
+	memcpy(stagingBuffer.allocationInfo.pMappedData, textureData, bufferSize);
+
+	// safe to deallocate now
+	stbi_image_free(textureData);
+
+	// transition texture image and issue copy from staging
+	immediate_submit([&](VkCommandBuffer cmdBuffer) {
+		utils::image_memory_barrier(cmdBuffer, VK_PIPELINE_STAGE_2_NONE_KHR, VK_ACCESS_2_NONE, 
+			VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, textureImage.image);
+
+		VkBufferImageCopy imageCopy{};
+		imageCopy.bufferOffset = 0;
+		imageCopy.bufferRowLength = 0;
+		imageCopy.bufferImageHeight = 0;
+		imageCopy.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		imageCopy.imageSubresource.mipLevel = 0;
+		imageCopy.imageSubresource.layerCount = 1;
+		imageCopy.imageSubresource.baseArrayLayer = 0;
+		imageCopy.imageOffset = { .x=0,.y=0,.z=0 };
+		imageCopy.imageExtent = { .width = textureExtent.width, .height = textureExtent.height, .depth = 1 };
+		vkCmdCopyBufferToImage(cmdBuffer, stagingBuffer.buffer, textureImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageCopy);
+
+		utils::image_memory_barrier(cmdBuffer, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
+			VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, textureImage.image);
+
+		});
+
+	vmaDestroyBuffer(m_allocator, stagingBuffer.buffer, stagingBuffer.allocation);
+	return textureImage;
+}
+
+void Kleicha::deallocate_frame_images() const {
 		vmaDestroyImage(m_allocator, rasterImage.image, rasterImage.allocation);
 		vkDestroyImageView(m_device.device, rasterImage.imageView, nullptr);
 
@@ -596,6 +694,10 @@ void Kleicha::processInputs() {
 }
 
 void Kleicha::cleanup() const {
+
+	vkDestroySampler(m_device.device, m_sampler, nullptr);
+	vkDestroyImageView(m_device.device, m_brickTextureImage.imageView, nullptr);
+	vmaDestroyImage(m_allocator, m_brickTextureImage.image, m_brickTextureImage.allocation);
 
 	// model cleanup
 	vmaDestroyBuffer(m_allocator, m_pyrAllocation.vertsAllocation.buffer, m_pyrAllocation.vertsAllocation.allocation);
