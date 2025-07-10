@@ -194,6 +194,8 @@
     <None Include="..\shaders\cube.frag" />
     <None Include="..\shaders\cube.vert" />
     <None Include="..\shaders\cubeInstanced.vert" />
+    <None Include="..\shaders\pyrTextured.frag" />
+    <None Include="..\shaders\pyrTextured.vert" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="..\textures\brick.png" />

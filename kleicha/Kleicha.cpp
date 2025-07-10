@@ -47,8 +47,8 @@ void Kleicha::init() {
 	init_swapchain();
 	init_command_buffers();
 	init_sync_primitives();
-	init_graphics_pipelines();
 	init_descriptors();
+	init_graphics_pipelines();
 	init_vma();
 	init_image_buffers();
 	init_meshes();
@@ -72,6 +72,7 @@ void Kleicha::init_vulkan() {
 		VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME, VK_EXT_SCALAR_BLOCK_LAYOUT_EXTENSION_NAME };
 	vkt::DeviceFeatures deviceFeatures{};
 	deviceFeatures.VkFeatures.features.samplerAnisotropy = true;
+	deviceFeatures.Vk12Features.runtimeDescriptorArray = true;
 	deviceFeatures.Vk12Features.timelineSemaphore = true;
 	deviceFeatures.Vk12Features.bufferDeviceAddress = true;
 	deviceFeatures.Vk12Features.descriptorIndexing = true;
@@ -146,13 +147,15 @@ void Kleicha::init_graphics_pipelines() {
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo{ .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
 	pipelineLayoutInfo.pushConstantRangeCount = 1;
 	pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
+	pipelineLayoutInfo.setLayoutCount = 1;
+	pipelineLayoutInfo.pSetLayouts = &m_globDescSetLayout;
 	vkCreatePipelineLayout(m_device.device, &pipelineLayoutInfo, nullptr, &m_dummyPipelineLayout);
 
 	/*VkShaderModule vertModule{utils::create_shader_module(m_device.device, "../shaders/vert_basic.spv")};
 	VkShaderModule fragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_basic.spv") };
 	VkShaderModule vertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_cubeInstanced.spv") };*/
-	VkShaderModule vertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_cube.spv") };
-	VkShaderModule fragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_cube.spv") };
+	VkShaderModule vertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_pyrTextured.spv") };
+	VkShaderModule fragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_pyrTextured.spv") };
 
 	PipelineBuilder pipelineBuilder{ m_device.device };
 	pipelineBuilder.pipelineLayout = m_dummyPipelineLayout;
@@ -258,10 +261,6 @@ void Kleicha::init_image_buffers() {
 }
 
 void Kleicha::init_meshes() {
-	// for now let's upload a cube mesh to the gpu
-	vkt::IndexedMesh cubeMesh{ utils::generate_cube_mesh() };
-	m_cubeAllocation = upload_mesh_data(cubeMesh);
-
 	vkt::IndexedMesh pyrMesh{ utils::generate_pyramid_mesh() };
 	m_pyrAllocation = upload_mesh_data(pyrMesh);
 }
@@ -302,7 +301,6 @@ void Kleicha::init_textures() {
 	writeDescriptorSet.pImageInfo = &imageInfo;
 
 	vkUpdateDescriptorSets(m_device.device, 1, &writeDescriptorSet, 0, nullptr);
-
 }
 vkt::GPUMeshAllocation Kleicha::upload_mesh_data(const vkt::IndexedMesh& mesh) {
 	// Create mesh vertex and index buffers
@@ -497,7 +495,7 @@ void Kleicha::start() {
 	VK_CHECK(vkDeviceWaitIdle(m_device.device));
 }
 
-void Kleicha::draw(float currentTime) {
+void Kleicha::draw([[maybe_unused]]float currentTime) {
 	// get references to current frame
 	vkt::Frame frame{ get_current_frame() };
 	VK_CHECK(vkWaitForFences(m_device.device, 1, &frame.inFlightFence, VK_TRUE, std::numeric_limits<uint64_t>::max()));
@@ -545,7 +543,7 @@ void Kleicha::draw(float currentTime) {
 	colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-	colorAttachment.clearValue.color = { {0.3f, 0.2f, 0.1f} };
+	colorAttachment.clearValue.color = { {0.6f, 0.6f, 1.0f} };
 
 	VkRenderingAttachmentInfo depthAttachment{ .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
 	depthAttachment.pNext = nullptr;
@@ -587,34 +585,18 @@ void Kleicha::draw(float currentTime) {
 
 	vkCmdSetViewport(frame.cmdBuffer, 0, 1, &viewport);
 	vkCmdSetScissor(frame.cmdBuffer, 0, 1, &scissor);
-	
+	vkCmdBindDescriptorSets(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_dummyPipelineLayout, 0, 1, &m_descSet, 0, nullptr);
 	m_pushConstants.view = m_camera.getViewMatrix();
 	m_pushConstants.perspectiveProjection = m_perspProj;
-	m_pushConstants.timeFactor = currentTime;
+	m_pushConstants.texID = 0;
 
 	m_mStack.push(glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, 0.0f, -3.0f }));
 	m_mStack.push(m_mStack.top());
-	m_mStack.top() *= glm::rotate(glm::mat4{ 1.0f }, currentTime, glm::vec3{ 1.0f, 0.0f, 0.0f });
+	m_mStack.top() *= glm::rotate(glm::mat4{ 1.0f }, currentTime, glm::vec3{ 0.0f, 1.0f, 0.0f });
 	draw_mesh(frame, m_pyrAllocation, m_mStack.top());
 
-	// cube: pop rotation -> translate -> rotate
 	m_mStack.pop();
-	m_mStack.push(m_mStack.top());
-	m_mStack.top() *= glm::translate(glm::mat4{ 1.0f }, glm::vec3{ cos(currentTime) * 4.0f, 0.0f, sin(currentTime) * 4.0f });
-	m_mStack.push(m_mStack.top());
-	m_mStack.top() *= glm::rotate(glm::mat4{ 1.0f }, currentTime, glm::vec3{ 0.0f, 1.0f, 0.0f });
 
-	draw_mesh(frame, m_cubeAllocation, m_mStack.top());
-
-	m_mStack.pop();
-	m_mStack.push(m_mStack.top());
-	m_mStack.top() *= glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, cos(currentTime) * 2.0f, sin(currentTime) * 2.0f });
-	m_mStack.push(m_mStack.top());
-	m_mStack.top() *= glm::rotate(glm::mat4{ 1.0f }, currentTime, glm::vec3{ 0.0f, 1.0f, 0.0f }) * glm::scale(glm::mat4{ 1.0f },glm::vec3{0.2f, 0.2f, 0.2f});
-	
-	draw_mesh(frame, m_cubeAllocation, m_mStack.top());
-
-	m_mStack.pop(); m_mStack.pop(); m_mStack.pop();
 	vkCmdEndRendering(frame.cmdBuffer);
 
 	// transition image to transfer src

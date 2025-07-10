@@ -16,7 +16,7 @@ namespace vkt {
 		glm::mat4 perspectiveProjection{};
 		glm::mat4 view{};
 		glm::mat4 model{};
-		float timeFactor;
+		int texID;
 	};
 
 	struct Instance {
@@ -77,6 +77,7 @@ namespace vkt {
 
 	struct Vertex {
 		glm::vec3 position{};
+		glm::vec2 UV{};
 	};
 
 	struct IndexedMesh {

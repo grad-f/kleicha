@@ -27,7 +27,7 @@ namespace utils {
     void blit_image(VkCommandBuffer cmdBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkImage dstImage, VkImageLayout dstImageLayout,
         VkExtent2D srcExtent, VkExtent2D dstExtent);
 
-    vkt::IndexedMesh generate_cube_mesh();
+//    vkt::IndexedMesh generate_cube_mesh();
     vkt::IndexedMesh generate_pyramid_mesh();
 
     vkt::Buffer create_buffer(VmaAllocator allocator, VkDeviceSize bufferSize, VkBufferUsageFlags bufferUsage,

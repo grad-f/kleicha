@@ -89,7 +89,7 @@ namespace utils {
         return buf;
     }
 
-    vkt::IndexedMesh generate_cube_mesh() {
+/*    vkt::IndexedMesh generate_cube_mesh() {
         return {
             .tInd { //triangles
                 // top
@@ -123,25 +123,29 @@ namespace utils {
             {	{1.0f, 1.0f, -1.0f}  },		//7
         }
         };
-    }
+    }*/
 
     vkt::IndexedMesh generate_pyramid_mesh() {
         return {
             .tInd {
-                {0,1,2},
+                {6,2,5},
+                {4,5,2},
+                {2,6,3},
+                {6,1,3},
+                {1,0,3},
                 {0,2,3},
-                {1,0,4},
-                {2,1,4},
-                {3,2,4},
-                {0,3,4},
             },
 
             .verts {
-                {   {-1.0f, 0.0f, -1.0f}    },
-                {   {1.0f, 0.0f, -1.0f}    },
-                {   {1.0f, 0.0f, 1.0f}    },
-                {   {-1.0f, 0.0f, 1.0f}    },
-                {   {0.0f, 2.0f, 0.0f}    },
+                {   {-1.0f, 0.0f, -1.0f},   {1.0f, 0.0f}      },      // base top left          0
+                {   {1.0f, 0.0f, -1.0f},    {0.0f, 0.0f}      },      // base top right         1
+                {   {-1.0f, 0.0f, 1.0f},    {0.0f, 0.0f}      },      // base bottom left       2
+                {   {0.0f, 2.0f, 0.0f},     {0.5f, 1.0f}      },      // top                    3
+
+                {   {-1.0f, 0.0f, -1.0f},   {0.0f, 1.0f}      },      // base top left          4
+                {   {1.0f, 0.0f, -1.0f},    {1.0f, 1.0f}      },      // base top right         5
+                {   {1.0f, 0.0f, 1.0f},     {1.0f, 0.0f}      },      // base bottom right      6
+
             }
         };
     }
