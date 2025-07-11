@@ -105,5 +105,11 @@
     <Image Include="..\textures\brick.png">
       <Filter>textures</Filter>
     </Image>
+    <Image Include="..\textures\concrete.png">
+      <Filter>textures</Filter>
+    </Image>
+    <Image Include="..\textures\tiled.png">
+      <Filter>textures</Filter>
+    </Image>
   </ItemGroup>
 </Project>

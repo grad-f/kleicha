@@ -32,5 +32,5 @@ void main() {
 	gl_Position = viewingTransform * vec4(pVertBuffer.vertices[gl_VertexIndex].position, 1.0f);
 	outUV = pVertBuffer.vertices[gl_VertexIndex].UV;
 	outTexID = PushConstants.texID;
-	//outVertColor = vec4(pVertBuffer.vertices[gl_VertexIndex].position, 1.0f) * 0.5f + vec4(0.5f, 0.5f, 0.5f, 0.5f);
+	outVertColor = vec4(pVertBuffer.vertices[gl_VertexIndex].position, 1.0f) * 0.5f + vec4(0.5f, 0.5f, 0.5f, 0.5f);
 }

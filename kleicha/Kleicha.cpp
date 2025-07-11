@@ -53,6 +53,7 @@ void Kleicha::init() {
 	init_image_buffers();
 	init_meshes();
 	init_textures();
+	init_write_descriptor_set();
 }
 
 // core vulkan init
@@ -67,9 +68,7 @@ void Kleicha::init_vulkan() {
 	VK_CHECK(glfwCreateWindowSurface(m_instance.instance, m_window, nullptr, &m_surface));
 
 	/*		create logical device		*/		
-	std::vector<const char*> deviceExtensions{ VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-		VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME, VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME, 
-		VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME, VK_EXT_SCALAR_BLOCK_LAYOUT_EXTENSION_NAME };
+	std::vector<const char*> deviceExtensions{ VK_KHR_SWAPCHAIN_EXTENSION_NAME };
 	vkt::DeviceFeatures deviceFeatures{};
 	deviceFeatures.VkFeatures.features.samplerAnisotropy = true;
 	deviceFeatures.Vk12Features.runtimeDescriptorArray = true;
@@ -171,45 +170,44 @@ void Kleicha::init_graphics_pipelines() {
 	vkDestroyShaderModule(m_device.device, fragModule, nullptr);
 }
 
-// lazy descriptor set allocation for now
 void Kleicha::init_descriptors() {
 
 	// 'unbound' binding (must be last binding in a descriptor set layout) 
-	VkDescriptorBindingFlags bindingFlags{ VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT };
+	VkDescriptorBindingFlags bindingFlags[2]{
+		{},
+		{VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT }
+	};
 	VkDescriptorSetLayoutBindingFlagsCreateInfo layoutBindingFlagsInfo{ .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO };
-	layoutBindingFlagsInfo.bindingCount = 1;
-	layoutBindingFlagsInfo.pBindingFlags = &bindingFlags;
+	layoutBindingFlagsInfo.bindingCount = std::size(bindingFlags);
+	layoutBindingFlagsInfo.pBindingFlags = bindingFlags;
 
-	VkDescriptorSetLayoutBinding layoutBinding{};
-	layoutBinding.binding = 0;
-	layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	layoutBinding.descriptorCount = 5;
-	layoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-	layoutBinding.pImmutableSamplers = nullptr;
+	VkDescriptorSetLayoutBinding bindings[2]{
+		{0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 50, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
+		{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 50, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr}
+	};
 
 	// create descriptor set layout
 	VkDescriptorSetLayoutCreateInfo descriptorSetLayoutInfo{ .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
 	descriptorSetLayoutInfo.pNext = &layoutBindingFlagsInfo;
-	descriptorSetLayoutInfo.bindingCount = 1;
-	descriptorSetLayoutInfo.pBindings = &layoutBinding;
-
+	descriptorSetLayoutInfo.bindingCount = std::size(bindings);
+	descriptorSetLayoutInfo.pBindings = bindings;
 	VK_CHECK(vkCreateDescriptorSetLayout(m_device.device, &descriptorSetLayoutInfo, nullptr, &m_globDescSetLayout));
 
 	//create descriptor set pool
-
-	VkDescriptorPoolSize poolSize{};
-	poolSize.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	poolSize.descriptorCount = 5;
+	VkDescriptorPoolSize poolDescriptorSizes[2]{
+		{VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 50},
+		{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 50}
+	};
 
 	VkDescriptorPoolCreateInfo descriptorPoolInfo{ .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
 	descriptorPoolInfo.pNext = nullptr;
 	descriptorPoolInfo.maxSets = 1;
-	descriptorPoolInfo.poolSizeCount = 1;
-	descriptorPoolInfo.pPoolSizes = &poolSize;
+	descriptorPoolInfo.poolSizeCount = std::size(poolDescriptorSizes);
+	descriptorPoolInfo.pPoolSizes = poolDescriptorSizes;
 
 	VK_CHECK(vkCreateDescriptorPool(m_device.device, &descriptorPoolInfo, nullptr, &m_descPool));
 
-	uint32_t variableSizedDescriptorSize{ 5 };
+	uint32_t variableSizedDescriptorSize{ 50 };
 	// we must specify the number of descriptors in our variable-sized descriptor binding in the descriptor set we are allocating
 	VkDescriptorSetVariableDescriptorCountAllocateInfo variableDescriptorCountAllocInfo{ .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO };
 	variableDescriptorCountAllocInfo.descriptorSetCount = 1;
@@ -265,43 +263,11 @@ void Kleicha::init_meshes() {
 	m_pyrAllocation = upload_mesh_data(pyrMesh);
 }
 void Kleicha::init_textures() {
-	m_brickTextureImage = upload_texture_image("../textures/brick.png");
-	
-	VkSamplerCreateInfo samplerInfo{ .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
-	samplerInfo.pNext = nullptr;
-	samplerInfo.magFilter = VK_FILTER_LINEAR;
-	samplerInfo.minFilter = VK_FILTER_LINEAR;
-	samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
-	samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	samplerInfo.mipLodBias = 0.0f;
-	samplerInfo.anisotropyEnable = VK_TRUE;
-	samplerInfo.maxAnisotropy = m_device.physicalDevice.deviceProperties.properties.limits.maxSamplerAnisotropy;
-	samplerInfo.compareEnable = VK_FALSE;
-	samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-	samplerInfo.minLod = 0.0f;
-	samplerInfo.maxLod = 0.0f;
-	samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-	samplerInfo.unnormalizedCoordinates = VK_FALSE;
-
-	VK_CHECK(vkCreateSampler(m_device.device, &samplerInfo, nullptr, &m_sampler));
-
-	VkDescriptorImageInfo imageInfo{};
-	imageInfo.sampler = m_sampler;
-	imageInfo.imageView = m_brickTextureImage.imageView;
-	imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-	VkWriteDescriptorSet writeDescriptorSet{.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
-	writeDescriptorSet.dstSet = m_descSet;
-	writeDescriptorSet.dstBinding = 0;
-	writeDescriptorSet.dstArrayElement = 0;
-	writeDescriptorSet.descriptorCount = 1;
-	writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	writeDescriptorSet.pImageInfo = &imageInfo;
-
-	vkUpdateDescriptorSets(m_device.device, 1, &writeDescriptorSet, 0, nullptr);
+	m_textures.push_back(upload_texture_image("../textures/brick.png"));
+	m_textures.push_back(upload_texture_image("../textures/concrete.png"));
+	m_textures.push_back(upload_texture_image("../textures/tiled.png"));
 }
+
 vkt::GPUMeshAllocation Kleicha::upload_mesh_data(const vkt::IndexedMesh& mesh) {
 	// Create mesh vertex and index buffers
 	vkt::Buffer GPUvertsAllocation{ utils::create_buffer(m_allocator, mesh.vertsBufferSize,
@@ -349,6 +315,48 @@ vkt::GPUMeshAllocation Kleicha::upload_mesh_data(const vkt::IndexedMesh& mesh) {
 	vmaDestroyBuffer(m_allocator, STGindexBuffer.buffer, STGindexBuffer.allocation);
 
 	return { .vertsAllocation = GPUvertsAllocation, .indAllocation = GPUindAllocation, .indexCount = mesh.indexCount, .vertsBufferAddress = vertexBufferDeviceAddress };
+}
+
+void Kleicha::init_write_descriptor_set() {
+
+	VkSamplerCreateInfo samplerInfo{ .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
+	samplerInfo.pNext = nullptr;
+	samplerInfo.magFilter = VK_FILTER_LINEAR;
+	samplerInfo.minFilter = VK_FILTER_LINEAR;
+	samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+	samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	samplerInfo.mipLodBias = 0.0f;
+	samplerInfo.anisotropyEnable = VK_TRUE;
+	samplerInfo.maxAnisotropy = m_device.physicalDevice.deviceProperties.properties.limits.maxSamplerAnisotropy;
+	samplerInfo.compareEnable = VK_FALSE;
+	samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+	samplerInfo.minLod = 0.0f;
+	samplerInfo.maxLod = 0.0f;
+	samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+	samplerInfo.unnormalizedCoordinates = VK_FALSE;
+
+	VK_CHECK(vkCreateSampler(m_device.device, &samplerInfo, nullptr, &m_sampler));
+
+	std::vector<VkDescriptorImageInfo> imageInfos{};
+	VkDescriptorImageInfo imageInfo{};
+	imageInfo.sampler = m_sampler;
+	imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	for (const auto& texture : m_textures) {
+		imageInfo.imageView = texture.imageView;
+		imageInfos.emplace_back(imageInfo);
+	}
+
+	VkWriteDescriptorSet writeDescriptorSet{ .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+	writeDescriptorSet.dstSet = m_descSet;
+	writeDescriptorSet.dstBinding = 1;
+	writeDescriptorSet.dstArrayElement = 0;
+	writeDescriptorSet.descriptorCount = static_cast<uint32_t>(imageInfos.size());
+	writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	writeDescriptorSet.pImageInfo = imageInfos.data();
+
+	vkUpdateDescriptorSets(m_device.device, 1, &writeDescriptorSet, 0, nullptr);
 }
 
 vkt::Image Kleicha::upload_texture_image(const char* filePath) {
@@ -601,7 +609,7 @@ void Kleicha::draw([[maybe_unused]]float currentTime) {
 
 	// transition image to transfer src
 	utils::image_memory_barrier(frame.cmdBuffer, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, 
-		VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_READ_BIT | VK_ACCESS_2_TRANSFER_WRITE_BIT, 
+		VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_READ_BIT, 
 		VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, rasterImage.image);
 
 	// blit from intermediate raster image to swapchain image
@@ -678,8 +686,10 @@ void Kleicha::processInputs() {
 void Kleicha::cleanup() const {
 
 	vkDestroySampler(m_device.device, m_sampler, nullptr);
-	vkDestroyImageView(m_device.device, m_brickTextureImage.imageView, nullptr);
-	vmaDestroyImage(m_allocator, m_brickTextureImage.image, m_brickTextureImage.allocation);
+	for (const auto& texture : m_textures) {
+		vkDestroyImageView(m_device.device, texture.imageView, nullptr);
+		vmaDestroyImage(m_allocator, texture.image, texture.allocation);
+	}
 
 	// model cleanup
 	vmaDestroyBuffer(m_allocator, m_pyrAllocation.vertsAllocation.buffer, m_pyrAllocation.vertsAllocation.allocation);

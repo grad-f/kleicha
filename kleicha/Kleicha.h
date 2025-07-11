@@ -52,7 +52,7 @@ private:
 	vkt::GPUMeshAllocation m_pyrAllocation{};
 
 	VkSampler m_sampler{};
-	vkt::Image m_brickTextureImage{};
+	std::vector<vkt::Image> m_textures{};
 
 	glm::mat4 m_perspProj{ utils::orthographicProj(glm::radians(60.0f),
 		static_cast<float>(m_windowExtent.width) / m_windowExtent.height, 1000.0f, 0.1f) * utils::perspective(1000.0f, 0.1f) };
@@ -67,6 +67,7 @@ private:
 	void init_image_buffers();
 	void init_meshes();
 	void init_textures();
+	void init_write_descriptor_set();
 
 	vkt::PushConstants m_pushConstants{};
 	std::stack<glm::mat4> m_mStack{};
