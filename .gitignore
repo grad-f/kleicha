@@ -363,3 +363,5 @@ MigrationBackup/
 FodyWeavers.xsd
 /samples/Basic_Cube_Mesh/shaders
 /samples/Basic_Cube_Mesh_Instanced/shaders
+/textures/concrete.png
+/textures/tiled.png
