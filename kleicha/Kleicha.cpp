@@ -261,19 +261,28 @@ void Kleicha::init_image_buffers() {
 void Kleicha::init_meshes() {
 	vkt::IndexedMesh pyrMesh{ utils::generate_pyramid_mesh() };
 	m_pyrAllocation = upload_mesh_data(pyrMesh);
+
+	vkt::IndexedMesh sphere{ utils::generate_sphere(22) };
+	m_sphereAllocation = upload_mesh_data(sphere);
 }
 void Kleicha::init_textures() {
 	m_textures.push_back(upload_texture_image("../textures/brick.png"));
-	m_textures.push_back(upload_texture_image("../textures/tiled.png"));
+	//m_textures.push_back(upload_texture_image("../textures/tiled.png"));
+	//m_textures.push_back(upload_texture_image("../textures/concrete.png"));
 }
 
 vkt::GPUMeshAllocation Kleicha::upload_mesh_data(const vkt::IndexedMesh& mesh) {
+
+	VkDeviceSize vertsBufferSize{ mesh.getvertsBufferSize() };
+	VkDeviceSize tIndBufferSize{ mesh.getIndBufferSize() };
+
+
 	// Create mesh vertex and index buffers
-	vkt::Buffer GPUvertsAllocation{ utils::create_buffer(m_allocator, mesh.vertsBufferSize,
+	vkt::Buffer GPUvertsAllocation{ utils::create_buffer(m_allocator, vertsBufferSize,
 		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT_COPY,
 		VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) };
 
-	vkt::Buffer GPUindAllocation{ utils::create_buffer(m_allocator, mesh.tIndBufferSize,
+	vkt::Buffer GPUindAllocation{ utils::create_buffer(m_allocator, tIndBufferSize,
 		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
 		VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) };
 
@@ -282,22 +291,22 @@ vkt::GPUMeshAllocation Kleicha::upload_mesh_data(const vkt::IndexedMesh& mesh) {
 	VkDeviceAddress vertexBufferDeviceAddress{ vkGetBufferDeviceAddress(m_device.device, &GPUvertexBufferAddr) };
 
 	// Create staging buffers
-	vkt::Buffer STGvertexBuffer{ utils::create_buffer(m_allocator, mesh.vertsBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,  VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+	vkt::Buffer STGvertexBuffer{ utils::create_buffer(m_allocator, vertsBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,  VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT) };
 
-	vkt::Buffer STGindexBuffer{ utils::create_buffer(m_allocator, mesh.tIndBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,  VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+	vkt::Buffer STGindexBuffer{ utils::create_buffer(m_allocator, tIndBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,  VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT) };
 
 	// copy to mapped device visible memory
-	memcpy(STGvertexBuffer.allocation->GetMappedData(), mesh.verts.data(), mesh.vertsBufferSize);
-	memcpy(STGindexBuffer.allocation->GetMappedData(), mesh.tInd.data(), mesh.tIndBufferSize);
+	memcpy(STGvertexBuffer.allocation->GetMappedData(), mesh.verts.data(), vertsBufferSize);
+	memcpy(STGindexBuffer.allocation->GetMappedData(), mesh.tInd.data(), tIndBufferSize);
 	
-	VkBufferCopy bufferCopy{ .srcOffset = 0, .dstOffset = 0, .size = mesh.vertsBufferSize };
+	VkBufferCopy bufferCopy{ .srcOffset = 0, .dstOffset = 0, .size = vertsBufferSize };
 
 	// copy staging buffers to device
 	immediate_submit([&](VkCommandBuffer cmdBuffer) {
 		vkCmdCopyBuffer(cmdBuffer, STGvertexBuffer.buffer, GPUvertsAllocation.buffer, 1, &bufferCopy);
-		bufferCopy.size = mesh.tIndBufferSize;
+		bufferCopy.size = tIndBufferSize;
 		vkCmdCopyBuffer(cmdBuffer, STGindexBuffer.buffer, GPUindAllocation.buffer, 1, &bufferCopy);
 		});
 
@@ -313,7 +322,7 @@ vkt::GPUMeshAllocation Kleicha::upload_mesh_data(const vkt::IndexedMesh& mesh) {
 	vmaDestroyBuffer(m_allocator, STGvertexBuffer.buffer, STGvertexBuffer.allocation);
 	vmaDestroyBuffer(m_allocator, STGindexBuffer.buffer, STGindexBuffer.allocation);
 
-	return { .vertsAllocation = GPUvertsAllocation, .indAllocation = GPUindAllocation, .indexCount = mesh.indexCount, .vertsBufferAddress = vertexBufferDeviceAddress };
+	return { .vertsAllocation = GPUvertsAllocation, .indAllocation = GPUindAllocation, .indexCount = mesh.getIndexCount(), .vertsBufferAddress = vertexBufferDeviceAddress};
 }
 
 void Kleicha::init_write_descriptor_set() {
@@ -332,15 +341,15 @@ void Kleicha::init_write_descriptor_set() {
 	samplerInfo.compareEnable = VK_FALSE;
 	samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
 	samplerInfo.minLod = 0.0f;
-	samplerInfo.maxLod = static_cast<float>(m_textures[1].mipLevels);
+	samplerInfo.maxLod = 16.0f;
 	samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
 	samplerInfo.unnormalizedCoordinates = VK_FALSE;
 
-	VK_CHECK(vkCreateSampler(m_device.device, &samplerInfo, nullptr, &m_sampler));
+	VK_CHECK(vkCreateSampler(m_device.device, &samplerInfo, nullptr, &m_textureSampler));
 
 	std::vector<VkDescriptorImageInfo> imageInfos{};
 	VkDescriptorImageInfo imageInfo{};
-	imageInfo.sampler = m_sampler;
+	imageInfo.sampler = m_textureSampler;
 	imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	for (const auto& texture : m_textures) {
 		imageInfo.imageView = texture.imageView;
@@ -381,6 +390,8 @@ vkt::Image Kleicha::upload_texture_image(const char* filePath) {
 	VK_CHECK(vmaCreateImage(m_allocator, &textureImageInfo, &allocationInfo, &textureImage.image, &textureImage.allocation, &textureImage.allocationInfo));
 	VkImageViewCreateInfo imageViewInfo{ init::create_image_view_info(textureImage.image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, textureImage.mipLevels) };
 	VK_CHECK(vkCreateImageView(m_device.device, &imageViewInfo, nullptr, &textureImage.imageView));
+
+
 
 	// allocate host visible mapped memory
 	vkt::Buffer stagingBuffer{ utils::create_buffer(m_allocator, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, 
@@ -466,11 +477,11 @@ vkt::Image Kleicha::upload_texture_image(const char* filePath) {
 }
 
 void Kleicha::deallocate_frame_images() const {
-		vmaDestroyImage(m_allocator, rasterImage.image, rasterImage.allocation);
-		vkDestroyImageView(m_device.device, rasterImage.imageView, nullptr);
+	vmaDestroyImage(m_allocator, rasterImage.image, rasterImage.allocation);
+	vkDestroyImageView(m_device.device, rasterImage.imageView, nullptr);
 
-		vmaDestroyImage(m_allocator, depthImage.image, depthImage.allocation);
-		vkDestroyImageView(m_device.device, depthImage.imageView, nullptr);
+	vmaDestroyImage(m_allocator, depthImage.image, depthImage.allocation);
+	vkDestroyImageView(m_device.device, depthImage.imageView, nullptr);
 }
 
 void Kleicha::immediate_submit(std::function<void(VkCommandBuffer cmdBuffer)>&& func) const {
@@ -600,7 +611,7 @@ void Kleicha::draw([[maybe_unused]]float currentTime) {
 	colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-	colorAttachment.clearValue.color = { {0.6f, 0.6f, 1.0f} };
+	colorAttachment.clearValue.color = { {0.0f, 0.0f, 0.0f} };
 
 	VkRenderingAttachmentInfo depthAttachment{ .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
 	depthAttachment.pNext = nullptr;
@@ -650,7 +661,7 @@ void Kleicha::draw([[maybe_unused]]float currentTime) {
 	m_mStack.push(glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, 0.0f, -3.0f }));
 	m_mStack.push(m_mStack.top());
 	m_mStack.top() *= glm::rotate(glm::mat4{ 1.0f }, currentTime, glm::vec3{ 0.0f, 1.0f, 0.0f });
-	draw_mesh(frame, m_pyrAllocation, m_mStack.top());
+	draw_mesh(frame, m_sphereAllocation, m_mStack.top());
 
 	m_mStack.pop();
 	m_mStack.pop();
@@ -735,7 +746,7 @@ void Kleicha::processInputs() {
 
 void Kleicha::cleanup() const {
 
-	vkDestroySampler(m_device.device, m_sampler, nullptr);
+	vkDestroySampler(m_device.device, m_textureSampler, nullptr);
 	for (const auto& texture : m_textures) {
 		vkDestroyImageView(m_device.device, texture.imageView, nullptr);
 		vmaDestroyImage(m_allocator, texture.image, texture.allocation);
@@ -745,8 +756,8 @@ void Kleicha::cleanup() const {
 	vmaDestroyBuffer(m_allocator, m_pyrAllocation.vertsAllocation.buffer, m_pyrAllocation.vertsAllocation.allocation);
 	vmaDestroyBuffer(m_allocator, m_pyrAllocation.indAllocation.buffer, m_pyrAllocation.indAllocation.allocation);
 
-	vmaDestroyBuffer(m_allocator, m_cubeAllocation.vertsAllocation.buffer, m_cubeAllocation.vertsAllocation.allocation);
-	vmaDestroyBuffer(m_allocator, m_cubeAllocation.indAllocation.buffer, m_cubeAllocation.indAllocation.allocation);
+	vmaDestroyBuffer(m_allocator, m_sphereAllocation.vertsAllocation.buffer, m_sphereAllocation.vertsAllocation.allocation);
+	vmaDestroyBuffer(m_allocator, m_sphereAllocation.indAllocation.buffer, m_sphereAllocation.indAllocation.allocation);
 
 	vkDestroyFence(m_device.device, m_immFence, nullptr);
 

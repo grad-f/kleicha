@@ -9,6 +9,7 @@ layout (location = 2) out flat int outTexID;
 struct Vertex {
 	vec3 position;
 	vec2 UV;
+	vec3 normal;
 };
 
 // this effectively defines a type. a pointer to an array of vec3 positions. This is what we'll use to interpret the cube data provided using push constants and buffer device address

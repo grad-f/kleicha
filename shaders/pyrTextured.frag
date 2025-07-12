@@ -11,5 +11,5 @@ layout (location = 2) in flat int outTexID;
 layout (location = 0) out vec4 outColor;
 
 void main() {
-    outColor = texture(texSampler[outTexID], inUV);
+    outColor = inColor * texture(texSampler[outTexID], inUV);
 }

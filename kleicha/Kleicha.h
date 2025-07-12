@@ -48,10 +48,10 @@ private:
 	vkt::Image depthImage{};
 	std::vector<VkSemaphore> m_renderedSemaphores{};
 
-	vkt::GPUMeshAllocation m_cubeAllocation{};
+	vkt::GPUMeshAllocation m_sphereAllocation{};
 	vkt::GPUMeshAllocation m_pyrAllocation{};
 
-	VkSampler m_sampler{};
+	VkSampler m_textureSampler{};
 	std::vector<vkt::Image> m_textures{};
 
 	glm::mat4 m_perspProj{ utils::orthographicProj(glm::radians(60.0f),

@@ -79,15 +79,17 @@ namespace vkt {
 	struct Vertex {
 		glm::vec3 position{};
 		glm::vec2 UV{};
+		glm::vec3 normal{};
 	};
 
 	struct IndexedMesh {
 		// triangle indices
 		std::vector<glm::uvec3> tInd{};
 		std::vector<Vertex> verts{};
-		VkDeviceSize tIndBufferSize{ tInd.size() * sizeof(glm::uvec3) };
-		VkDeviceSize vertsBufferSize{ verts.size() * sizeof(Vertex) };
-		uint32_t indexCount{ static_cast<uint32_t>(tInd.size() * glm::uvec3::length()) };
+
+		VkDeviceSize getIndBufferSize() const { return tInd.size() * sizeof(glm::uvec3); }
+		VkDeviceSize getvertsBufferSize() const { return verts.size() * sizeof(Vertex); }
+		uint32_t getIndexCount() const { return static_cast<uint32_t>(tInd.size() * glm::uvec3::length()); }
 	};
 
 	// encapsulates data needed for each frame

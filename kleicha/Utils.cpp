@@ -150,6 +150,40 @@ namespace utils {
         };
     }
 
+    // procedurally generated sphere - prec defines the number of vertices per slice and number of slices
+    vkt::IndexedMesh generate_sphere(uint32_t prec) {
+
+        // + 1 here is the additional aliased horizontal and vertical slice of vertices with different texture coordinates to resolve continuity issues at the edges of the texture
+        uint32_t vertexCount{ (prec + 1) * (prec + 1) };
+        uint32_t triangleCount{ prec * prec * 2 };
+        // pre-allocate
+        vkt::IndexedMesh mesh{};
+        mesh.verts.resize(vertexCount);
+        mesh.tInd.resize(triangleCount);
+        for (uint32_t i{ 0 }; i <= prec; ++i) { // traverse each slice
+            for (uint32_t j{ 0 }; j <= prec; ++j) {
+                // compute vertex position -> goes from -1 to 1 in increments defined by prec
+                float y{ cos(glm::radians(180.0f - i * 180.0f / prec)) };
+                // slice radius
+                float x{ -cos(glm::radians(j * 360.0f / prec)) * abs(cos(asin(y))) };
+                float z{ sin(glm::radians(j * 360.0f / prec)) * abs(cos(asin(y))) };
+                mesh.verts[i * (prec + 1) + j].position = { x,y,z };
+                mesh.verts[i * (prec + 1) + j].UV = { static_cast<float>(j) / prec, static_cast<float>(i) / prec };
+                mesh.verts[i * (prec + 1) + j].normal = { x,y,z };
+            }
+        }
+
+        // compute triangle indices
+        for (uint32_t i{ 0 }; i < prec; ++i) { // traverse each slice
+            for (uint32_t j{ 0 }; j < prec; ++j) {
+                mesh.tInd[2 * (i * prec + j)] = { i * (prec + 1) + j, i * (prec + 1) + j + 1, (i + 1) * (prec + 1) + j };
+                mesh.tInd[2 * (i * prec + j) + 1] = { i * (prec + 1) + j + 1, (i + 1) * (prec + 1) + j + 1, (i + 1) * (prec + 1) + j };
+            }
+        }
+
+        return mesh;
+    }
+
     glm::mat4 lookAt(glm::vec3 eye, glm::vec3 lookat, glm::vec3 up) {
         // create rh uvw basis
         glm::vec3 w{ -glm::normalize(lookat - eye) };
