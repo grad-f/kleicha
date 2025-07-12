@@ -15,7 +15,7 @@ namespace init {
 	}
 
 	VkImageMemoryBarrier2 create_image_barrier_info(VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 srcAccessMask,
-		VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask, VkImageLayout oldLayout, VkImageLayout newLayout, VkImage image) {
+		VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask, VkImageLayout oldLayout, VkImageLayout newLayout, VkImage image, uint32_t mipLevels) {
 
 		VkImageMemoryBarrier2 imageBarrier{ .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
 		imageBarrier.srcStageMask = srcStageMask;
@@ -31,18 +31,18 @@ namespace init {
 		imageBarrier.subresourceRange.baseArrayLayer = 0;
 		imageBarrier.subresourceRange.layerCount = 1;
 		imageBarrier.subresourceRange.baseMipLevel = 0;
-		imageBarrier.subresourceRange.levelCount = 1;
+		imageBarrier.subresourceRange.levelCount = mipLevels;
 
 		return imageBarrier;
 	}
 
-	VkImageCreateInfo create_image_info(VkFormat format, VkExtent2D extent, VkImageUsageFlags usage) {
+	VkImageCreateInfo create_image_info(VkFormat format, VkExtent2D extent, VkImageUsageFlags usage, uint32_t mipLevels) {
 		VkImageCreateInfo imageInfo{ .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
 		imageInfo.pNext = nullptr;
 		imageInfo.imageType = VK_IMAGE_TYPE_2D;
 		imageInfo.format = format;
 		imageInfo.extent = VkExtent3D{ extent.width, extent.height, 1U };
-		imageInfo.mipLevels = 1;
+		imageInfo.mipLevels = mipLevels;
 		imageInfo.arrayLayers = 1;
 		imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
 		imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
@@ -64,7 +64,7 @@ namespace init {
 	}
 
 
-	VkImageViewCreateInfo create_image_view_info(VkImage image, VkFormat format, VkImageAspectFlags aspectMask) {
+	VkImageViewCreateInfo create_image_view_info(VkImage image, VkFormat format, VkImageAspectFlags aspectMask, uint32_t mipLevels) {
 		VkImageViewCreateInfo imageViewInfo{ .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
 		imageViewInfo.pNext = nullptr;
 		imageViewInfo.image = image;
@@ -80,7 +80,7 @@ namespace init {
 		// specify which sub region of the image we'd like to make an imageview of
 		imageViewInfo.subresourceRange.aspectMask = aspectMask;
 		imageViewInfo.subresourceRange.baseMipLevel = 0;
-		imageViewInfo.subresourceRange.levelCount = 1;
+		imageViewInfo.subresourceRange.levelCount = mipLevels;
 		imageViewInfo.subresourceRange.baseArrayLayer = 0;
 		imageViewInfo.subresourceRange.layerCount = 1;
 

@@ -174,7 +174,7 @@ void Kleicha::init_descriptors() {
 
 	// 'unbound' binding (must be last binding in a descriptor set layout) 
 	VkDescriptorBindingFlags bindingFlags[2]{
-		{},
+		{VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT},
 		{VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT }
 	};
 	VkDescriptorSetLayoutBindingFlagsCreateInfo layoutBindingFlagsInfo{ .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO };
@@ -235,26 +235,26 @@ void Kleicha::init_vma() {
 void Kleicha::init_image_buffers() {
 
 	VkImageCreateInfo rasterImageInfo{ init::create_image_info(INTERMEDIATE_IMAGE_FORMAT, m_swapchain.imageExtent,
-		VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)};
+		VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, 1)};
 
 	VkImageCreateInfo depthImageInfo{ init::create_image_info(DEPTH_IMAGE_FORMAT, m_swapchain.imageExtent,
-		VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) };
+		VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, 1) };
 
 	VmaAllocationCreateInfo allocationInfo{};
 	allocationInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
 	allocationInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
 	VK_CHECK(vmaCreateImage(m_allocator, &rasterImageInfo, &allocationInfo, &rasterImage.image, &rasterImage.allocation, &rasterImage.allocationInfo));
-	VkImageViewCreateInfo rasterViewInfo{ init::create_image_view_info(rasterImage.image, INTERMEDIATE_IMAGE_FORMAT, VK_IMAGE_ASPECT_COLOR_BIT) };
+	VkImageViewCreateInfo rasterViewInfo{ init::create_image_view_info(rasterImage.image, INTERMEDIATE_IMAGE_FORMAT, VK_IMAGE_ASPECT_COLOR_BIT, 1) };
 	VK_CHECK(vkCreateImageView(m_device.device, &rasterViewInfo, nullptr, &rasterImage.imageView));
 
 	VK_CHECK(vmaCreateImage(m_allocator, &depthImageInfo, &allocationInfo, &depthImage.image, &depthImage.allocation, &depthImage.allocationInfo));
-	VkImageViewCreateInfo depthViewInfo{ init::create_image_view_info(depthImage.image, DEPTH_IMAGE_FORMAT, VK_IMAGE_ASPECT_DEPTH_BIT) };
+	VkImageViewCreateInfo depthViewInfo{ init::create_image_view_info(depthImage.image, DEPTH_IMAGE_FORMAT, VK_IMAGE_ASPECT_DEPTH_BIT, 1) };
 	VK_CHECK(vkCreateImageView(m_device.device, &depthViewInfo, nullptr, &depthImage.imageView));
 
 	// transition depth image layouts
 	immediate_submit([&](VkCommandBuffer cmdBuffer) {
-		utils::image_memory_barrier(cmdBuffer, VK_PIPELINE_STAGE_NONE, VK_ACCESS_2_NONE, VK_PIPELINE_STAGE_NONE, VK_ACCESS_2_NONE, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, depthImage.image);
+		utils::image_memory_barrier(cmdBuffer, VK_PIPELINE_STAGE_NONE, VK_ACCESS_2_NONE, VK_PIPELINE_STAGE_NONE, VK_ACCESS_2_NONE, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, depthImage.image, depthImage.mipLevels);
 		});
 }
 
@@ -264,7 +264,6 @@ void Kleicha::init_meshes() {
 }
 void Kleicha::init_textures() {
 	m_textures.push_back(upload_texture_image("../textures/brick.png"));
-	m_textures.push_back(upload_texture_image("../textures/concrete.png"));
 	m_textures.push_back(upload_texture_image("../textures/tiled.png"));
 }
 
@@ -323,7 +322,7 @@ void Kleicha::init_write_descriptor_set() {
 	samplerInfo.pNext = nullptr;
 	samplerInfo.magFilter = VK_FILTER_LINEAR;
 	samplerInfo.minFilter = VK_FILTER_LINEAR;
-	samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+	samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 	samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 	samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 	samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
@@ -333,7 +332,7 @@ void Kleicha::init_write_descriptor_set() {
 	samplerInfo.compareEnable = VK_FALSE;
 	samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
 	samplerInfo.minLod = 0.0f;
-	samplerInfo.maxLod = 0.0f;
+	samplerInfo.maxLod = static_cast<float>(m_textures[1].mipLevels);
 	samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
 	samplerInfo.unnormalizedCoordinates = VK_FALSE;
 
@@ -370,16 +369,17 @@ vkt::Image Kleicha::upload_texture_image(const char* filePath) {
 	VkExtent2D textureExtent{ static_cast<uint32_t>(width), static_cast<uint32_t>(height) };
 	VkDeviceSize bufferSize{ static_cast<VkDeviceSize>(width * height * 4) };
 
-	// allocate device_local memory to store the texture image
-	VkImageCreateInfo textureImageInfo{ init::create_image_info(VK_FORMAT_R8G8B8A8_SRGB, textureExtent, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT) };
-
 	VmaAllocationCreateInfo allocationInfo{};
 	allocationInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
 	allocationInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
 	vkt::Image textureImage{};
+	// compute mip levels from longest edge
+	textureImage.mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1;
+	// allocate device_local memory to store the texture image
+	VkImageCreateInfo textureImageInfo{ init::create_image_info(VK_FORMAT_R8G8B8A8_SRGB, textureExtent, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, textureImage.mipLevels) };
 	VK_CHECK(vmaCreateImage(m_allocator, &textureImageInfo, &allocationInfo, &textureImage.image, &textureImage.allocation, &textureImage.allocationInfo));
-	VkImageViewCreateInfo imageViewInfo{ init::create_image_view_info(textureImage.image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT) };
+	VkImageViewCreateInfo imageViewInfo{ init::create_image_view_info(textureImage.image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, textureImage.mipLevels) };
 	VK_CHECK(vkCreateImageView(m_device.device, &imageViewInfo, nullptr, &textureImage.imageView));
 
 	// allocate host visible mapped memory
@@ -393,7 +393,7 @@ vkt::Image Kleicha::upload_texture_image(const char* filePath) {
 	// transition texture image and issue copy from staging
 	immediate_submit([&](VkCommandBuffer cmdBuffer) {
 		utils::image_memory_barrier(cmdBuffer, VK_PIPELINE_STAGE_2_NONE_KHR, VK_ACCESS_2_NONE, 
-			VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, textureImage.image);
+			VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, textureImage.image, textureImage.mipLevels);
 
 		VkBufferImageCopy imageCopy{};
 		imageCopy.bufferOffset = 0;
@@ -407,8 +407,57 @@ vkt::Image Kleicha::upload_texture_image(const char* filePath) {
 		imageCopy.imageExtent = { .width = textureExtent.width, .height = textureExtent.height, .depth = 1 };
 		vkCmdCopyBufferToImage(cmdBuffer, stagingBuffer.buffer, textureImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageCopy);
 
-		utils::image_memory_barrier(cmdBuffer, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
-			VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, textureImage.image);
+		// generate mip copies
+		VkImageMemoryBarrier2 imageBarrier{ .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
+		imageBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		imageBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		imageBarrier.image = textureImage.image;
+		imageBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		imageBarrier.subresourceRange.baseArrayLayer = 0;
+		imageBarrier.subresourceRange.layerCount = 1;
+		imageBarrier.subresourceRange.levelCount = 1;
+
+		VkDependencyInfo dependencyInfo{ .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
+		dependencyInfo.pNext = nullptr;
+		dependencyInfo.imageMemoryBarrierCount = 1;
+		dependencyInfo.pImageMemoryBarriers = &imageBarrier;
+
+		uint32_t srcMipWidth{ textureExtent.width };
+		uint32_t srcMipHeight{ textureExtent.height };
+
+		for (uint32_t i{ 1 }; i < textureImage.mipLevels; ++i) {
+			imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+			imageBarrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+			imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+			imageBarrier.dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
+			imageBarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+			imageBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+			imageBarrier.subresourceRange.baseMipLevel = i - 1;
+
+			vkCmdPipelineBarrier2(cmdBuffer, &dependencyInfo);
+
+			VkExtent2D dstMipExtent{ srcMipWidth, srcMipHeight };
+			if (srcMipWidth > 1)
+				dstMipExtent.width /= 2;
+			if (srcMipHeight > 1)
+				dstMipExtent.height /= 2;
+
+			// copy from mip - 1 to mip then transition mip - 1 layout
+			utils::blit_image(cmdBuffer, textureImage.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, textureImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, { srcMipWidth, srcMipHeight }, dstMipExtent, i - 1, i);
+
+			imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+			imageBarrier.srcAccessMask = VK_ACCESS_2_NONE_KHR;
+			imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_NONE_KHR;
+			imageBarrier.dstAccessMask = VK_ACCESS_2_NONE_KHR;
+			imageBarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+			imageBarrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			vkCmdPipelineBarrier2(cmdBuffer, &dependencyInfo);
+
+			if (srcMipWidth > 1)
+				srcMipWidth /= 2;
+			if (srcMipHeight > 1)
+				srcMipHeight /= 2;
+		}
 
 		});
 
@@ -527,10 +576,10 @@ void Kleicha::draw([[maybe_unused]]float currentTime) {
 	// forms a dependency chain with vkAcquireNextImageKHR signal semaphore. when semaphores are signaled, all pending writes are made available. i dont need to do this manually here
 	VkImageMemoryBarrier2 rastertoTransferDst{init::create_image_barrier_info(VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_PIPELINE_STAGE_2_NONE, 
 		VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, 
-		VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, rasterImage.image)};
+		VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, rasterImage.image, rasterImage.mipLevels)};
 
 	VkImageMemoryBarrier2 scToTransferDst{ init::create_image_barrier_info(VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0,
-		VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, m_swapchain.images[imageIndex])};
+		VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, m_swapchain.images[imageIndex], 1)};
 
 	// batch this to avoid unnecessary driver overhead
 	VkImageMemoryBarrier2 imageBarriers[]{ rastertoTransferDst, scToTransferDst };
@@ -604,19 +653,20 @@ void Kleicha::draw([[maybe_unused]]float currentTime) {
 	draw_mesh(frame, m_pyrAllocation, m_mStack.top());
 
 	m_mStack.pop();
+	m_mStack.pop();
 
 	vkCmdEndRendering(frame.cmdBuffer);
 
 	// transition image to transfer src
 	utils::image_memory_barrier(frame.cmdBuffer, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, 
 		VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_READ_BIT, 
-		VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, rasterImage.image);
+		VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, rasterImage.image, rasterImage.mipLevels);
 
 	// blit from intermediate raster image to swapchain image
-	utils::blit_image(frame.cmdBuffer, rasterImage.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, m_swapchain.images[imageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, m_swapchain.imageExtent, m_swapchain.imageExtent);
+	utils::blit_image(frame.cmdBuffer, rasterImage.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, m_swapchain.images[imageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, m_swapchain.imageExtent, m_swapchain.imageExtent, 0, 0);
 
 	utils::image_memory_barrier(frame.cmdBuffer, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
-		VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_NONE, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, m_swapchain.images[imageIndex]);
+		VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_NONE, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, m_swapchain.images[imageIndex], 1);
 
 	VK_CHECK(vkEndCommandBuffer(frame.cmdBuffer));
 	

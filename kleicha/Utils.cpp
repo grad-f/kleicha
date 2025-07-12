@@ -32,9 +32,9 @@ namespace utils {
     }
 
     void image_memory_barrier(VkCommandBuffer cmdBuffer, VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 srcAccessMask,
-        VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask, VkImageLayout oldLayout, VkImageLayout newLayout, VkImage image) {
+        VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask, VkImageLayout oldLayout, VkImageLayout newLayout, VkImage image, uint32_t mipLevels) {
 
-        VkImageMemoryBarrier2 barrier{ init::create_image_barrier_info(srcStageMask, srcAccessMask, dstStageMask, dstAccessMask, oldLayout, newLayout, image) };
+        VkImageMemoryBarrier2 barrier{ init::create_image_barrier_info(srcStageMask, srcAccessMask, dstStageMask, dstAccessMask, oldLayout, newLayout, image, mipLevels) };
 
         VkDependencyInfo dependencyInfo{ .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
         dependencyInfo.pNext = nullptr;
@@ -44,17 +44,17 @@ namespace utils {
         vkCmdPipelineBarrier2(cmdBuffer, &dependencyInfo);
     }
 
-    void blit_image(VkCommandBuffer cmdBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkImage dstImage, VkImageLayout dstImageLayout, VkExtent2D srcExtent, VkExtent2D dstExtent) {
+    void blit_image(VkCommandBuffer cmdBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkImage dstImage, VkImageLayout dstImageLayout, VkExtent2D srcExtent, VkExtent2D dstExtent, uint32_t srcMipLevel, uint32_t dstMipLevel) {
         VkImageBlit2 blitRegion{ .sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2 };
         blitRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
         blitRegion.srcSubresource.baseArrayLayer = 0;
         blitRegion.srcSubresource.layerCount = 1;
-        blitRegion.srcSubresource.mipLevel = 0;
+        blitRegion.srcSubresource.mipLevel = srcMipLevel;
 
         blitRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
         blitRegion.dstSubresource.baseArrayLayer = 0;
         blitRegion.dstSubresource.layerCount = 1;
-        blitRegion.dstSubresource.mipLevel = 0;
+        blitRegion.dstSubresource.mipLevel = dstMipLevel;
 
         blitRegion.srcOffsets[1].x = static_cast<int32_t>(srcExtent.width);
         blitRegion.srcOffsets[1].y = static_cast<int32_t>(srcExtent.height);

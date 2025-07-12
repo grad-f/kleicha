@@ -22,10 +22,10 @@ namespace utils {
     VkShaderModule create_shader_module(VkDevice device, const char* path);
 
     void image_memory_barrier(VkCommandBuffer cmdBuffer, VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 srcAccessMask,
-        VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask, VkImageLayout oldLayout, VkImageLayout newLayout, VkImage image);
+        VkPipelineStageFlags2 dstStageMask, VkAccessFlags2 dstAccessMask, VkImageLayout oldLayout, VkImageLayout newLayout, VkImage image, uint32_t mipLevels);
 
     void blit_image(VkCommandBuffer cmdBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkImage dstImage, VkImageLayout dstImageLayout,
-        VkExtent2D srcExtent, VkExtent2D dstExtent);
+        VkExtent2D srcExtent, VkExtent2D dstExtent, uint32_t srcMipLevel, uint32_t dstMipLevel);
 
 //    vkt::IndexedMesh generate_cube_mesh();
     vkt::IndexedMesh generate_pyramid_mesh();

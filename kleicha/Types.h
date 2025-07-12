@@ -60,6 +60,7 @@ namespace vkt {
 		VkImageView imageView{};
 		VmaAllocation allocation{};
 		VmaAllocationInfo allocationInfo{};
+		uint32_t mipLevels{ 1 };
 	};
 
 	struct Buffer {

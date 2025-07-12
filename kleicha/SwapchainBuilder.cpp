@@ -91,7 +91,7 @@ vkt::Swapchain SwapchainBuilder::build() {
 	// create image views
 	std::vector<VkImageView> imageViews(imageCount);
 	for (std::size_t i{ 0 }; i < imageCount; ++i) {
-		VkImageViewCreateInfo imageViewInfo{ init::create_image_view_info(images[i], swapchainImageFormat.format, VK_IMAGE_ASPECT_COLOR_BIT)};
+		VkImageViewCreateInfo imageViewInfo{ init::create_image_view_info(images[i], swapchainImageFormat.format, VK_IMAGE_ASPECT_COLOR_BIT, 1)};
 		VK_CHECK(vkCreateImageView(m_device, &imageViewInfo, nullptr, &imageViews[i]));
 	}
 	return vkt::Swapchain{ .swapchain = swapchain, .images = images, .imageCount = imageCount, .imageViews = imageViews, .imageExtent = swapchainImageExtent };
