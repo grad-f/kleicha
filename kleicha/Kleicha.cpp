@@ -262,11 +262,12 @@ void Kleicha::init_meshes() {
 	vkt::IndexedMesh pyrMesh{ utils::generate_pyramid_mesh() };
 	m_pyrAllocation = upload_mesh_data(pyrMesh);
 
-	vkt::IndexedMesh sphere{ utils::generate_sphere(22) };
+	vkt::IndexedMesh sphere{ utils::generate_sphere(48) };
 	m_sphereAllocation = upload_mesh_data(sphere);
 }
 void Kleicha::init_textures() {
 	m_textures.push_back(upload_texture_image("../textures/brick.png"));
+	m_textures.push_back(upload_texture_image("../textures/earth.jpg"));
 	//m_textures.push_back(upload_texture_image("../textures/tiled.png"));
 	//m_textures.push_back(upload_texture_image("../textures/concrete.png"));
 }
@@ -368,6 +369,8 @@ void Kleicha::init_write_descriptor_set() {
 }
 
 vkt::Image Kleicha::upload_texture_image(const char* filePath) {
+
+	stbi_set_flip_vertically_on_load(true);
 
 	int width, height;
 	stbi_uc* textureData{ stbi_load(filePath, &width, &height, nullptr, STBI_rgb_alpha) };
@@ -656,7 +659,7 @@ void Kleicha::draw([[maybe_unused]]float currentTime) {
 	vkCmdBindDescriptorSets(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_dummyPipelineLayout, 0, 1, &m_descSet, 0, nullptr);
 	m_pushConstants.view = m_camera.getViewMatrix();
 	m_pushConstants.perspectiveProjection = m_perspProj;
-	m_pushConstants.texID = 0;
+	m_pushConstants.texID = 1;
 
 	m_mStack.push(glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, 0.0f, -3.0f }));
 	m_mStack.push(m_mStack.top());
