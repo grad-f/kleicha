@@ -50,6 +50,7 @@ private:
 
 	vkt::GPUMeshAllocation m_sphereAllocation{};
 	vkt::GPUMeshAllocation m_pyrAllocation{};
+	vkt::GPUMeshAllocation m_torusAllocation{};
 
 	VkSampler m_textureSampler{};
 	std::vector<vkt::Image> m_textures{};

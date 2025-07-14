@@ -264,6 +264,9 @@ void Kleicha::init_meshes() {
 
 	vkt::IndexedMesh sphere{ utils::generate_sphere(48) };
 	m_sphereAllocation = upload_mesh_data(sphere);
+
+	vkt::IndexedMesh torus{ utils::generate_torus(48, 2.5f, 0.7f) };
+	m_torusAllocation = upload_mesh_data(torus);
 }
 void Kleicha::init_textures() {
 	m_textures.push_back(upload_texture_image("../textures/brick.png"));
@@ -659,12 +662,12 @@ void Kleicha::draw([[maybe_unused]]float currentTime) {
 	vkCmdBindDescriptorSets(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_dummyPipelineLayout, 0, 1, &m_descSet, 0, nullptr);
 	m_pushConstants.view = m_camera.getViewMatrix();
 	m_pushConstants.perspectiveProjection = m_perspProj;
-	m_pushConstants.texID = 1;
+	m_pushConstants.texID = 0;
 
 	m_mStack.push(glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, 0.0f, -3.0f }));
 	m_mStack.push(m_mStack.top());
 	m_mStack.top() *= glm::rotate(glm::mat4{ 1.0f }, currentTime, glm::vec3{ 0.0f, 1.0f, 0.0f });
-	draw_mesh(frame, m_sphereAllocation, m_mStack.top());
+	draw_mesh(frame, m_torusAllocation, m_mStack.top());
 
 	m_mStack.pop();
 	m_mStack.pop();
@@ -755,7 +758,10 @@ void Kleicha::cleanup() const {
 		vmaDestroyImage(m_allocator, texture.image, texture.allocation);
 	}
 
-	// model cleanup
+	// model cleanup -- we should loop over these...
+	vmaDestroyBuffer(m_allocator, m_torusAllocation.vertsAllocation.buffer, m_torusAllocation.vertsAllocation.allocation);
+	vmaDestroyBuffer(m_allocator, m_torusAllocation.indAllocation.buffer, m_torusAllocation.indAllocation.allocation);
+
 	vmaDestroyBuffer(m_allocator, m_pyrAllocation.vertsAllocation.buffer, m_pyrAllocation.vertsAllocation.allocation);
 	vmaDestroyBuffer(m_allocator, m_pyrAllocation.indAllocation.buffer, m_pyrAllocation.indAllocation.allocation);
 

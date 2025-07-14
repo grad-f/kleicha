@@ -184,6 +184,60 @@ namespace utils {
         return mesh;
     }
 
+    vkt::IndexedMesh generate_torus(uint32_t prec, float inner, float outer) {
+        uint32_t vertexCount{ (prec + 1) * (prec + 1) };
+        uint32_t triangleCount{ prec * prec * 2 };
+
+        vkt::IndexedMesh mesh{};
+        mesh.verts.resize(vertexCount);
+        mesh.tInd.resize(triangleCount);
+
+        // compute vertices of first slice of torus
+        for (uint32_t i{ 0 }; i <= prec; ++i) {
+            // get ith vertex radian measure
+            float vertRadians{ glm::radians(i * 360.0f / prec) };
+
+            // build rot matrix around z using vertex radian displacement
+            glm::mat4 rot{ glm::rotate(glm::mat4{1.0f}, vertRadians, glm::vec3{0.0f, 0.0f, 1.0f}) };
+            // init pos is the initial slice vertex position with outer radius
+            glm::vec3 initPos{ rot * glm::vec4{0.0f, outer, 0.0f, 1.0f} };
+            // store the init pos displaced by inner units in the x
+            mesh.verts[i].position = initPos + glm::vec3{ inner, 0.0f, 0.0f };
+            // all vertices that share this slice will map to a vertical stripe in the texture image
+            mesh.verts[i].UV = glm::vec2{ 0.0f, static_cast<float>(i) / prec };
+            // rotation about z by vertRadians + 90 degrees
+            rot = glm::rotate(glm::mat4{ 1.0f }, vertRadians + glm::radians(90.0f), glm::vec3{0.0f, 0.0f, 1.0f});
+            mesh.verts[i].tangent = rot * glm::vec4{0.0f, -1.0f, 0.0f, 1.0f};
+            mesh.verts[i].bitangent = glm::vec3{ 0.0f, 0.0f, -1.0f };
+            mesh.verts[i].normal = glm::cross(mesh.verts[i].tangent, mesh.verts[i].bitangent);
+        }
+
+        // for each of the vertices that make up the initial slice, we rotate them about the y axis
+        for (uint32_t ring{ 1 }; ring < prec + 1; ++ring) {
+            // compute rotation amount
+            float ringRadians{ glm::radians(ring * 360.0f / prec) };
+            for (uint32_t vert{ 0 }; vert < prec + 1; ++vert) {
+                glm::mat4 rMat{ glm::rotate(glm::mat4{1.0f}, ringRadians, glm::vec3{0.0f, 1.0f, 0.0f}) };
+                mesh.verts[ring * (prec + 1) + vert].position = rMat * glm::vec4{ mesh.verts[vert].position, 1.0f };
+                mesh.verts[ring * (prec + 1) + vert].UV = glm::vec2{ring * 2.0f/prec, mesh.verts[vert].UV.t};
+
+                // we're safe to rotate our direction vectors as the rotation matrix is orthonormal and the inverse transpose yields the same matrix
+                mesh.verts[ring * (prec + 1) + vert].tangent = rMat * glm::vec4{mesh.verts[vert].tangent, 1.0f};
+                mesh.verts[ring * (prec + 1) + vert].bitangent = rMat * glm::vec4{ mesh.verts[vert].bitangent, 1.0f };
+                mesh.verts[ring * (prec + 1) + vert].normal = rMat * glm::vec4{ mesh.verts[vert].normal, 1.0f };
+            }
+        }
+
+        for (uint32_t ring{0}; ring < prec; ++ring) {
+            for (uint32_t vert{ 0 }; vert < prec; ++vert) {
+                mesh.tInd[2 * (ring * prec + vert)] = { ring * (prec + 1) + vert, (ring + 1) * (prec + 1) + vert, (ring * (prec + 1) + vert + 1) };
+                mesh.tInd[2 * (ring * prec + vert) + 1] = { (ring * (prec + 1) + vert + 1), (ring + 1) * (prec + 1) + vert, (ring + 1) * (prec + 1) + vert + 1 };
+            }
+        }
+
+        return mesh;
+    }
+
     glm::mat4 lookAt(glm::vec3 eye, glm::vec3 lookat, glm::vec3 up) {
         // create rh uvw basis
         glm::vec3 w{ -glm::normalize(lookat - eye) };

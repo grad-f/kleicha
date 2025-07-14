@@ -30,6 +30,7 @@ namespace utils {
 //    vkt::IndexedMesh generate_cube_mesh();
     vkt::IndexedMesh generate_pyramid_mesh();
     vkt::IndexedMesh generate_sphere(uint32_t prec);
+    vkt::IndexedMesh generate_torus(uint32_t prec, float inner, float outer);
 
     vkt::Buffer create_buffer(VmaAllocator allocator, VkDeviceSize bufferSize, VkBufferUsageFlags bufferUsage,
                                 VmaMemoryUsage memoryUsage, VkMemoryPropertyFlags requiredFlags, VmaAllocationCreateFlags flags = 0);
