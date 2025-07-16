@@ -7,6 +7,9 @@
 #include "Initializers.h"
 #include "Types.h"
 
+#define TINYOBJLOADER_IMPLEMENTATION
+#include <tiny_obj_loader.h>
+
 #pragma warning(push, 0)
 #pragma warning(disable : 26819 26110 6387 26495 6386 26813 33010 28182 26495 6262 4365)
 #define VMA_IMPLEMENTATION
@@ -267,19 +270,52 @@ void Kleicha::init_meshes() {
 
 	vkt::IndexedMesh torus{ utils::generate_torus(48, 2.5f, 0.7f) };
 	m_torusAllocation = upload_mesh_data(torus);
+
+	vkt::IndexedMesh sampleMesh{ load_mesh("../models/viking_room.obj") };
+	m_sampleMeshAllocation = upload_mesh_data(sampleMesh);
 }
+
 void Kleicha::init_textures() {
 	m_textures.push_back(upload_texture_image("../textures/brick.png"));
 	m_textures.push_back(upload_texture_image("../textures/earth.jpg"));
+	m_textures.push_back(upload_texture_image("../textures/viking_room.png"));
 	//m_textures.push_back(upload_texture_image("../textures/tiled.png"));
 	//m_textures.push_back(upload_texture_image("../textures/concrete.png"));
+}
+
+vkt::IndexedMesh Kleicha::load_mesh(const char* filePath) const {
+	// attrib stores arrays of vertex attributes as floats
+	tinyobj::attrib_t attrib;
+	std::vector<tinyobj::shape_t> shapes;
+	std::string err{};
+
+	vkt::IndexedMesh mesh{};
+
+	if (!tinyobj::LoadObj(&attrib, &shapes, nullptr, &err, filePath)) {
+		throw std::runtime_error{ "[Kleicha] Failed to load mesh from file: " + std::string{filePath} + "\nError: " + err };
+	}
+
+	for (const auto& shape : shapes) {
+		for (const auto& index : shape.mesh.indices) {
+			vkt::Vertex vertex{};
+			// index the vertex data stored in attrib using the indices to generate the vertex data
+			vertex.position = { attrib.vertices[3 * (size_t)index.vertex_index + 0], attrib.vertices[3 * (size_t)index.vertex_index + 1], attrib.vertices[3 * (size_t)index.vertex_index + 2] };
+			vertex.normal = { attrib.normals[3 * (size_t)index.normal_index + 0], attrib.normals[3 * (size_t)index.normal_index + 1], attrib.normals[3 * (size_t)index.normal_index + 2] };
+			vertex.UV = { attrib.texcoords[2 *	(size_t)index.texcoord_index + 0], attrib.texcoords[2 * (size_t)index.texcoord_index + 1] };
+
+			mesh.verts.push_back(vertex);
+			std::size_t indSize{ mesh.tInd.size() * 3 };
+			mesh.tInd.push_back({indSize, indSize+1, indSize+2});
+		}
+	}
+
+	return mesh;
 }
 
 vkt::GPUMeshAllocation Kleicha::upload_mesh_data(const vkt::IndexedMesh& mesh) {
 
 	VkDeviceSize vertsBufferSize{ mesh.getvertsBufferSize() };
 	VkDeviceSize tIndBufferSize{ mesh.getIndBufferSize() };
-
 
 	// Create mesh vertex and index buffers
 	vkt::Buffer GPUvertsAllocation{ utils::create_buffer(m_allocator, vertsBufferSize,
@@ -662,14 +698,14 @@ void Kleicha::draw([[maybe_unused]]float currentTime) {
 	vkCmdBindDescriptorSets(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_dummyPipelineLayout, 0, 1, &m_descSet, 0, nullptr);
 	m_pushConstants.view = m_camera.getViewMatrix();
 	m_pushConstants.perspectiveProjection = m_perspProj;
-	m_pushConstants.texID = 0;
+	m_pushConstants.texID = 2;
 
-	m_mStack.push(glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, 0.0f, -3.0f }));
-	m_mStack.push(m_mStack.top());
-	m_mStack.top() *= glm::rotate(glm::mat4{ 1.0f }, currentTime, glm::vec3{ 0.0f, 1.0f, 0.0f });
-	draw_mesh(frame, m_torusAllocation, m_mStack.top());
+	m_mStack.push(glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, 0.0f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, glm::radians(-90.0f), glm::vec3{1.0f, 0.0f, 0.0f}));
+	//m_mStack.push(m_mStack.top());
+	//m_mStack.top() *= glm::rotate(glm::mat4{ 1.0f }, currentTime, glm::vec3{ 0.0f, 1.0f, 0.0f });
+	draw_mesh(frame, m_sampleMeshAllocation, m_mStack.top());
 
-	m_mStack.pop();
+	//m_mStack.pop();
 	m_mStack.pop();
 
 	vkCmdEndRendering(frame.cmdBuffer);
@@ -759,6 +795,10 @@ void Kleicha::cleanup() const {
 	}
 
 	// model cleanup -- we should loop over these...
+
+	vmaDestroyBuffer(m_allocator, m_sampleMeshAllocation.vertsAllocation.buffer, m_sampleMeshAllocation.vertsAllocation.allocation);
+	vmaDestroyBuffer(m_allocator, m_sampleMeshAllocation.indAllocation.buffer, m_sampleMeshAllocation.indAllocation.allocation);
+
 	vmaDestroyBuffer(m_allocator, m_torusAllocation.vertsAllocation.buffer, m_torusAllocation.vertsAllocation.allocation);
 	vmaDestroyBuffer(m_allocator, m_torusAllocation.indAllocation.buffer, m_torusAllocation.indAllocation.allocation);
 

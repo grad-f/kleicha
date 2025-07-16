@@ -51,6 +51,7 @@ private:
 	vkt::GPUMeshAllocation m_sphereAllocation{};
 	vkt::GPUMeshAllocation m_pyrAllocation{};
 	vkt::GPUMeshAllocation m_torusAllocation{};
+	vkt::GPUMeshAllocation m_sampleMeshAllocation{};
 
 	VkSampler m_textureSampler{};
 	std::vector<vkt::Image> m_textures{};
@@ -83,6 +84,7 @@ private:
 	// must be r-value reference as we'll be supplying lambdas
 	void immediate_submit(std::function<void(VkCommandBuffer cmdBuffer)>&& func) const;
 	void processInputs();
+	vkt::IndexedMesh load_mesh(const char* filePath) const;
 	void draw_mesh(const vkt::Frame& frame, const vkt::GPUMeshAllocation& mesh, const glm::mat4& model);
 
 	uint32_t m_framesRendered{};

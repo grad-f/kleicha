@@ -5,9 +5,12 @@
 #include <glm/vec4.hpp>
 #include <glm/mat4x4.hpp>
 #include <ext/matrix_transform.hpp>
+#define GLM_ENABLE_EXPERIMENTAL
+#include <gtx/hash.hpp>
 #include <vector>
 #include "vk_mem_alloc.h"
 #include "vulkan/vulkan.h"
+
 
 namespace vkt {
 
