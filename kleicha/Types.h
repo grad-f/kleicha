@@ -85,6 +85,10 @@ namespace vkt {
 		glm::vec3 normal{};
 		glm::vec3 tangent{};
 		glm::vec3 bitangent{};
+
+		bool operator==(const Vertex& other) const {
+			return position == other.position && UV == other.UV && normal == other.normal;
+		}
 	};
 
 	struct IndexedMesh {

@@ -7,8 +7,11 @@
 #include "Initializers.h"
 #include "Types.h"
 
+#pragma warning(push, 0)
+#pragma warning(disable : 6054 6262 26495)
 #define TINYOBJLOADER_IMPLEMENTATION
 #include <tiny_obj_loader.h>
+#pragma warning(pop)
 
 #pragma warning(push, 0)
 #pragma warning(disable : 26819 26110 6387 26495 6386 26813 33010 28182 26495 6262 4365)
@@ -29,6 +32,16 @@ static void cursor_callback(GLFWwindow* window, double xpos, double ypos) {
 	// xpos and ypos are effectively measures of displacement
 	Kleicha* kleicha{ reinterpret_cast<Kleicha*>(glfwGetWindowUserPointer(window)) };
 	kleicha->m_camera.updateEulerAngles(static_cast<float>(xpos), static_cast<float>(ypos));
+}
+
+namespace std {
+	template<> struct hash<vkt::Vertex> {
+		size_t operator()(vkt::Vertex const& vertex) const {
+			return ((hash<glm::vec3>()(vertex.position) ^
+				(hash<glm::vec3>()(vertex.normal) << 1)) >> 1) ^
+				(hash<glm::vec2>()(vertex.UV) << 1);
+		}	
+	};
 }
 
 // init calls the required functions to initialize vulkan
@@ -271,7 +284,7 @@ void Kleicha::init_meshes() {
 	vkt::IndexedMesh torus{ utils::generate_torus(48, 2.5f, 0.7f) };
 	m_torusAllocation = upload_mesh_data(torus);
 
-	vkt::IndexedMesh sampleMesh{ load_mesh("../models/viking_room.obj") };
+	vkt::IndexedMesh sampleMesh{ load_obj_mesh("../models/shuttle.obj") };
 	m_sampleMeshAllocation = upload_mesh_data(sampleMesh);
 }
 
@@ -279,11 +292,12 @@ void Kleicha::init_textures() {
 	m_textures.push_back(upload_texture_image("../textures/brick.png"));
 	m_textures.push_back(upload_texture_image("../textures/earth.jpg"));
 	m_textures.push_back(upload_texture_image("../textures/viking_room.png"));
+	m_textures.push_back(upload_texture_image("../textures/shuttle.jpg"));
 	//m_textures.push_back(upload_texture_image("../textures/tiled.png"));
 	//m_textures.push_back(upload_texture_image("../textures/concrete.png"));
 }
 
-vkt::IndexedMesh Kleicha::load_mesh(const char* filePath) const {
+vkt::IndexedMesh Kleicha::load_obj_mesh(const char* filePath) const {
 	// attrib stores arrays of vertex attributes as floats
 	tinyobj::attrib_t attrib;
 	std::vector<tinyobj::shape_t> shapes;
@@ -295,17 +309,36 @@ vkt::IndexedMesh Kleicha::load_mesh(const char* filePath) const {
 		throw std::runtime_error{ "[Kleicha] Failed to load mesh from file: " + std::string{filePath} + "\nError: " + err };
 	}
 
+	// hash map to store unique vertices and their indices
+	std::unordered_map<vkt::Vertex, uint32_t> uniqueVertices{};
+	std::vector<uint32_t> vertIndices{};
 	for (const auto& shape : shapes) {
 		for (const auto& index : shape.mesh.indices) {
 			vkt::Vertex vertex{};
-			// index the vertex data stored in attrib using the indices to generate the vertex data
-			vertex.position = { attrib.vertices[3 * (size_t)index.vertex_index + 0], attrib.vertices[3 * (size_t)index.vertex_index + 1], attrib.vertices[3 * (size_t)index.vertex_index + 2] };
-			vertex.normal = { attrib.normals[3 * (size_t)index.normal_index + 0], attrib.normals[3 * (size_t)index.normal_index + 1], attrib.normals[3 * (size_t)index.normal_index + 2] };
-			vertex.UV = { attrib.texcoords[2 *	(size_t)index.texcoord_index + 0], attrib.texcoords[2 * (size_t)index.texcoord_index + 1] };
 
-			mesh.verts.push_back(vertex);
-			std::size_t indSize{ mesh.tInd.size() * 3 };
-			mesh.tInd.push_back({indSize, indSize+1, indSize+2});
+			std::size_t posIndex{ static_cast<std::size_t>(index.vertex_index) };
+			std::size_t normIndex{ static_cast<std::size_t>(index.normal_index) };
+			std::size_t texIndex{ static_cast<std::size_t>(index.texcoord_index) };
+
+			// index the vertex data stored in attrib using the indices to generate the vertex data
+			vertex.position = { attrib.vertices[3 * posIndex], attrib.vertices[3 * posIndex + 1], attrib.vertices[3 * posIndex + 2] };
+			vertex.normal = { attrib.normals[3 * normIndex], attrib.normals[3 * normIndex + 1], attrib.normals[3 * normIndex + 2] };
+			vertex.UV = { attrib.texcoords[2 * texIndex], attrib.texcoords[2 * texIndex + 1] };
+
+			// check if vertex already exists in our unique vertices map
+			if (uniqueVertices.count(vertex) == 0) {
+				// New unique vertex - add it to our vertex buffer
+				uniqueVertices[vertex] = static_cast<uint32_t>(mesh.verts.size());
+				mesh.verts.push_back(vertex);
+			}
+
+			vertIndices.push_back(uniqueVertices[vertex]);
+
+			// for every 3 vertices we process, irrespective of whether they are unique or not, we build a triangle
+			std::size_t triangleIndicesCount{ vertIndices.size() };
+			if (triangleIndicesCount % 3 == 0) {
+				mesh.tInd.push_back({ vertIndices[triangleIndicesCount-3],vertIndices[triangleIndicesCount - 2], vertIndices[triangleIndicesCount - 1] });
+			}
 		}
 	}
 
@@ -698,9 +731,9 @@ void Kleicha::draw([[maybe_unused]]float currentTime) {
 	vkCmdBindDescriptorSets(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_dummyPipelineLayout, 0, 1, &m_descSet, 0, nullptr);
 	m_pushConstants.view = m_camera.getViewMatrix();
 	m_pushConstants.perspectiveProjection = m_perspProj;
-	m_pushConstants.texID = 2;
+	m_pushConstants.texID = 3;
 
-	m_mStack.push(glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, 0.0f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, glm::radians(-90.0f), glm::vec3{1.0f, 0.0f, 0.0f}));
+	m_mStack.push(glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, 0.0f, -3.0f }));
 	//m_mStack.push(m_mStack.top());
 	//m_mStack.top() *= glm::rotate(glm::mat4{ 1.0f }, currentTime, glm::vec3{ 0.0f, 1.0f, 0.0f });
 	draw_mesh(frame, m_sampleMeshAllocation, m_mStack.top());
