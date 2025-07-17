@@ -311,34 +311,37 @@ vkt::IndexedMesh Kleicha::load_obj_mesh(const char* filePath) const {
 
 	// hash map to store unique vertices and their indices
 	std::unordered_map<vkt::Vertex, uint32_t> uniqueVertices{};
-	std::vector<uint32_t> vertIndices{};
+	std::vector<uint32_t> triangleIndices{};
 	for (const auto& shape : shapes) {
-		for (const auto& index : shape.mesh.indices) {
+		for (uint32_t vert{ 0 }; vert < shape.mesh.indices.size(); ++vert) {
+
+			// get triangle vertex indices
+			std::size_t posIndex{ static_cast<std::size_t>(shape.mesh.indices[vert].vertex_index) };
+			std::size_t normIndex{ static_cast<std::size_t>(shape.mesh.indices[vert].normal_index) };
+			std::size_t texIndex{ static_cast<std::size_t>(shape.mesh.indices[vert].texcoord_index) };
 			vkt::Vertex vertex{};
 
-			std::size_t posIndex{ static_cast<std::size_t>(index.vertex_index) };
-			std::size_t normIndex{ static_cast<std::size_t>(index.normal_index) };
-			std::size_t texIndex{ static_cast<std::size_t>(index.texcoord_index) };
-
 			// index the vertex data stored in attrib using the indices to generate the vertex data
-			vertex.position = { attrib.vertices[3 * posIndex], attrib.vertices[3 * posIndex + 1], attrib.vertices[3 * posIndex + 2] };
-			vertex.normal = { attrib.normals[3 * normIndex], attrib.normals[3 * normIndex + 1], attrib.normals[3 * normIndex + 2] };
-			vertex.UV = { attrib.texcoords[2 * texIndex], attrib.texcoords[2 * texIndex + 1] };
+			vertex.position = { attrib.vertices[3 * posIndex + 0], attrib.vertices[3 * posIndex + 1], attrib.vertices[3 * posIndex + 2] };
+			vertex.normal = { attrib.normals[3 * normIndex + 0], attrib.normals[3 * normIndex + 1], attrib.normals[3 * normIndex + 2] };
+			vertex.UV = { attrib.texcoords[2 * texIndex + 0], attrib.texcoords[2 * texIndex + 1] };
 
 			// check if vertex already exists in our unique vertices map
 			if (uniqueVertices.count(vertex) == 0) {
-				// New unique vertex - add it to our vertex buffer
+				// if unique vertex, add to unique vertex map
 				uniqueVertices[vertex] = static_cast<uint32_t>(mesh.verts.size());
 				mesh.verts.push_back(vertex);
 			}
 
-			vertIndices.push_back(uniqueVertices[vertex]);
-
-			// for every 3 vertices we process, irrespective of whether they are unique or not, we build a triangle
-			std::size_t triangleIndicesCount{ vertIndices.size() };
-			if (triangleIndicesCount % 3 == 0) {
-				mesh.tInd.push_back({ vertIndices[triangleIndicesCount-3],vertIndices[triangleIndicesCount - 2], vertIndices[triangleIndicesCount - 1] });
+			switch (vert % 3) {
+			case 0:
+				mesh.tInd.push_back(glm::uvec3{ uniqueVertices[vertex] });
+			case 1:
+				mesh.tInd[mesh.tInd.size() - 1].y = uniqueVertices[vertex];
+			case 2:
+				mesh.tInd[mesh.tInd.size() - 1].z = uniqueVertices[vertex];
 			}
+
 		}
 	}
 
