@@ -70,13 +70,13 @@ namespace vkt {
 		VkBuffer buffer{};
 		VmaAllocation allocation{};
 		VmaAllocationInfo allocationInfo{};
+		VkDeviceSize deviceAddress{};
 	};
 
 	struct GPUMeshAllocation {
-		Buffer vertsAllocation{};
-		Buffer indAllocation{};
+		Buffer vertBuffer{};
+		Buffer indexBuffer{};
 		uint32_t indexCount{};
-		VkDeviceSize vertsBufferAddress{ 0 };
 	};
 
 	struct Vertex {
@@ -99,6 +99,31 @@ namespace vkt {
 		VkDeviceSize getIndBufferSize() const { return tInd.size() * sizeof(glm::uvec3); }
 		VkDeviceSize getvertsBufferSize() const { return verts.size() * sizeof(Vertex); }
 		uint32_t getIndexCount() const { return static_cast<uint32_t>(tInd.size() * glm::uvec3::length()); }
+	};
+
+	struct Light {
+		glm::vec4 ambient{};
+		glm::vec4 diffuse{};
+		glm::vec4 specular{};
+		glm::vec3 position{};
+	};
+
+	struct Material {
+		glm::vec4 ambient{};
+		glm::vec4 diffuse{};
+		glm::vec4 specular{};
+		// controls specular contribution fall-off
+		float shininess{};
+
+		// surface material helpers
+		static Material gold_material() {
+			return {
+				.ambient = {0.2473f, 0.1995f, 0.0745f, 1.0f},
+				.diffuse = {0.7516f, 0.6065f, 0.2265f, 1.0f},
+				.specular = {0.6283f, 0.5558f, 0.3661f, 1.0f},
+				.shininess = 51.2f
+			};
+		}
 	};
 
 	// encapsulates data needed for each frame

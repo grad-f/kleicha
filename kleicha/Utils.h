@@ -39,6 +39,5 @@ namespace utils {
     glm::mat4 perspective(float near, float far);
     glm::mat4 orthographicProj(float left, float right, float bottom, float top, float near, float far);
     glm::mat4 orthographicProj(float vFov, float aspectRatio, float near, float far);
-
 }
 #endif // !UTILS_H

@@ -111,5 +111,8 @@
     <Image Include="..\textures\tiled.png">
       <Filter>textures</Filter>
     </Image>
+    <Image Include="..\textures\sun.jpg">
+      <Filter>textures</Filter>
+    </Image>
   </ItemGroup>
 </Project>
