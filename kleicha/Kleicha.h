@@ -55,7 +55,9 @@ private:
 
 	VkSampler m_textureSampler{};
 	std::vector<vkt::Image> m_textures{};
-	std::vector<vkt::Material> m_materials{};
+	std::vector<vkt::Buffer> m_materials{};
+	std::vector<vkt::Buffer> m_lights{};
+
 
 	glm::mat4 m_perspProj{ utils::orthographicProj(glm::radians(60.0f),
 		static_cast<float>(m_windowExtent.width) / m_windowExtent.height, 1000.0f, 0.1f) * utils::perspective(1000.0f, 0.1f) };
@@ -74,10 +76,9 @@ private:
 	void init_write_descriptor_set();
 
 	vkt::PushConstants m_pushConstants{};
-	std::stack<glm::mat4> m_mStack{};
+	std::stack<glm::mat4> m_mvStack{};
 
 	vkt::Image upload_texture_image(const char* filePath);
-	vkt::GPUMeshAllocation upload_mesh_data(const vkt::IndexedMesh& mesh);
 	vkt::Buffer upload_data(void* data, VkDeviceSize bufferSize, VkBufferUsageFlags bufferUsage, VkBool32 bdaUsage = VK_FALSE);
 
 
@@ -86,8 +87,7 @@ private:
 	void deallocate_frame_images() const;
 	// must be r-value reference as we'll be supplying lambdas
 	void immediate_submit(std::function<void(VkCommandBuffer cmdBuffer)>&& func) const;
-	void processInputs();
-	vkt::IndexedMesh load_obj_mesh(const char* filePath) const;
+	void process_inputs();
 	void draw_mesh(const vkt::Frame& frame, const vkt::GPUMeshAllocation& mesh, const glm::mat4& model);
 
 	uint32_t m_framesRendered{};

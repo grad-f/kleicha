@@ -1,5 +1,22 @@
 #include "Utils.h"
 #include "Initializers.h"
+#include <unordered_map>
+
+#pragma warning(push, 0)
+#pragma warning(disable : 6054 6262 26495)
+#define TINYOBJLOADER_IMPLEMENTATION
+#include <tiny_obj_loader.h>
+#pragma warning(pop)
+
+namespace std {
+    template<> struct hash<vkt::Vertex> {
+        size_t operator()(vkt::Vertex const& vertex) const {
+            return ((hash<glm::vec3>()(vertex.position) ^
+                (hash<glm::vec3>()(vertex.normal) << 1)) >> 1) ^
+                (hash<glm::vec2>()(vertex.UV) << 1);
+        }
+    };
+}
 
 namespace utils {
     VkShaderModule create_shader_module(VkDevice device, const char* path) {
@@ -232,6 +249,57 @@ namespace utils {
             for (uint32_t vert{ 0 }; vert < prec; ++vert) {
                 mesh.tInd[2 * (ring * prec + vert)] = { ring * (prec + 1) + vert, (ring + 1) * (prec + 1) + vert, (ring * (prec + 1) + vert + 1) };
                 mesh.tInd[2 * (ring * prec + vert) + 1] = { (ring * (prec + 1) + vert + 1), (ring + 1) * (prec + 1) + vert, (ring + 1) * (prec + 1) + vert + 1 };
+            }
+        }
+
+        return mesh;
+    }
+
+    vkt::IndexedMesh load_obj_mesh(const char* filePath) {
+        // attrib stores arrays of vertex attributes as floats
+        tinyobj::attrib_t attrib;
+        std::vector<tinyobj::shape_t> shapes;
+        std::string err{};
+
+        vkt::IndexedMesh mesh{};
+
+        if (!tinyobj::LoadObj(&attrib, &shapes, nullptr, &err, filePath)) {
+            throw std::runtime_error{ "[Kleicha] Failed to load mesh from file: " + std::string{filePath} + "\nError: " + err };
+        }
+        
+        // hash map to store unique vertices and their indices
+        std::unordered_map<vkt::Vertex, uint32_t> uniqueVertices{};
+        std::vector<uint32_t> triangleIndices{};
+        for (const auto& shape : shapes) {
+            for (uint32_t vert{ 0 }; vert < shape.mesh.indices.size(); ++vert) {
+
+                // get triangle vertex indices
+                std::size_t posIndex{ static_cast<std::size_t>(shape.mesh.indices[vert].vertex_index) };
+                std::size_t normIndex{ static_cast<std::size_t>(shape.mesh.indices[vert].normal_index) };
+                std::size_t texIndex{ static_cast<std::size_t>(shape.mesh.indices[vert].texcoord_index) };
+                vkt::Vertex vertex{};
+
+                // index the vertex data stored in attrib using the indices to generate the vertex data
+                vertex.position = { attrib.vertices[3 * posIndex + 0], attrib.vertices[3 * posIndex + 1], attrib.vertices[3 * posIndex + 2] };
+                vertex.normal = { attrib.normals[3 * normIndex + 0], attrib.normals[3 * normIndex + 1], attrib.normals[3 * normIndex + 2] };
+                vertex.UV = { attrib.texcoords[2 * texIndex + 0], attrib.texcoords[2 * texIndex + 1] };
+
+                // check if vertex already exists in our unique vertices map
+                if (uniqueVertices.count(vertex) == 0) {
+                    // if unique vertex, add to unique vertex map
+                    uniqueVertices[vertex] = static_cast<uint32_t>(mesh.verts.size());
+                    mesh.verts.push_back(vertex);
+                }
+
+                switch (vert % 3) {
+                case 0:
+                    mesh.tInd.push_back(glm::uvec3{ uniqueVertices[vertex] });
+                case 1:
+                    mesh.tInd[mesh.tInd.size() - 1].y = uniqueVertices[vertex];
+                case 2:
+                    mesh.tInd[mesh.tInd.size() - 1].z = uniqueVertices[vertex];
+                }
+
             }
         }
 

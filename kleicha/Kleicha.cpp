@@ -8,12 +8,6 @@
 #include "Types.h"
 
 #pragma warning(push, 0)
-#pragma warning(disable : 6054 6262 26495)
-#define TINYOBJLOADER_IMPLEMENTATION
-#include <tiny_obj_loader.h>
-#pragma warning(pop)
-
-#pragma warning(push, 0)
 #pragma warning(disable : 26819 26110 6387 26495 6386 26813 33010 28182 26495 6262 4365)
 #define VMA_IMPLEMENTATION
 #include <vk_mem_alloc.h>
@@ -32,16 +26,6 @@ static void cursor_callback(GLFWwindow* window, double xpos, double ypos) {
 	// xpos and ypos are effectively measures of displacement
 	Kleicha* kleicha{ reinterpret_cast<Kleicha*>(glfwGetWindowUserPointer(window)) };
 	kleicha->m_camera.updateEulerAngles(static_cast<float>(xpos), static_cast<float>(ypos));
-}
-
-namespace std {
-	template<> struct hash<vkt::Vertex> {
-		size_t operator()(vkt::Vertex const& vertex) const {
-			return ((hash<glm::vec3>()(vertex.position) ^
-				(hash<glm::vec3>()(vertex.normal) << 1)) >> 1) ^
-				(hash<glm::vec2>()(vertex.UV) << 1);
-		}	
-	};
 }
 
 // init calls the required functions to initialize vulkan
@@ -69,6 +53,7 @@ void Kleicha::init() {
 	init_image_buffers();
 	init_meshes();
 	init_materials();
+	init_lights();
 	init_write_descriptor_set();
 }
 
@@ -168,9 +153,13 @@ void Kleicha::init_graphics_pipelines() {
 
 	/*VkShaderModule vertModule{utils::create_shader_module(m_device.device, "../shaders/vert_basic.spv")};
 	VkShaderModule fragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_basic.spv") };
-	VkShaderModule vertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_cubeInstanced.spv") };*/
+	VkShaderModule vertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_cubeInstanced.spv") };
 	VkShaderModule vertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_pyrTextured.spv") };
-	VkShaderModule fragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_pyrTextured.spv") };
+	VkShaderModule fragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_pyrTextured.spv") };*/
+
+
+	VkShaderModule vertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_blinnPhong.spv") };
+	VkShaderModule fragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_blinnPhong.spv") };
 
 	PipelineBuilder pipelineBuilder{ m_device.device };
 	pipelineBuilder.pipelineLayout = m_dummyPipelineLayout;
@@ -188,39 +177,45 @@ void Kleicha::init_graphics_pipelines() {
 
 void Kleicha::init_descriptors() {
 
-	// 'unbound' binding (must be last binding in a descriptor set layout) 
-	VkDescriptorBindingFlags bindingFlags[3]{
-		{VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT},
-		{VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT},
-		{VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT }
-	};
-	VkDescriptorSetLayoutBindingFlagsCreateInfo layoutBindingFlagsInfo{ .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO };
-	layoutBindingFlagsInfo.bindingCount = std::size(bindingFlags);
-	layoutBindingFlagsInfo.pBindingFlags = bindingFlags;
+	{			// create global descriptor set layout	
+		VkDescriptorBindingFlags bindingFlags[2]{
+			{VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT},
+			{VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT }
+		};
+		VkDescriptorSetLayoutBindingFlagsCreateInfo layoutBindingFlagsInfo{ .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO };
+		layoutBindingFlagsInfo.bindingCount = std::size(bindingFlags);
+		layoutBindingFlagsInfo.pBindingFlags = bindingFlags;
 
-	VkDescriptorSetLayoutBinding bindings[3]{
-		{0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 50, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
-		{1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 50, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
-		{2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 50, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr}
-	};
+		VkDescriptorSetLayoutBinding bindings[2]{
+			{0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 50, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
+			{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 50, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr}
+		};
 
-	// create descriptor set layout
-	VkDescriptorSetLayoutCreateInfo descriptorSetLayoutInfo{ .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
-	descriptorSetLayoutInfo.pNext = &layoutBindingFlagsInfo;
-	descriptorSetLayoutInfo.bindingCount = std::size(bindings);
-	descriptorSetLayoutInfo.pBindings = bindings;
-	VK_CHECK(vkCreateDescriptorSetLayout(m_device.device, &descriptorSetLayoutInfo, nullptr, &m_globDescSetLayout));
+		// create descriptor set layout
+		VkDescriptorSetLayoutCreateInfo descriptorSetLayoutInfo{ .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+		descriptorSetLayoutInfo.pNext = &layoutBindingFlagsInfo;
+		descriptorSetLayoutInfo.bindingCount = std::size(bindings);
+		descriptorSetLayoutInfo.pBindings = bindings;
+		VK_CHECK(vkCreateDescriptorSetLayout(m_device.device, &descriptorSetLayoutInfo, nullptr, &m_globDescSetLayout));
+
+	}
+	
+	{		// create per frame descriptor set layout for per-frame data that will be updated frequently
+		VkDescriptorBindingFlags bindingFlags[2]{
+			{VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT},
+			{VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT}
+		};
+	}
 
 	//create descriptor set pool
-	VkDescriptorPoolSize poolDescriptorSizes[3]{
-		{VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 50}, // Light
+	VkDescriptorPoolSize poolDescriptorSizes[2]{
 		{VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 50}, // Material
 		{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 50}	// Textures
 	};
 
 	VkDescriptorPoolCreateInfo descriptorPoolInfo{ .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
 	descriptorPoolInfo.pNext = nullptr;
-	descriptorPoolInfo.maxSets = 1;
+	descriptorPoolInfo.maxSets = 2;
 	descriptorPoolInfo.poolSizeCount = std::size(poolDescriptorSizes);
 	descriptorPoolInfo.pPoolSizes = poolDescriptorSizes;
 
@@ -278,6 +273,7 @@ void Kleicha::init_image_buffers() {
 }
 
 void Kleicha::init_meshes() {
+	// when i get tired of doing this, make a function...
 	vkt::IndexedMesh pyrMesh{utils::generate_pyramid_mesh()};
 	m_pyrAllocation.indexCount = pyrMesh.getIndexCount();
 	m_pyrAllocation.vertBuffer = upload_data(pyrMesh.verts.data(), pyrMesh.getvertsBufferSize(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT_COPY, VK_TRUE);
@@ -293,7 +289,7 @@ void Kleicha::init_meshes() {
 	m_torusAllocation.vertBuffer = upload_data(torus.verts.data(), torus.getvertsBufferSize(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT_COPY, VK_TRUE);
 	m_torusAllocation.indexBuffer = upload_data(torus.tInd.data(), torus.getIndBufferSize(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_FALSE);
 
-	vkt::IndexedMesh sampleMesh{ load_obj_mesh("../models/shuttle.obj") };
+	vkt::IndexedMesh sampleMesh{ utils::load_obj_mesh("../models/shuttle.obj") };
 	m_sampleMeshAllocation.vertBuffer = upload_data(sampleMesh.verts.data(), sampleMesh.getvertsBufferSize(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT_COPY, VK_TRUE);
 	m_sampleMeshAllocation.indexBuffer = upload_data(sampleMesh.tInd.data(), sampleMesh.getIndBufferSize(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_FALSE);
 	m_sampleMeshAllocation.indexCount = sampleMesh.getIndexCount();
@@ -302,14 +298,14 @@ void Kleicha::init_meshes() {
 void Kleicha::init_lights() {
 
 	// create a standard white light 
-	vkt::Light posLight{
+	vkt::Light pointLight{
 		.ambient = {0.0f, 0.0f, 0.0f, 1.0f},
 		.diffuse = {1.0f, 1.0f, 1.0f, 1.0f},
 		.specular = {1.0f, 1.0f, 1.0f, 1.0f},
 		.position = {2.0f, 1.0f, 0.5f}
 	};
 
-
+	m_lights.push_back(upload_data(&pointLight, sizeof(vkt::Light), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT));
 }
 
 void Kleicha::init_materials() {
@@ -321,59 +317,8 @@ void Kleicha::init_materials() {
 	//m_textures.push_back(upload_texture_image("../textures/tiled.png"));
 	//m_textures.push_back(upload_texture_image("../textures/concrete.png"));
 
-	m_materials.push_back(vkt::Material::gold_material());
-
-}
-
-vkt::IndexedMesh Kleicha::load_obj_mesh(const char* filePath) const {
-	// attrib stores arrays of vertex attributes as floats
-	tinyobj::attrib_t attrib;
-	std::vector<tinyobj::shape_t> shapes;
-	std::string err{};
-
-	vkt::IndexedMesh mesh{};
-
-	if (!tinyobj::LoadObj(&attrib, &shapes, nullptr, &err, filePath)) {
-		throw std::runtime_error{ "[Kleicha] Failed to load mesh from file: " + std::string{filePath} + "\nError: " + err };
-	}
-
-	// hash map to store unique vertices and their indices
-	std::unordered_map<vkt::Vertex, uint32_t> uniqueVertices{};
-	std::vector<uint32_t> triangleIndices{};
-	for (const auto& shape : shapes) {
-		for (uint32_t vert{ 0 }; vert < shape.mesh.indices.size(); ++vert) {
-
-			// get triangle vertex indices
-			std::size_t posIndex{ static_cast<std::size_t>(shape.mesh.indices[vert].vertex_index) };
-			std::size_t normIndex{ static_cast<std::size_t>(shape.mesh.indices[vert].normal_index) };
-			std::size_t texIndex{ static_cast<std::size_t>(shape.mesh.indices[vert].texcoord_index) };
-			vkt::Vertex vertex{};
-
-			// index the vertex data stored in attrib using the indices to generate the vertex data
-			vertex.position = { attrib.vertices[3 * posIndex + 0], attrib.vertices[3 * posIndex + 1], attrib.vertices[3 * posIndex + 2] };
-			vertex.normal = { attrib.normals[3 * normIndex + 0], attrib.normals[3 * normIndex + 1], attrib.normals[3 * normIndex + 2] };
-			vertex.UV = { attrib.texcoords[2 * texIndex + 0], attrib.texcoords[2 * texIndex + 1] };
-
-			// check if vertex already exists in our unique vertices map
-			if (uniqueVertices.count(vertex) == 0) {
-				// if unique vertex, add to unique vertex map
-				uniqueVertices[vertex] = static_cast<uint32_t>(mesh.verts.size());
-				mesh.verts.push_back(vertex);
-			}
-
-			switch (vert % 3) {
-			case 0:
-				mesh.tInd.push_back(glm::uvec3{ uniqueVertices[vertex] });
-			case 1:
-				mesh.tInd[mesh.tInd.size() - 1].y = uniqueVertices[vertex];
-			case 2:
-				mesh.tInd[mesh.tInd.size() - 1].z = uniqueVertices[vertex];
-			}
-
-		}
-	}
-
-	return mesh;
+	vkt::Material goldMaterial{ vkt::Material::gold_material() };
+	m_materials.push_back(upload_data(&goldMaterial, sizeof(vkt::Material), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT));
 }
 
 vkt::Buffer Kleicha::upload_data(void* data, VkDeviceSize bufferSize, VkBufferUsageFlags bufferUsage, VkBool32 bdaUsage) {
@@ -416,6 +361,41 @@ vkt::Buffer Kleicha::upload_data(void* data, VkDeviceSize bufferSize, VkBufferUs
 
 void Kleicha::init_write_descriptor_set() {
 
+	// Light ssbo -> it may make sense in the future to encapsulate this into a more generic scene shader storage object
+	std::vector<VkDescriptorBufferInfo> lightBufferInfos{};
+	VkDescriptorBufferInfo lightBufferInfo{};
+	lightBufferInfo.offset = 0;
+	lightBufferInfo.range = VK_WHOLE_SIZE;
+	for (const auto& light : m_lights) {
+		lightBufferInfo.buffer = light.buffer;
+		lightBufferInfos.emplace_back(lightBufferInfo);
+	}
+
+	VkWriteDescriptorSet lightBufferWriteInfo{ .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+	lightBufferWriteInfo.dstSet = m_descSet;
+	lightBufferWriteInfo.dstBinding = 0;
+	lightBufferWriteInfo.dstArrayElement = 0;
+	lightBufferWriteInfo.descriptorCount = static_cast<uint32_t>(lightBufferInfos.size());
+	lightBufferWriteInfo.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	lightBufferWriteInfo.pBufferInfo = lightBufferInfos.data();
+
+	std::vector<VkDescriptorBufferInfo> materialBufferInfos{};
+	VkDescriptorBufferInfo materialBufferInfo{};
+	materialBufferInfo.offset = 0;
+	materialBufferInfo.range = VK_WHOLE_SIZE;
+	for (const auto& material : m_materials) {
+		materialBufferInfo.buffer = material.buffer;
+		materialBufferInfos.emplace_back(materialBufferInfo);
+	}
+
+	VkWriteDescriptorSet materialBufferWriteInfo{ .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+	materialBufferWriteInfo.dstSet = m_descSet;
+	materialBufferWriteInfo.dstBinding = 1;
+	materialBufferWriteInfo.dstArrayElement = 0;
+	materialBufferWriteInfo.descriptorCount = static_cast<uint32_t>(materialBufferInfos.size());
+	materialBufferWriteInfo.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	materialBufferWriteInfo.pBufferInfo = materialBufferInfos.data();
+
 	VkSamplerCreateInfo samplerInfo{ .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
 	samplerInfo.pNext = nullptr;
 	samplerInfo.magFilter = VK_FILTER_LINEAR;
@@ -445,15 +425,17 @@ void Kleicha::init_write_descriptor_set() {
 		imageInfos.emplace_back(imageInfo);
 	}
 
-	VkWriteDescriptorSet writeDescriptorSet{ .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-	writeDescriptorSet.dstSet = m_descSet;
-	writeDescriptorSet.dstBinding = 2;
-	writeDescriptorSet.dstArrayElement = 0;
-	writeDescriptorSet.descriptorCount = static_cast<uint32_t>(imageInfos.size());
-	writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	writeDescriptorSet.pImageInfo = imageInfos.data();
+	VkWriteDescriptorSet texSamplerWriteInfo{ .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+	texSamplerWriteInfo.dstSet = m_descSet;
+	texSamplerWriteInfo.dstBinding = 2;
+	texSamplerWriteInfo.dstArrayElement = 0;
+	texSamplerWriteInfo.descriptorCount = static_cast<uint32_t>(imageInfos.size());
+	texSamplerWriteInfo.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	texSamplerWriteInfo.pImageInfo = imageInfos.data();
 
-	vkUpdateDescriptorSets(m_device.device, 1, &writeDescriptorSet, 0, nullptr);
+	VkWriteDescriptorSet writeDescriptorSets[3]{ texSamplerWriteInfo, materialBufferWriteInfo, lightBufferWriteInfo };
+
+	vkUpdateDescriptorSets(m_device.device, 3, writeDescriptorSets, 0, nullptr);
 }
 
 vkt::Image Kleicha::upload_texture_image(const char* filePath) {
@@ -743,30 +725,32 @@ void Kleicha::draw([[maybe_unused]]float currentTime) {
 	vkCmdSetViewport(frame.cmdBuffer, 0, 1, &viewport);
 	vkCmdSetScissor(frame.cmdBuffer, 0, 1, &scissor);
 	vkCmdBindDescriptorSets(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_dummyPipelineLayout, 0, 1, &m_descSet, 0, nullptr);
-	m_pushConstants.view = m_camera.getViewMatrix();
 	m_pushConstants.perspectiveProjection = m_perspProj;
 	m_pushConstants.texID = 4;
-
-	m_mStack.push(glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, 0.0f, -1.0f }));
-	m_mStack.push(m_mStack.top());
-	m_mStack.top() *= glm::rotate(glm::mat4{ 1.0f }, currentTime/5.0f, glm::vec3{ 0.0f, 1.0f, 0.0f });
-	draw_mesh(frame, m_sphereAllocation, m_mStack.top());
-	m_mStack.pop();
+		
+	m_mvStack.push(m_camera.getViewMatrix());
+	m_mvStack.push(m_mvStack.top());
+	m_mvStack.top() *= glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, 0.0f, -1.0f });
+	m_mvStack.push(m_mvStack.top());
+	m_mvStack.top() *= glm::rotate(glm::mat4{ 1.0f }, currentTime/5.0f, glm::vec3{ 0.0f, 1.0f, 0.0f });
+	draw_mesh(frame, m_sphereAllocation, m_mvStack.top());
+	m_mvStack.pop();
 
 	m_pushConstants.texID = 3;
-	m_mStack.push(m_mStack.top());
-	m_mStack.top() *= glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 1.7f * std::sin(currentTime), 0.0f, 1.7f * std::cos(currentTime) }) * glm::rotate(glm::mat4{ 1.0f }, currentTime + glm::radians(-90.0f), glm::vec3{0.0f, 1.0f, 0.0f}) * glm::scale(glm::mat4{1.0f}, glm::vec3{0.25f, 0.25f, 0.25f});
-	draw_mesh(frame, m_sampleMeshAllocation, m_mStack.top());
-	m_mStack.pop();
+	m_mvStack.push(m_mvStack.top());
+	m_mvStack.top() *= glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 1.7f * std::sin(currentTime), 0.0f, 1.7f * std::cos(currentTime) }) * glm::rotate(glm::mat4{ 1.0f }, currentTime + glm::radians(-90.0f), glm::vec3{0.0f, 1.0f, 0.0f}) * glm::scale(glm::mat4{1.0f}, glm::vec3{0.25f, 0.25f, 0.25f});
+	draw_mesh(frame, m_sampleMeshAllocation, m_mvStack.top());
+	m_mvStack.pop();
 
 	m_pushConstants.texID = 1;
-	m_mStack.push(m_mStack.top());
-	m_mStack.top() *= glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 3.0f * std::sin(currentTime/2.0f), 0.0f, 3.0f * std::cos(currentTime/2.0f) }) * glm::rotate(glm::mat4{ 1.0f }, currentTime*1.5f, glm::vec3{ 0.0f, 1.0f, 0.0f }) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 0.35f, 0.35f, 0.35f });
-	draw_mesh(frame, m_sphereAllocation, m_mStack.top());
-	m_mStack.pop();
+	m_mvStack.push(m_mvStack.top());
+	m_mvStack.top() *= glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 3.0f * std::sin(currentTime/2.0f), 0.0f, 3.0f * std::cos(currentTime/2.0f) }) * glm::rotate(glm::mat4{ 1.0f }, currentTime*1.5f, glm::vec3{ 0.0f, 1.0f, 0.0f }) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 0.35f, 0.35f, 0.35f });
+	draw_mesh(frame, m_sphereAllocation, m_mvStack.top());
+	m_mvStack.pop();
 
 	
-	m_mStack.pop();
+	m_mvStack.pop();
+	m_mvStack.pop();
 
 	vkCmdEndRendering(frame.cmdBuffer);
 
@@ -824,18 +808,19 @@ void Kleicha::draw([[maybe_unused]]float currentTime) {
 		recreate_swapchain();
 
 	++m_framesRendered;
-	processInputs();
+	process_inputs();
 }
 
-void Kleicha::draw_mesh(const vkt::Frame& frame, const vkt::GPUMeshAllocation& mesh, const glm::mat4& model) {
+void Kleicha::draw_mesh(const vkt::Frame& frame, const vkt::GPUMeshAllocation& mesh, const glm::mat4& modelViewMat) {
 	m_pushConstants.vertexBufferAddress = mesh.vertBuffer.deviceAddress;
-	m_pushConstants.model = model;
+	m_pushConstants.modelView = modelViewMat;
+	m_pushConstants.mvInvTr = glm::transpose(glm::inverse(m_pushConstants.modelView));
 	vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
 	vkCmdBindIndexBuffer(frame.cmdBuffer, mesh.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 	vkCmdDrawIndexed(frame.cmdBuffer, mesh.indexCount, 1, 0, 0, 0);
 }
 
-void Kleicha::processInputs() {
+void Kleicha::process_inputs() {
 	if (glfwGetKey(m_window, GLFW_KEY_W) == GLFW_PRESS)
 		m_camera.moveCameraPosition(FORWARD, m_deltaTime);
 	if (glfwGetKey(m_window, GLFW_KEY_S) == GLFW_PRESS)
@@ -854,8 +839,13 @@ void Kleicha::cleanup() const {
 		vmaDestroyImage(m_allocator, texture.image, texture.allocation);
 	}
 
-	// model cleanup -- we should loop over these...
+	for (const auto& material : m_materials)
+		vmaDestroyBuffer(m_allocator, material.buffer, material.allocation);
 
+	for (const auto& light : m_lights)
+		vmaDestroyBuffer(m_allocator, light.buffer, light.allocation);
+
+	// model cleanup -- we should loop over these...
 	vmaDestroyBuffer(m_allocator, m_sampleMeshAllocation.vertBuffer.buffer, m_sampleMeshAllocation.vertBuffer.allocation);
 	vmaDestroyBuffer(m_allocator, m_sampleMeshAllocation.indexBuffer.buffer, m_sampleMeshAllocation.indexBuffer.allocation);
 

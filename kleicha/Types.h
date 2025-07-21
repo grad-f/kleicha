@@ -17,9 +17,9 @@ namespace vkt {
 	struct PushConstants {
 		VkDeviceAddress vertexBufferAddress{};
 		glm::mat4 perspectiveProjection{};
-		glm::mat4 view{};
-		glm::mat4 model{};
-		int texID;
+		glm::mat4 modelView{};
+		glm::mat4 mvInvTr{};
+		int texID{};
 	};
 
 	struct Instance {
@@ -131,6 +131,7 @@ namespace vkt {
 		VkCommandBuffer cmdBuffer{};
 		VkFence inFlightFence{};
 		VkSemaphore acquiredSemaphore{};
+		VkDescriptorSet descriptorSet{};
 	};
 
 	// chained and encapsulated device features struct

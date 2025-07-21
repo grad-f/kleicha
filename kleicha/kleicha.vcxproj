@@ -191,6 +191,8 @@
   <ItemGroup>
     <None Include="..\shaders\basic.frag" />
     <None Include="..\shaders\basic.vert" />
+    <None Include="..\shaders\blinnPhong.frag" />
+    <None Include="..\shaders\blinnPhong.vert" />
     <None Include="..\shaders\cube.frag" />
     <None Include="..\shaders\cube.vert" />
     <None Include="..\shaders\cubeInstanced.vert" />
