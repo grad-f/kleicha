@@ -15,11 +15,10 @@
 namespace vkt {
 
 	struct PushConstants {
-		VkDeviceAddress vertexBufferAddress{};
 		glm::mat4 perspectiveProjection{};
 		glm::mat4 modelView{};
 		glm::mat4 mvInvTr{};
-		int texID{};
+		int drawId{};
 	};
 
 	struct Instance {
@@ -89,6 +88,11 @@ namespace vkt {
 		bool operator==(const Vertex& other) const {
 			return position == other.position && UV == other.UV && normal == other.normal;
 		}
+	};
+
+	struct DrawData {
+		uint32_t materialIndex{};
+		uint32_t vertexOffset{};
 	};
 
 	struct IndexedMesh {

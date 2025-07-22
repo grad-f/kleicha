@@ -41,23 +41,22 @@ private:
 	// descriptor resources
 	VkDescriptorSetLayout m_globDescSetLayout;
 	VkDescriptorPool m_descPool{};
-	VkDescriptorSet m_descSet{};
+	VkDescriptorSet m_globalDescSet{};
 
 	vkt::Frame m_frames[MAX_FRAMES_IN_FLIGHT]{};
 	vkt::Image rasterImage{};
 	vkt::Image depthImage{};
 	std::vector<VkSemaphore> m_renderedSemaphores{};
 
-	vkt::GPUMeshAllocation m_sphereAllocation{};
-	vkt::GPUMeshAllocation m_pyrAllocation{};
-	vkt::GPUMeshAllocation m_torusAllocation{};
-	vkt::GPUMeshAllocation m_sampleMeshAllocation{};
-
 	VkSampler m_textureSampler{};
 	std::vector<vkt::Image> m_textures{};
 	std::vector<vkt::Buffer> m_materials{};
 	std::vector<vkt::Buffer> m_lights{};
 
+	vkt::Buffer m_vertexBuffer{};
+	vkt::Buffer m_indexBuffer{};
+
+	std::vector<uint32_t> m_meshIndexCounts{};
 
 	glm::mat4 m_perspProj{ utils::orthographicProj(glm::radians(60.0f),
 		static_cast<float>(m_windowExtent.width) / m_windowExtent.height, 1000.0f, 0.1f) * utils::perspective(1000.0f, 0.1f) };
