@@ -177,7 +177,8 @@ void Kleicha::init_graphics_pipelines() {
 void Kleicha::init_descriptors() {
 
 	{			// create global descriptor set layout	
-		VkDescriptorBindingFlags bindingFlags[2]{
+		VkDescriptorBindingFlags bindingFlags[3]{
+			{},
 			{},
 			{VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT }
 		};
@@ -185,9 +186,10 @@ void Kleicha::init_descriptors() {
 		layoutBindingFlagsInfo.bindingCount = std::size(bindingFlags);
 		layoutBindingFlagsInfo.pBindingFlags = bindingFlags;
 
-		VkDescriptorSetLayoutBinding bindings[2]{
+		VkDescriptorSetLayoutBinding bindings[3]{
 			{0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
-			{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 50, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr}
+			{1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
+			{2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 50, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr}
 		};
 
 		// create descriptor set layout
@@ -200,7 +202,7 @@ void Kleicha::init_descriptors() {
 
 	//create descriptor set pool
 	VkDescriptorPoolSize poolDescriptorSizes[2]{
-		{VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1},
+		{VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2},
 		{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 50}	// Textures
 	};
 
@@ -277,9 +279,12 @@ void Kleicha::init_meshes() {
 	std::vector<glm::uvec3> triangleData{};
 	for (std::size_t i{ 0 }; i < meshes.size(); ++i) {
 
+		// store the current vertex and triangle counts
 		std::size_t vertexCount{ vertexData.size() };
 		std::size_t triangleCount{ triangleData.size() };
 
+		// draw data stores mesh material index and its vertex offset.
+		// the vertex offset specifies at which vertex index this meshes vertices begin in the buffer
 		vkt::DrawData draw{};
 		draw.materialIndex = static_cast<uint32_t>(i);
 		draw.vertexOffset = static_cast<uint32_t>(vertexCount);
@@ -291,10 +296,13 @@ void Kleicha::init_meshes() {
 		triangleData.reserve(triangleCount + meshes[i].tInd.size());
 		triangleData.insert(triangleData.end(), meshes[i].tInd.begin(), meshes[i].tInd.end());
 
-		m_meshIndexCounts.push_back(static_cast<uint32_t>(meshes[i].tInd.size()) * glm::uvec3::length());
+		// for each mesh, store the number of indices and the offset within the contiguous indext buffer to be used later with vkCmdDrawIndexed
+		vkt::MeshIndexData meshIndexData{ .indicesCount = static_cast<uint32_t>(meshes[i].tInd.size() * glm::uvec3::length()), .indicesOffset = static_cast<uint32_t>(triangleCount * 3) };
+		m_meshIndexData.push_back(meshIndexData);
 	}
 
 	m_vertexBuffer = upload_data(vertexData.data(), vertexData.size() * sizeof(vkt::Vertex), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+	m_drawBuffer = upload_data(drawData.data(), drawData.size() * sizeof(vkt::DrawData), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 	m_indexBuffer = upload_data(triangleData.data(), triangleData.size() * sizeof(glm::uvec3), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
 }
 
@@ -397,6 +405,19 @@ void Kleicha::init_write_descriptor_set() {
 	vertWriteDescSet.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 	vertWriteDescSet.pBufferInfo = &vertDescBufferInfo;
 
+	VkDescriptorBufferInfo drawDescBufferInfo{};
+	drawDescBufferInfo.buffer = m_drawBuffer.buffer;
+	drawDescBufferInfo.offset = 0;
+	drawDescBufferInfo.range = VK_WHOLE_SIZE;
+
+	VkWriteDescriptorSet drawWriteDescSet{ .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+	drawWriteDescSet.dstSet = m_globalDescSet;
+	drawWriteDescSet.dstBinding = 1;
+	drawWriteDescSet.dstArrayElement = 0;
+	drawWriteDescSet.descriptorCount = 1;
+	drawWriteDescSet.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	drawWriteDescSet.pBufferInfo = &drawDescBufferInfo;
+
 	std::vector<VkDescriptorImageInfo> imageInfos{};
 	VkDescriptorImageInfo imageInfo{};
 	imageInfo.sampler = m_textureSampler;
@@ -408,13 +429,13 @@ void Kleicha::init_write_descriptor_set() {
 
 	VkWriteDescriptorSet texSamplerWriteDescSet{ .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
 	texSamplerWriteDescSet.dstSet = m_globalDescSet;
-	texSamplerWriteDescSet.dstBinding = 1;
+	texSamplerWriteDescSet.dstBinding = 2;
 	texSamplerWriteDescSet.dstArrayElement = 0;
 	texSamplerWriteDescSet.descriptorCount = static_cast<uint32_t>(imageInfos.size());
 	texSamplerWriteDescSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	texSamplerWriteDescSet.pImageInfo = imageInfos.data();
 
-	VkWriteDescriptorSet writeDescriptorSets[2]{ vertWriteDescSet, texSamplerWriteDescSet, };
+	VkWriteDescriptorSet writeDescriptorSets[3]{ vertWriteDescSet, drawWriteDescSet, texSamplerWriteDescSet };
 
 	vkUpdateDescriptorSets(m_device.device, std::size(writeDescriptorSets), writeDescriptorSets, 0, nullptr);
 }
@@ -707,13 +728,18 @@ void Kleicha::draw([[maybe_unused]]float currentTime) {
 	vkCmdSetScissor(frame.cmdBuffer, 0, 1, &scissor);
 	vkCmdBindDescriptorSets(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_dummyPipelineLayout, 0, 1, &m_globalDescSet, 0, nullptr);
 	m_pushConstants.perspectiveProjection = m_perspProj;
-	m_pushConstants.drawId = 0;
-	m_pushConstants.modelView = m_camera.getViewMatrix() * glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, 0.0f, -3.0f });
+	glm::mat4 view{ m_camera.getViewMatrix() };
 
-	vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
 
 	vkCmdBindIndexBuffer(frame.cmdBuffer, m_indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-	vkCmdDrawIndexed(frame.cmdBuffer, m_meshIndexCounts[0], 1, 0, 0, 0);
+
+	for (std::uint32_t i{ 0 }; i < m_meshIndexData.size(); ++i) {
+		m_pushConstants.drawId = i;
+		m_pushConstants.modelView = view * glm::translate(glm::mat4{ 1.0f }, glm::vec3{ i * 5.0f, 0.0f, -3.0f });
+		vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
+		vkCmdDrawIndexed(frame.cmdBuffer, m_meshIndexData[i].indicesCount, 1, m_meshIndexData[i].indicesOffset, 0, 0);
+	}
+
 		
 	vkCmdEndRendering(frame.cmdBuffer);
 
@@ -786,6 +812,8 @@ void Kleicha::process_inputs() {
 }
 
 void Kleicha::cleanup() const {
+
+	vmaDestroyBuffer(m_allocator, m_drawBuffer.buffer, m_drawBuffer.allocation);
 
 	vkDestroySampler(m_device.device, m_textureSampler, nullptr);
 	for (const auto& texture : m_textures) {

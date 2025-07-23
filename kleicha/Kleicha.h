@@ -56,7 +56,10 @@ private:
 	vkt::Buffer m_vertexBuffer{};
 	vkt::Buffer m_indexBuffer{};
 
-	std::vector<uint32_t> m_meshIndexCounts{};
+	// this buffer specifies indicies and offsets to the other buffers available in the shader
+	vkt::Buffer m_drawBuffer{};
+
+	std::vector<vkt::MeshIndexData> m_meshIndexData{};
 
 	glm::mat4 m_perspProj{ utils::orthographicProj(glm::radians(60.0f),
 		static_cast<float>(m_windowExtent.width) / m_windowExtent.height, 1000.0f, 0.1f) * utils::perspective(1000.0f, 0.1f) };
@@ -87,7 +90,7 @@ private:
 	// must be r-value reference as we'll be supplying lambdas
 	void immediate_submit(std::function<void(VkCommandBuffer cmdBuffer)>&& func) const;
 	void process_inputs();
-	void draw_mesh(const vkt::Frame& frame, const vkt::GPUMeshAllocation& mesh, const glm::mat4& model);
+	//void draw_mesh(const vkt::Frame& frame, const vkt::GPUMeshAllocation& mesh, const glm::mat4& model);
 
 	uint32_t m_framesRendered{};
 	vkt::Frame get_current_frame() const {

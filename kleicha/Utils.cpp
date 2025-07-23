@@ -236,7 +236,7 @@ namespace utils {
             for (uint32_t vert{ 0 }; vert < prec + 1; ++vert) {
                 glm::mat4 rMat{ glm::rotate(glm::mat4{1.0f}, ringRadians, glm::vec3{0.0f, 1.0f, 0.0f}) };
                 mesh.verts[ring * (prec + 1) + vert].position = rMat * glm::vec4{ mesh.verts[vert].position, 1.0f };
-                mesh.verts[ring * (prec + 1) + vert].UV = glm::vec2{static_cast<float>(ring * 2.5f) / prec, mesh.verts[vert].UV.t};
+                mesh.verts[ring * (prec + 1) + vert].UV = glm::vec2{static_cast<float>(ring * 3.0f) / prec, mesh.verts[vert].UV.t};
 
                 // we're safe to rotate our direction vectors as the rotation matrix is orthonormal and the inverse transpose yields the same matrix
                 mesh.verts[ring * (prec + 1) + vert].tangent = rMat * glm::vec4{mesh.verts[vert].tangent, 1.0f};

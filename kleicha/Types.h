@@ -13,12 +13,11 @@
 
 
 namespace vkt {
-
 	struct PushConstants {
 		glm::mat4 perspectiveProjection{};
 		glm::mat4 modelView{};
 		glm::mat4 mvInvTr{};
-		int drawId{};
+		uint32_t drawId{};
 	};
 
 	struct Instance {
@@ -79,12 +78,11 @@ namespace vkt {
 	};
 
 	struct Vertex {
-		glm::vec3 position{};
-		glm::vec2 UV{};
-		glm::vec3 normal{};
-		glm::vec3 tangent{};
-		glm::vec3 bitangent{};
-
+		alignas(16)glm::vec3 position{};
+		alignas(16)glm::vec2 UV{};
+		alignas(16)glm::vec3 normal{};
+		alignas(16)glm::vec3 tangent{};
+		alignas(16)glm::vec3 bitangent{};
 		bool operator==(const Vertex& other) const {
 			return position == other.position && UV == other.UV && normal == other.normal;
 		}
@@ -95,14 +93,16 @@ namespace vkt {
 		uint32_t vertexOffset{};
 	};
 
+	struct MeshIndexData {
+		uint32_t indicesCount{};
+		// specifies index offset within the index buffer at which the meshes indices begin
+		uint32_t indicesOffset{};
+	};
+
 	struct IndexedMesh {
 		// triangle indices
 		std::vector<glm::uvec3> tInd{};
 		std::vector<Vertex> verts{};
-
-		VkDeviceSize getIndBufferSize() const { return tInd.size() * sizeof(glm::uvec3); }
-		VkDeviceSize getvertsBufferSize() const { return verts.size() * sizeof(Vertex); }
-		uint32_t getIndexCount() const { return static_cast<uint32_t>(tInd.size() * glm::uvec3::length()); }
 	};
 
 	struct Light {
