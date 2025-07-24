@@ -144,11 +144,13 @@ void Kleicha::init_graphics_pipelines() {
 	// create dummy shader modules to test pipeline builder.
 	VkPushConstantRange pushConstantRange{ .stageFlags = VK_SHADER_STAGE_VERTEX_BIT, .offset = 0, .size = sizeof(vkt::PushConstants)};
 
+	VkDescriptorSetLayout setLayouts[]{ m_globDescSetLayout, m_frameDescSetLayout };
+
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo{ .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
 	pipelineLayoutInfo.pushConstantRangeCount = 1;
 	pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
-	pipelineLayoutInfo.setLayoutCount = 1;
-	pipelineLayoutInfo.pSetLayouts = &m_globDescSetLayout;
+	pipelineLayoutInfo.setLayoutCount = std::size(setLayouts);
+	pipelineLayoutInfo.pSetLayouts = setLayouts;
 	vkCreatePipelineLayout(m_device.device, &pipelineLayoutInfo, nullptr, &m_dummyPipelineLayout);
 
 	/*VkShaderModule vertModule{utils::create_shader_module(m_device.device, "../shaders/vert_basic.spv")};
@@ -200,6 +202,18 @@ void Kleicha::init_descriptors() {
 		VK_CHECK(vkCreateDescriptorSetLayout(m_device.device, &descriptorSetLayoutInfo, nullptr, &m_globDescSetLayout));
 	}
 
+	{		// create per frame descriptor set layout
+		VkDescriptorSetLayoutBinding bindings[1]{
+			{0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT, nullptr}
+		};
+
+		VkDescriptorSetLayoutCreateInfo descriptorSetLayoutInfo{ .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+		descriptorSetLayoutInfo.pNext = nullptr;
+		descriptorSetLayoutInfo.bindingCount = std::size(bindings);
+		descriptorSetLayoutInfo.pBindings = bindings;
+		VK_CHECK(vkCreateDescriptorSetLayout(m_device.device, &descriptorSetLayoutInfo, nullptr, &m_frameDescSetLayout));
+	}
+
 	//create descriptor set pool
 	VkDescriptorPoolSize poolDescriptorSizes[2]{
 		{VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2},
@@ -208,24 +222,38 @@ void Kleicha::init_descriptors() {
 
 	VkDescriptorPoolCreateInfo descriptorPoolInfo{ .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
 	descriptorPoolInfo.pNext = nullptr;
-	descriptorPoolInfo.maxSets = 1;
+	descriptorPoolInfo.maxSets = 10;
 	descriptorPoolInfo.poolSizeCount = std::size(poolDescriptorSizes);
 	descriptorPoolInfo.pPoolSizes = poolDescriptorSizes;
 
 	VK_CHECK(vkCreateDescriptorPool(m_device.device, &descriptorPoolInfo, nullptr, &m_descPool));
 
-	uint32_t variableSizedDescriptorSize{ 50 };
-	// we must specify the number of descriptors in our variable-sized descriptor binding in the descriptor set we are allocating
-	VkDescriptorSetVariableDescriptorCountAllocateInfo variableDescriptorCountAllocInfo{ .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO };
-	variableDescriptorCountAllocInfo.descriptorSetCount = 1;
-	variableDescriptorCountAllocInfo.pDescriptorCounts = &variableSizedDescriptorSize;
+	{
+		uint32_t variableSizedDescriptorSize{ 50 };
+		// we must specify the number of descriptors in our variable-sized descriptor binding in the descriptor set we are allocating
+		VkDescriptorSetVariableDescriptorCountAllocateInfo variableDescriptorCountAllocInfo{ .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO };
+		variableDescriptorCountAllocInfo.descriptorSetCount = 1;
+		variableDescriptorCountAllocInfo.pDescriptorCounts = &variableSizedDescriptorSize;
 
-	VkDescriptorSetAllocateInfo descriptorSetAllocInfo{ .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
-	descriptorSetAllocInfo.pNext = &variableDescriptorCountAllocInfo;
-	descriptorSetAllocInfo.descriptorPool = m_descPool;
-	descriptorSetAllocInfo.descriptorSetCount = 1;
-	descriptorSetAllocInfo.pSetLayouts = &m_globDescSetLayout;
-	VK_CHECK(vkAllocateDescriptorSets(m_device.device, &descriptorSetAllocInfo, &m_globalDescSet));
+		VkDescriptorSetAllocateInfo setAllocInfo{ .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
+		setAllocInfo.pNext = &variableDescriptorCountAllocInfo;
+		setAllocInfo.descriptorPool = m_descPool;
+		setAllocInfo.descriptorSetCount = 1;
+		setAllocInfo.pSetLayouts = &m_globDescSetLayout;
+		VK_CHECK(vkAllocateDescriptorSets(m_device.device, &setAllocInfo, &m_globalDescSet));
+	}
+
+	{
+		VkDescriptorSetAllocateInfo setAllocInfo{ .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
+		setAllocInfo.pNext = nullptr;
+		setAllocInfo.descriptorPool = m_descPool;
+		setAllocInfo.descriptorSetCount = 1;
+		setAllocInfo.pSetLayouts = &m_frameDescSetLayout;
+
+		for (auto& frame : m_frames)
+			VK_CHECK(vkAllocateDescriptorSets(m_device.device, &setAllocInfo, &frame.descriptorSet));
+	}
+	
 }
 
 void Kleicha::init_vma() {
@@ -322,11 +350,11 @@ void Kleicha::init_lights() {
 void Kleicha::init_materials() {
 	m_textures.push_back(upload_texture_image("../textures/brick.png"));		//0
 	m_textures.push_back(upload_texture_image("../textures/earth.jpg"));		//1
-	m_textures.push_back(upload_texture_image("../textures/viking_room.png"));	//2
+	m_textures.push_back(upload_texture_image("../textures/concrete.png"));		//2
 	m_textures.push_back(upload_texture_image("../textures/shuttle.jpg"));		//3
-	m_textures.push_back(upload_texture_image("../textures/sun.jpg"));			//4
+	//m_textures.push_back(upload_texture_image("../textures/viking_room.png"));	//4
 	//m_textures.push_back(upload_texture_image("../textures/tiled.png"));
-	//m_textures.push_back(upload_texture_image("../textures/concrete.png"));
+	//m_textures.push_back(upload_texture_image("../textures/sun.jpg"));			//3
 
 	vkt::Material goldMaterial{ vkt::Material::gold_material() };
 	m_materials.push_back(upload_data(&goldMaterial, sizeof(vkt::Material), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT));
@@ -844,6 +872,7 @@ void Kleicha::cleanup() const {
 
 	vkDestroyDescriptorPool(m_device.device, m_descPool, nullptr);
 	vkDestroyDescriptorSetLayout(m_device.device, m_globDescSetLayout, nullptr);
+	vkDestroyDescriptorSetLayout(m_device.device, m_frameDescSetLayout, nullptr);
 
 	vkDestroyPipeline(m_device.device, m_graphicsPipeline, nullptr);
 	vkDestroyPipelineLayout(m_device.device, m_dummyPipelineLayout, nullptr);

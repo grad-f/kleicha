@@ -38,10 +38,12 @@ private:
 	VkPipeline m_graphicsPipeline{};
 	VmaAllocator m_allocator{};
 
-	// descriptor resources
+	//global descriptor resources
 	VkDescriptorSetLayout m_globDescSetLayout;
 	VkDescriptorPool m_descPool{};
 	VkDescriptorSet m_globalDescSet{};
+	// per frame descriptor resources
+	VkDescriptorSetLayout m_frameDescSetLayout{};
 
 	vkt::Frame m_frames[MAX_FRAMES_IN_FLIGHT]{};
 	vkt::Image rasterImage{};
@@ -82,7 +84,6 @@ private:
 
 	vkt::Image upload_texture_image(const char* filePath);
 	vkt::Buffer upload_data(void* data, VkDeviceSize bufferSize, VkBufferUsageFlags bufferUsage, VkBool32 bdaUsage = VK_FALSE);
-
 
 	void draw(float currentTime);
 	void recreate_swapchain();

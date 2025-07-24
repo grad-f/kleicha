@@ -25,7 +25,7 @@ layout(binding = 1, set = 0) readonly buffer Draws {
 
 layout (location = 0) out vec4 outVertColor;
 layout (location = 1) out vec2 outUV;
-layout (location = 2) out flat int outTexID;
+layout (location = 2) out flat uint outTexID;
 
 layout(push_constant) uniform constants {
 	mat4 perspectiveProj;
@@ -37,7 +37,7 @@ layout(push_constant) uniform constants {
 void main() {
 	DrawData dd = draws[pc.drawId];
 	mat4 viewingTransform = pc.perspectiveProj * pc.modelView;
-
+	outTexID = dd.materialIndex;
 	//debugPrintfEXT("%d\n", gl_VertexIndex + dd.vertexOffset);
 
 	gl_Position = viewingTransform * vec4(vertices[gl_VertexIndex + dd.vertexOffset].position, 1.0f);
