@@ -15,8 +15,6 @@
 namespace vkt {
 	struct PushConstants {
 		glm::mat4 perspectiveProjection{};
-		glm::mat4 modelView{};
-		glm::mat4 mvInvTr{};
 		uint32_t drawId{};
 	};
 
@@ -136,6 +134,8 @@ namespace vkt {
 		VkFence inFlightFence{};
 		VkSemaphore acquiredSemaphore{};
 		VkDescriptorSet descriptorSet{};
+
+		vkt::Buffer transformBuffer{};
 	};
 
 	// chained and encapsulated device features struct

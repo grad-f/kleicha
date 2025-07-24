@@ -75,12 +75,13 @@ private:
 	void init_vma();
 	void init_image_buffers();
 	void init_meshes();
+	void init_dynamic_buffers();
 	void init_lights();
 	void init_materials();
 	void init_write_descriptor_set();
 
 	vkt::PushConstants m_pushConstants{};
-	std::stack<glm::mat4> m_mvStack{};
+	std::stack<glm::mat4> m_mStack{};
 
 	vkt::Image upload_texture_image(const char* filePath);
 	vkt::Buffer upload_data(void* data, VkDeviceSize bufferSize, VkBufferUsageFlags bufferUsage, VkBool32 bdaUsage = VK_FALSE);

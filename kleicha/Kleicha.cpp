@@ -52,6 +52,7 @@ void Kleicha::init() {
 	init_vma();
 	init_image_buffers();
 	init_meshes();
+	init_dynamic_buffers();
 	init_materials();
 	init_lights();
 	init_write_descriptor_set();
@@ -334,6 +335,15 @@ void Kleicha::init_meshes() {
 	m_indexBuffer = upload_data(triangleData.data(), triangleData.size() * sizeof(glm::uvec3), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
 }
 
+void Kleicha::init_dynamic_buffers() {
+	
+	// allocate per frame buffers such as transform buffer
+	for (auto& frame : m_frames) {
+		frame.transformBuffer = utils::create_buffer(m_allocator, sizeof(glm::mat4) * m_meshIndexData.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, 
+			VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
+	}
+}
+
 void Kleicha::init_lights() {
 
 	// create a standard white light 
@@ -463,9 +473,28 @@ void Kleicha::init_write_descriptor_set() {
 	texSamplerWriteDescSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	texSamplerWriteDescSet.pImageInfo = imageInfos.data();
 
-	VkWriteDescriptorSet writeDescriptorSets[3]{ vertWriteDescSet, drawWriteDescSet, texSamplerWriteDescSet };
+	VkWriteDescriptorSet descSetWrites[3]{ vertWriteDescSet, drawWriteDescSet, texSamplerWriteDescSet };
 
-	vkUpdateDescriptorSets(m_device.device, std::size(writeDescriptorSets), writeDescriptorSets, 0, nullptr);
+	vkUpdateDescriptorSets(m_device.device, std::size(descSetWrites), descSetWrites, 0, nullptr);
+
+	// per frame descriptor set writes
+	VkDescriptorBufferInfo transformDescBufferInfo{};
+	transformDescBufferInfo.offset = 0;
+	transformDescBufferInfo.range = VK_WHOLE_SIZE;
+
+	VkWriteDescriptorSet transformWriteDescSet{ .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+	transformWriteDescSet.dstBinding = 0;
+
+	for (auto& frame : m_frames) {
+		transformDescBufferInfo.buffer = frame.transformBuffer.buffer;
+
+		transformWriteDescSet.dstSet = frame.descriptorSet;
+		transformWriteDescSet.dstArrayElement = 0;
+		transformWriteDescSet.descriptorCount = 1;
+		transformWriteDescSet.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		transformWriteDescSet.pBufferInfo = &transformDescBufferInfo;
+		vkUpdateDescriptorSets(m_device.device, 1, &transformWriteDescSet, 0, nullptr);
+	}
 }
 
 vkt::Image Kleicha::upload_texture_image(const char* filePath) {
@@ -754,21 +783,31 @@ void Kleicha::draw([[maybe_unused]]float currentTime) {
 
 	vkCmdSetViewport(frame.cmdBuffer, 0, 1, &viewport);
 	vkCmdSetScissor(frame.cmdBuffer, 0, 1, &scissor);
-	vkCmdBindDescriptorSets(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_dummyPipelineLayout, 0, 1, &m_globalDescSet, 0, nullptr);
+
+	VkDescriptorSet descSets[]{ m_globalDescSet, frame.descriptorSet };
+	vkCmdBindDescriptorSets(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_dummyPipelineLayout, 0, std::size(descSets), descSets, 0, nullptr);
 	m_pushConstants.perspectiveProjection = m_perspProj;
 	glm::mat4 view{ m_camera.getViewMatrix() };
 
-
-	vkCmdBindIndexBuffer(frame.cmdBuffer, m_indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+	std::vector<glm::mat4> meshMv(m_meshIndexData.size());
 
 	for (std::uint32_t i{ 0 }; i < m_meshIndexData.size(); ++i) {
+		meshMv[i] = view * glm::translate(glm::mat4{ 1.0f }, glm::vec3{ i * 5.0f, 0.0f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, currentTime, glm::vec3{ 1.0f, 1.0f, 0.0f });
+	}
+	// update transform buffer
+	memcpy(frame.transformBuffer.allocation->GetMappedData(), meshMv.data(), sizeof(glm::mat4) * m_meshIndexData.size());
+
+	//TODO: On our graphice device, all host-visible device memory is cache coherent. However, this is not guaranteed on other devices. We guarantee make all host writes visible before
+	// the below draw calls using a pipeline barrier.
+
+	vkCmdBindIndexBuffer(frame.cmdBuffer, m_indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+	for (std::uint32_t i{ 0 }; i < m_meshIndexData.size(); ++i) {
 		m_pushConstants.drawId = i;
-		m_pushConstants.modelView = view * glm::translate(glm::mat4{ 1.0f }, glm::vec3{ i * 5.0f, 0.0f, -3.0f });
 		vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
+
 		vkCmdDrawIndexed(frame.cmdBuffer, m_meshIndexData[i].indicesCount, 1, m_meshIndexData[i].indicesOffset, 0, 0);
 	}
 
-		
 	vkCmdEndRendering(frame.cmdBuffer);
 
 	// transition image to transfer src
@@ -862,6 +901,7 @@ void Kleicha::cleanup() const {
 	vkDestroyFence(m_device.device, m_immFence, nullptr);
 
 	for (const auto& frame : m_frames) {
+		vmaDestroyBuffer(m_allocator, frame.transformBuffer.buffer, frame.transformBuffer.allocation);
 		vkDestroyFence(m_device.device, frame.inFlightFence, nullptr);
 		vkDestroySemaphore(m_device.device, frame.acquiredSemaphore, nullptr);
 	}
