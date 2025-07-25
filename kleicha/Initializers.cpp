@@ -86,4 +86,13 @@ namespace init {
 
 		return imageViewInfo;
 	}
+
+	VkDescriptorBufferInfo create_descriptor_buffer_info(VkBuffer buffer, VkDeviceSize offset, VkDeviceSize range) {
+		VkDescriptorBufferInfo bufferInfo{};
+		bufferInfo.buffer = buffer;
+		bufferInfo.offset = offset;
+		bufferInfo.range = range;
+
+		return bufferInfo;
+	}
 }

@@ -17,5 +17,7 @@ namespace init {
 
 	VkBufferCreateInfo create_buffer_info(VkDeviceSize size, VkBufferUsageFlags usage);
 
+	VkDescriptorBufferInfo create_descriptor_buffer_info(VkBuffer buffer, VkDeviceSize offset = 0, VkDeviceSize range = VK_WHOLE_SIZE);
+
 }
 #endif // !INITIALIZERS_H

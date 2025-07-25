@@ -52,8 +52,8 @@ private:
 
 	VkSampler m_textureSampler{};
 	std::vector<vkt::Image> m_textures{};
-	std::vector<vkt::Buffer> m_materials{};
-	std::vector<vkt::Buffer> m_lights{};
+	vkt::Buffer m_materialsBuffer{};
+	vkt::Buffer m_lightsBuffer{};
 
 	vkt::Buffer m_vertexBuffer{};
 	vkt::Buffer m_indexBuffer{};
@@ -62,6 +62,7 @@ private:
 	vkt::Buffer m_drawBuffer{};
 
 	std::vector<vkt::MeshIndexData> m_meshIndexData{};
+	std::vector<glm::mat4> m_meshTransforms{};
 
 	glm::mat4 m_perspProj{ utils::orthographicProj(glm::radians(60.0f),
 		static_cast<float>(m_windowExtent.width) / m_windowExtent.height, 1000.0f, 0.1f) * utils::perspective(1000.0f, 0.1f) };
@@ -78,7 +79,7 @@ private:
 	void init_dynamic_buffers();
 	void init_lights();
 	void init_materials();
-	void init_write_descriptor_set();
+	void init_write_descriptor_sets();
 
 	vkt::PushConstants m_pushConstants{};
 	std::stack<glm::mat4> m_mStack{};
@@ -95,7 +96,7 @@ private:
 	//void draw_mesh(const vkt::Frame& frame, const vkt::GPUMeshAllocation& mesh, const glm::mat4& model);
 
 	uint32_t m_framesRendered{};
-	vkt::Frame get_current_frame() const {
+	const vkt::Frame& get_current_frame() const {
 		return m_frames[m_framesRendered % 2];
 	}
 	void set_window_extent(VkExtent2D extent) {

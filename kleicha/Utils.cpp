@@ -106,6 +106,20 @@ namespace utils {
         return buf;
     }
 
+    void update_set_buffer_descriptor(VkDevice device, VkDescriptorSet set, uint32_t binding, VkDescriptorType descriptorType, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize range) {
+        VkDescriptorBufferInfo descriptorBufferInfo{ init::create_descriptor_buffer_info(buffer, offset, range) };
+
+        VkWriteDescriptorSet writeDescriptorSet{ .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+        writeDescriptorSet.dstSet = set;
+        writeDescriptorSet.dstBinding = binding;
+        writeDescriptorSet.dstArrayElement = 0;
+        writeDescriptorSet.descriptorCount = 1;
+        writeDescriptorSet.descriptorType = descriptorType;
+        writeDescriptorSet.pBufferInfo = &descriptorBufferInfo;
+
+        vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
+    }
+
 /*    vkt::IndexedMesh generate_cube_mesh() {
         return {
             .tInd { //triangles

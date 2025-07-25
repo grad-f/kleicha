@@ -180,7 +180,9 @@ void Kleicha::init_graphics_pipelines() {
 void Kleicha::init_descriptors() {
 
 	{			// create global descriptor set layout	
-		VkDescriptorBindingFlags bindingFlags[3]{
+		VkDescriptorBindingFlags bindingFlags[5]{
+			{},
+			{},
 			{},
 			{},
 			{VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT }
@@ -189,10 +191,12 @@ void Kleicha::init_descriptors() {
 		layoutBindingFlagsInfo.bindingCount = std::size(bindingFlags);
 		layoutBindingFlagsInfo.pBindingFlags = bindingFlags;
 
-		VkDescriptorSetLayoutBinding bindings[3]{
+		VkDescriptorSetLayoutBinding bindings[5]{
 			{0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
 			{1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
-			{2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 50, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr}
+			{2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
+			{3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
+			{4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 50, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr}
 		};
 
 		// create descriptor set layout
@@ -217,7 +221,7 @@ void Kleicha::init_descriptors() {
 
 	//create descriptor set pool
 	VkDescriptorPoolSize poolDescriptorSizes[2]{
-		{VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2},
+		{VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 4},
 		{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 50}	// Textures
 	};
 
@@ -302,6 +306,8 @@ void Kleicha::init_meshes() {
 	meshes.emplace_back(utils::generate_torus(48, 2.5f, 0.7f));
 	meshes.emplace_back(utils::load_obj_mesh("../models/shuttle.obj"));
 
+	m_meshIndexData.resize(meshes.size());
+	m_meshTransforms.resize(meshes.size());
 	// unify the vertex and index data
 	std::vector<vkt::DrawData> drawData{};
 	std::vector<vkt::Vertex> vertexData{};
@@ -327,7 +333,7 @@ void Kleicha::init_meshes() {
 
 		// for each mesh, store the number of indices and the offset within the contiguous indext buffer to be used later with vkCmdDrawIndexed
 		vkt::MeshIndexData meshIndexData{ .indicesCount = static_cast<uint32_t>(meshes[i].tInd.size() * glm::uvec3::length()), .indicesOffset = static_cast<uint32_t>(triangleCount * 3) };
-		m_meshIndexData.push_back(meshIndexData);
+		m_meshIndexData[i] = meshIndexData;
 	}
 
 	m_vertexBuffer = upload_data(vertexData.data(), vertexData.size() * sizeof(vkt::Vertex), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
@@ -353,8 +359,9 @@ void Kleicha::init_lights() {
 		.specular = {1.0f, 1.0f, 1.0f, 1.0f},
 		.position = {2.0f, 1.0f, 0.5f}
 	};
-
-	m_lights.push_back(upload_data(&pointLight, sizeof(vkt::Light), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT));
+	
+	std::vector<vkt::Light> lights{ pointLight };
+	m_lightsBuffer = upload_data(lights.data(), sizeof(vkt::Light) * lights.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 }
 
 void Kleicha::init_materials() {
@@ -366,8 +373,8 @@ void Kleicha::init_materials() {
 	//m_textures.push_back(upload_texture_image("../textures/tiled.png"));
 	//m_textures.push_back(upload_texture_image("../textures/sun.jpg"));			//3
 
-	vkt::Material goldMaterial{ vkt::Material::gold_material() };
-	m_materials.push_back(upload_data(&goldMaterial, sizeof(vkt::Material), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT));
+	std::vector<vkt::Material> materials{ vkt::Material::gold_material() };
+	m_materialsBuffer = upload_data(materials.data(), sizeof(vkt::Material) * materials.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 }
 
 vkt::Buffer Kleicha::upload_data(void* data, VkDeviceSize bufferSize, VkBufferUsageFlags bufferUsage, VkBool32 bdaUsage) {
@@ -408,7 +415,13 @@ vkt::Buffer Kleicha::upload_data(void* data, VkDeviceSize bufferSize, VkBufferUs
 	return deviceBuffer;
 }
 
-void Kleicha::init_write_descriptor_set() {
+void Kleicha::init_write_descriptor_sets() {
+
+	utils::update_set_buffer_descriptor(m_device.device, m_globalDescSet, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, m_vertexBuffer.buffer);
+	utils::update_set_buffer_descriptor(m_device.device, m_globalDescSet, 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, m_drawBuffer.buffer);
+	// per frame descriptor set writes
+	for (auto& frame : m_frames)
+		utils::update_set_buffer_descriptor(m_device.device, frame.descriptorSet, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, frame.transformBuffer.buffer);
 
 	VkSamplerCreateInfo samplerInfo{ .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
 	samplerInfo.pNext = nullptr;
@@ -430,32 +443,6 @@ void Kleicha::init_write_descriptor_set() {
 
 	VK_CHECK(vkCreateSampler(m_device.device, &samplerInfo, nullptr, &m_textureSampler));
 
-	VkDescriptorBufferInfo vertDescBufferInfo{};
-	vertDescBufferInfo.buffer = m_vertexBuffer.buffer;
-	vertDescBufferInfo.offset = 0;
-	vertDescBufferInfo.range = VK_WHOLE_SIZE;
-
-	VkWriteDescriptorSet vertWriteDescSet{ .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-	vertWriteDescSet.dstSet = m_globalDescSet;
-	vertWriteDescSet.dstBinding = 0;
-	vertWriteDescSet.dstArrayElement = 0;
-	vertWriteDescSet.descriptorCount = 1;
-	vertWriteDescSet.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-	vertWriteDescSet.pBufferInfo = &vertDescBufferInfo;
-
-	VkDescriptorBufferInfo drawDescBufferInfo{};
-	drawDescBufferInfo.buffer = m_drawBuffer.buffer;
-	drawDescBufferInfo.offset = 0;
-	drawDescBufferInfo.range = VK_WHOLE_SIZE;
-
-	VkWriteDescriptorSet drawWriteDescSet{ .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-	drawWriteDescSet.dstSet = m_globalDescSet;
-	drawWriteDescSet.dstBinding = 1;
-	drawWriteDescSet.dstArrayElement = 0;
-	drawWriteDescSet.descriptorCount = 1;
-	drawWriteDescSet.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-	drawWriteDescSet.pBufferInfo = &drawDescBufferInfo;
-
 	std::vector<VkDescriptorImageInfo> imageInfos{};
 	VkDescriptorImageInfo imageInfo{};
 	imageInfo.sampler = m_textureSampler;
@@ -464,37 +451,14 @@ void Kleicha::init_write_descriptor_set() {
 		imageInfo.imageView = texture.imageView;
 		imageInfos.emplace_back(imageInfo);
 	}
-
 	VkWriteDescriptorSet texSamplerWriteDescSet{ .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
 	texSamplerWriteDescSet.dstSet = m_globalDescSet;
-	texSamplerWriteDescSet.dstBinding = 2;
+	texSamplerWriteDescSet.dstBinding = 4;
 	texSamplerWriteDescSet.dstArrayElement = 0;
 	texSamplerWriteDescSet.descriptorCount = static_cast<uint32_t>(imageInfos.size());
 	texSamplerWriteDescSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	texSamplerWriteDescSet.pImageInfo = imageInfos.data();
-
-	VkWriteDescriptorSet descSetWrites[3]{ vertWriteDescSet, drawWriteDescSet, texSamplerWriteDescSet };
-
-	vkUpdateDescriptorSets(m_device.device, std::size(descSetWrites), descSetWrites, 0, nullptr);
-
-	// per frame descriptor set writes
-	VkDescriptorBufferInfo transformDescBufferInfo{};
-	transformDescBufferInfo.offset = 0;
-	transformDescBufferInfo.range = VK_WHOLE_SIZE;
-
-	VkWriteDescriptorSet transformWriteDescSet{ .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-	transformWriteDescSet.dstBinding = 0;
-
-	for (auto& frame : m_frames) {
-		transformDescBufferInfo.buffer = frame.transformBuffer.buffer;
-
-		transformWriteDescSet.dstSet = frame.descriptorSet;
-		transformWriteDescSet.dstArrayElement = 0;
-		transformWriteDescSet.descriptorCount = 1;
-		transformWriteDescSet.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-		transformWriteDescSet.pBufferInfo = &transformDescBufferInfo;
-		vkUpdateDescriptorSets(m_device.device, 1, &transformWriteDescSet, 0, nullptr);
-	}
+	vkUpdateDescriptorSets(m_device.device, 1, &texSamplerWriteDescSet, 0, nullptr);
 }
 
 vkt::Image Kleicha::upload_texture_image(const char* filePath) {
@@ -695,7 +659,7 @@ void Kleicha::start() {
 
 void Kleicha::draw([[maybe_unused]]float currentTime) {
 	// get references to current frame
-	vkt::Frame frame{ get_current_frame() };
+	const vkt::Frame frame{ get_current_frame() };
 	VK_CHECK(vkWaitForFences(m_device.device, 1, &frame.inFlightFence, VK_TRUE, std::numeric_limits<uint64_t>::max()));
 	uint32_t imageIndex{};
 	// acquire image from swapchain
@@ -789,13 +753,11 @@ void Kleicha::draw([[maybe_unused]]float currentTime) {
 	m_pushConstants.perspectiveProjection = m_perspProj;
 	glm::mat4 view{ m_camera.getViewMatrix() };
 
-	std::vector<glm::mat4> meshMv(m_meshIndexData.size());
-
 	for (std::uint32_t i{ 0 }; i < m_meshIndexData.size(); ++i) {
-		meshMv[i] = view * glm::translate(glm::mat4{ 1.0f }, glm::vec3{ i * 5.0f, 0.0f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, currentTime, glm::vec3{ 1.0f, 1.0f, 0.0f });
+		m_meshTransforms[i] = view * glm::translate(glm::mat4{ 1.0f }, glm::vec3{ i * 5.0f, 0.0f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, currentTime, glm::vec3{ 1.0f, 1.0f, 0.0f });
 	}
 	// update transform buffer
-	memcpy(frame.transformBuffer.allocation->GetMappedData(), meshMv.data(), sizeof(glm::mat4) * m_meshIndexData.size());
+	memcpy(frame.transformBuffer.allocation->GetMappedData(), m_meshTransforms.data(), sizeof(glm::mat4) * m_meshIndexData.size());
 
 	//TODO: On our graphice device, all host-visible device memory is cache coherent. However, this is not guaranteed on other devices. We guarantee make all host writes visible before
 	// the below draw calls using a pipeline barrier.
@@ -804,7 +766,6 @@ void Kleicha::draw([[maybe_unused]]float currentTime) {
 	for (std::uint32_t i{ 0 }; i < m_meshIndexData.size(); ++i) {
 		m_pushConstants.drawId = i;
 		vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
-
 		vkCmdDrawIndexed(frame.cmdBuffer, m_meshIndexData[i].indicesCount, 1, m_meshIndexData[i].indicesOffset, 0, 0);
 	}
 
@@ -850,7 +811,6 @@ void Kleicha::draw([[maybe_unused]]float currentTime) {
 	submitInfo.pSignalSemaphoreInfos = &renderedSemSubmitInfo;
 	VK_CHECK(vkQueueSubmit2(m_device.queue, 1, &submitInfo, frame.inFlightFence));
 
-
 	VkPresentInfoKHR presentInfo{ .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
 	presentInfo.pNext = nullptr;
 	presentInfo.waitSemaphoreCount = 1;
@@ -888,13 +848,9 @@ void Kleicha::cleanup() const {
 		vmaDestroyImage(m_allocator, texture.image, texture.allocation);
 	}
 
-	for (const auto& material : m_materials)
-		vmaDestroyBuffer(m_allocator, material.buffer, material.allocation);
+	vmaDestroyBuffer(m_allocator, m_materialsBuffer.buffer, m_materialsBuffer.allocation);
+	vmaDestroyBuffer(m_allocator, m_lightsBuffer.buffer, m_lightsBuffer.allocation);
 
-	for (const auto& light : m_lights)
-		vmaDestroyBuffer(m_allocator, light.buffer, light.allocation);
-
-	// model cleanup -- we should loop over these...
 	vmaDestroyBuffer(m_allocator, m_vertexBuffer.buffer, m_vertexBuffer.allocation);
 	vmaDestroyBuffer(m_allocator, m_indexBuffer.buffer, m_indexBuffer.allocation);
 
