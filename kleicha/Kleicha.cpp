@@ -52,10 +52,10 @@ void Kleicha::init() {
 	init_vma();
 	init_image_buffers();
 	init_meshes();
-	init_dynamic_buffers();
 	init_materials();
 	init_lights();
-	init_write_descriptor_set();
+	init_dynamic_buffers();
+	init_write_descriptor_sets();
 }
 
 // core vulkan init
@@ -180,9 +180,7 @@ void Kleicha::init_graphics_pipelines() {
 void Kleicha::init_descriptors() {
 
 	{			// create global descriptor set layout	
-		VkDescriptorBindingFlags bindingFlags[5]{
-			{},
-			{},
+		VkDescriptorBindingFlags bindingFlags[3]{
 			{},
 			{},
 			{VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT }
@@ -191,12 +189,10 @@ void Kleicha::init_descriptors() {
 		layoutBindingFlagsInfo.bindingCount = std::size(bindingFlags);
 		layoutBindingFlagsInfo.pBindingFlags = bindingFlags;
 
-		VkDescriptorSetLayoutBinding bindings[5]{
+		VkDescriptorSetLayoutBinding bindings[3]{
 			{0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
 			{1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
-			{2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
-			{3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
-			{4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 50, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr}
+			{2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 50, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr}
 		};
 
 		// create descriptor set layout
@@ -208,8 +204,10 @@ void Kleicha::init_descriptors() {
 	}
 
 	{		// create per frame descriptor set layout
-		VkDescriptorSetLayoutBinding bindings[1]{
-			{0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT, nullptr}
+		VkDescriptorSetLayoutBinding bindings[3]{
+			{0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT, nullptr},
+			{1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT, nullptr},
+			{2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT, nullptr},
 		};
 
 		VkDescriptorSetLayoutCreateInfo descriptorSetLayoutInfo{ .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
@@ -301,10 +299,10 @@ void Kleicha::init_image_buffers() {
 void Kleicha::init_meshes() {
 
 	std::vector<vkt::IndexedMesh> meshes{};
-	meshes.emplace_back(utils::generate_pyramid_mesh());
-	meshes.emplace_back(utils::generate_sphere(48));
+	//meshes.emplace_back(utils::generate_pyramid_mesh());
+	//meshes.emplace_back(utils::generate_sphere(48));
 	meshes.emplace_back(utils::generate_torus(48, 2.5f, 0.7f));
-	meshes.emplace_back(utils::load_obj_mesh("../models/shuttle.obj"));
+	//meshes.emplace_back(utils::load_obj_mesh("../models/shuttle.obj"));
 
 	m_meshIndexData.resize(meshes.size());
 	m_meshTransforms.resize(meshes.size());
@@ -345,7 +343,11 @@ void Kleicha::init_dynamic_buffers() {
 	
 	// allocate per frame buffers such as transform buffer
 	for (auto& frame : m_frames) {
-		frame.transformBuffer = utils::create_buffer(m_allocator, sizeof(glm::mat4) * m_meshIndexData.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, 
+		frame.transformBuffer = utils::create_buffer(m_allocator, sizeof(vkt::Transform) * m_meshIndexData.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, 
+			VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
+		frame.lightBuffer = utils::create_buffer(m_allocator, sizeof(vkt::Light) * m_lights.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+			VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
+		frame.materialBuffer = utils::create_buffer(m_allocator, sizeof(vkt::Material) * m_materials.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
 			VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
 	}
 }
@@ -357,11 +359,9 @@ void Kleicha::init_lights() {
 		.ambient = {0.0f, 0.0f, 0.0f, 1.0f},
 		.diffuse = {1.0f, 1.0f, 1.0f, 1.0f},
 		.specular = {1.0f, 1.0f, 1.0f, 1.0f},
-		.position = {2.0f, 1.0f, 0.5f}
+		.mPos = {2.0f, 1.0f, 0.5f}
 	};
-	
-	std::vector<vkt::Light> lights{ pointLight };
-	m_lightsBuffer = upload_data(lights.data(), sizeof(vkt::Light) * lights.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+	m_lights.push_back(pointLight);
 }
 
 void Kleicha::init_materials() {
@@ -373,8 +373,7 @@ void Kleicha::init_materials() {
 	//m_textures.push_back(upload_texture_image("../textures/tiled.png"));
 	//m_textures.push_back(upload_texture_image("../textures/sun.jpg"));			//3
 
-	std::vector<vkt::Material> materials{ vkt::Material::gold_material() };
-	m_materialsBuffer = upload_data(materials.data(), sizeof(vkt::Material) * materials.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+	m_materials.push_back(vkt::Material::gold_material());
 }
 
 vkt::Buffer Kleicha::upload_data(void* data, VkDeviceSize bufferSize, VkBufferUsageFlags bufferUsage, VkBool32 bdaUsage) {
@@ -419,9 +418,13 @@ void Kleicha::init_write_descriptor_sets() {
 
 	utils::update_set_buffer_descriptor(m_device.device, m_globalDescSet, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, m_vertexBuffer.buffer);
 	utils::update_set_buffer_descriptor(m_device.device, m_globalDescSet, 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, m_drawBuffer.buffer);
+
 	// per frame descriptor set writes
-	for (auto& frame : m_frames)
+	for (auto& frame : m_frames) {
 		utils::update_set_buffer_descriptor(m_device.device, frame.descriptorSet, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, frame.transformBuffer.buffer);
+		utils::update_set_buffer_descriptor(m_device.device, frame.descriptorSet, 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, frame.materialBuffer.buffer);
+		utils::update_set_buffer_descriptor(m_device.device, frame.descriptorSet, 2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, frame.lightBuffer.buffer);
+	}
 
 	VkSamplerCreateInfo samplerInfo{ .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
 	samplerInfo.pNext = nullptr;
@@ -453,7 +456,7 @@ void Kleicha::init_write_descriptor_sets() {
 	}
 	VkWriteDescriptorSet texSamplerWriteDescSet{ .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
 	texSamplerWriteDescSet.dstSet = m_globalDescSet;
-	texSamplerWriteDescSet.dstBinding = 4;
+	texSamplerWriteDescSet.dstBinding = 2;
 	texSamplerWriteDescSet.dstArrayElement = 0;
 	texSamplerWriteDescSet.descriptorCount = static_cast<uint32_t>(imageInfos.size());
 	texSamplerWriteDescSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -657,7 +660,7 @@ void Kleicha::start() {
 	VK_CHECK(vkDeviceWaitIdle(m_device.device));
 }
 
-void Kleicha::draw([[maybe_unused]]float currentTime) {
+void Kleicha::draw([[maybe_unused]] float currentTime) {
 	// get references to current frame
 	const vkt::Frame frame{ get_current_frame() };
 	VK_CHECK(vkWaitForFences(m_device.device, 1, &frame.inFlightFence, VK_TRUE, std::numeric_limits<uint64_t>::max()));
@@ -671,7 +674,7 @@ void Kleicha::draw([[maybe_unused]]float currentTime) {
 	// we should only set fence to unsignaled when we know the command buffer will be submitted to the queue.
 	VK_CHECK(vkResetFences(m_device.device, 1, &frame.inFlightFence));
 
-	VkCommandBufferBeginInfo cmdBufferBeginInfo{ 
+	VkCommandBufferBeginInfo cmdBufferBeginInfo{
 		.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
 		.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
 	};
@@ -679,12 +682,12 @@ void Kleicha::draw([[maybe_unused]]float currentTime) {
 	VK_CHECK(vkBeginCommandBuffer(frame.cmdBuffer, &cmdBufferBeginInfo));
 
 	// forms a dependency chain with vkAcquireNextImageKHR signal semaphore. when semaphores are signaled, all pending writes are made available. i dont need to do this manually here
-	VkImageMemoryBarrier2 rastertoTransferDst{init::create_image_barrier_info(VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_PIPELINE_STAGE_2_NONE, 
-		VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, 
-		VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, rasterImage.image, rasterImage.mipLevels)};
+	VkImageMemoryBarrier2 rastertoTransferDst{ init::create_image_barrier_info(VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_PIPELINE_STAGE_2_NONE,
+		VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+		VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, rasterImage.image, rasterImage.mipLevels) };
 
 	VkImageMemoryBarrier2 scToTransferDst{ init::create_image_barrier_info(VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0,
-		VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, m_swapchain.images[imageIndex], 1)};
+		VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, m_swapchain.images[imageIndex], 1) };
 
 	// batch this to avoid unnecessary driver overhead
 	VkImageMemoryBarrier2 imageBarriers[]{ rastertoTransferDst, scToTransferDst };
@@ -699,7 +702,7 @@ void Kleicha::draw([[maybe_unused]]float currentTime) {
 	vkCmdPipelineBarrier2(frame.cmdBuffer, &dependencyInfo);
 
 	// specify the attachments to be used during the rendering pass
-	VkRenderingAttachmentInfo colorAttachment{.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO};
+	VkRenderingAttachmentInfo colorAttachment{ .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
 	colorAttachment.pNext = nullptr;
 	colorAttachment.imageView = rasterImage.imageView;
 	colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
@@ -753,11 +756,23 @@ void Kleicha::draw([[maybe_unused]]float currentTime) {
 	m_pushConstants.perspectiveProjection = m_perspProj;
 	glm::mat4 view{ m_camera.getViewMatrix() };
 
-	for (std::uint32_t i{ 0 }; i < m_meshIndexData.size(); ++i) {
+	// TODO: Only update if there was an updated to a buffer
+
+	/*for (std::uint32_t i{0}; i < m_meshIndexData.size(); ++i) {
 		m_meshTransforms[i] = view * glm::translate(glm::mat4{ 1.0f }, glm::vec3{ i * 5.0f, 0.0f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, currentTime, glm::vec3{ 1.0f, 1.0f, 0.0f });
-	}
-	// update transform buffer
-	memcpy(frame.transformBuffer.allocation->GetMappedData(), m_meshTransforms.data(), sizeof(glm::mat4) * m_meshIndexData.size());
+	}*/
+
+	m_meshTransforms[0].mv = view * glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, 0.0f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, currentTime, glm::vec3{ 1.0f, 1.0f, 0.0f });
+	m_meshTransforms[0].mvInvTr = glm::transpose(glm::inverse(m_meshTransforms[0].mv));
+
+	// compute light posiiton in camera coordinate frame
+	for (auto& light : m_lights)
+		light.mvPos = view * glm::vec4{ light.mPos, 1.0f };
+
+	// update per frame buffers
+	memcpy(frame.transformBuffer.allocation->GetMappedData(), m_meshTransforms.data(), sizeof(vkt::Transform) * m_meshIndexData.size());
+	memcpy(frame.materialBuffer.allocation->GetMappedData(), m_materials.data(), sizeof(vkt::Material) * m_materials.size());
+	memcpy(frame.lightBuffer.allocation->GetMappedData(), m_lights.data(), sizeof(vkt::Light) * m_lights.size());
 
 	//TODO: On our graphice device, all host-visible device memory is cache coherent. However, this is not guaranteed on other devices. We guarantee make all host writes visible before
 	// the below draw calls using a pipeline barrier.
@@ -858,6 +873,8 @@ void Kleicha::cleanup() const {
 
 	for (const auto& frame : m_frames) {
 		vmaDestroyBuffer(m_allocator, frame.transformBuffer.buffer, frame.transformBuffer.allocation);
+		vmaDestroyBuffer(m_allocator, frame.materialBuffer.buffer, frame.materialBuffer.allocation);
+		vmaDestroyBuffer(m_allocator, frame.lightBuffer.buffer, frame.lightBuffer.allocation);
 		vkDestroyFence(m_device.device, frame.inFlightFence, nullptr);
 		vkDestroySemaphore(m_device.device, frame.acquiredSemaphore, nullptr);
 	}

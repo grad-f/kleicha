@@ -103,11 +103,17 @@ namespace vkt {
 		std::vector<Vertex> verts{};
 	};
 
+	struct Transform {
+		glm::mat4 mv{};
+		glm::mat4 mvInvTr{};
+	};
+
 	struct Light {
 		glm::vec4 ambient{};
 		glm::vec4 diffuse{};
 		glm::vec4 specular{};
-		glm::vec3 position{};
+		alignas(16)glm::vec3 mPos{};
+		alignas(16)glm::vec3 mvPos{};
 	};
 
 	struct Material {
@@ -136,6 +142,8 @@ namespace vkt {
 		VkDescriptorSet descriptorSet{};
 
 		vkt::Buffer transformBuffer{};
+		vkt::Buffer materialBuffer{};
+		vkt::Buffer lightBuffer{};
 	};
 
 	// chained and encapsulated device features struct

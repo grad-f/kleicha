@@ -62,7 +62,9 @@ private:
 	vkt::Buffer m_drawBuffer{};
 
 	std::vector<vkt::MeshIndexData> m_meshIndexData{};
-	std::vector<glm::mat4> m_meshTransforms{};
+	std::vector<vkt::Transform> m_meshTransforms{};
+	std::vector<vkt::Material> m_materials{};
+	std::vector<vkt::Light> m_lights{};
 
 	glm::mat4 m_perspProj{ utils::orthographicProj(glm::radians(60.0f),
 		static_cast<float>(m_windowExtent.width) / m_windowExtent.height, 1000.0f, 0.1f) * utils::perspective(1000.0f, 0.1f) };
