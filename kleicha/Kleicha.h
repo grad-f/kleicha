@@ -52,14 +52,12 @@ private:
 
 	VkSampler m_textureSampler{};
 	std::vector<vkt::Image> m_textures{};
-	vkt::Buffer m_materialsBuffer{};
-	vkt::Buffer m_lightsBuffer{};
 
 	vkt::Buffer m_vertexBuffer{};
 	vkt::Buffer m_indexBuffer{};
-
 	// this buffer specifies indicies and offsets to the other buffers available in the shader
 	vkt::Buffer m_drawBuffer{};
+	vkt::Buffer m_globalsBuffer{};
 
 	std::vector<vkt::MeshIndexData> m_meshIndexData{};
 	std::vector<vkt::Transform> m_meshTransforms{};
@@ -76,11 +74,11 @@ private:
 	void init_graphics_pipelines();
 	void init_descriptors();
 	void init_vma();
-	void init_image_buffers();
-	void init_meshes();
-	void init_dynamic_buffers();
 	void init_lights();
 	void init_materials();
+	void init_image_buffers();
+	void init_static_buffers();
+	void init_dynamic_buffers();
 	void init_write_descriptor_sets();
 
 	vkt::PushConstants m_pushConstants{};

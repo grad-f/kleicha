@@ -103,6 +103,10 @@ namespace vkt {
 		std::vector<Vertex> verts{};
 	};
 
+	struct GlobalData {
+		glm::vec4 ambientLight{};
+	};
+
 	struct Transform {
 		glm::mat4 mv{};
 		glm::mat4 mvInvTr{};
@@ -121,15 +125,24 @@ namespace vkt {
 		glm::vec4 diffuse{};
 		glm::vec4 specular{};
 		// controls specular contribution fall-off
-		float shininess{};
+		alignas(16)float shininess{};
 
 		// surface material helpers
-		static Material gold_material() {
+		static Material gold() {
 			return {
-				.ambient = {0.2473f, 0.1995f, 0.0745f, 1.0f},
-				.diffuse = {0.7516f, 0.6065f, 0.2265f, 1.0f},
-				.specular = {0.6283f, 0.5558f, 0.3661f, 1.0f},
+				.ambient = {0.050f, 0.033f, 0.007f, 1.0f},
+				.diffuse = {0.525f, 0.326f, 0.042f, 1.0f},
+				.specular = {0.353f, 0.269f, 0.110f, 1.0f},
 				.shininess = 51.2f
+			};
+		}
+
+		static Material jade() {
+			return {
+				.ambient = {0.016f, 0.041f, 0.021f, .95f},
+				.diffuse = {0.253f, 0.768f, 0.355f, .95f},
+				.specular = {0.082f, 0.082f, 0.082f, .95f},
+				.shininess = 12.8f
 			};
 		}
 	};
