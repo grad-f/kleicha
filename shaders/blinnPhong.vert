@@ -70,6 +70,7 @@ layout (location = 2) out flat uint outTexID;
 layout (location = 3) out vec3 outNormal;
 layout (location = 4) out vec3 outLightDir;
 layout (location = 5) out vec3 outVertPos;
+layout (location = 6) out vec3 outHalfVector;
 
 layout(push_constant) uniform constants {
 	mat4 perspectiveProj;
@@ -84,6 +85,7 @@ void main() {
 	outVertPos = (	transforms[pc.drawId].mv * vec4(vertices[gl_VertexIndex + dd.vertexOffset].position, 1.0f)	).xyz;
 	outNormal = (transforms[pc.drawId].mvInvTr * vec4(vertices[gl_VertexIndex + dd.vertexOffset].normal, 1.0f)).xyz;
 	outLightDir = lights[0].mvPos - outVertPos.xyz;
+	outHalfVector = outLightDir - outVertPos;
 
 	//debugPrintfEXT("%f | %f | %f\n", lights[0].mvPos.x, lights[0].mvPos.y, lights[0].mvPos.z);
 
