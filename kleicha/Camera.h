@@ -15,7 +15,7 @@ enum CameraMoveFlags {
 constexpr glm::vec3 WORLD_UP{ 0.0f, 1.0f, 0.0f };
 constexpr float X_SENS{ 0.1f };
 constexpr float Y_SENS{ 0.1f };
-constexpr float MOVEMENT_FACTOR{ 14.0f };
+constexpr float MOVEMENT_FACTOR{ 4.0f };
 
 class Camera {
 public:
