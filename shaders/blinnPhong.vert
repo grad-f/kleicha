@@ -84,7 +84,7 @@ void main() {
 	// we choose to perform out lighting computations in camera-space.
 	outVertPos = (	transforms[pc.drawId].mv * vec4(vertices[gl_VertexIndex + dd.vertexOffset].position, 1.0f)	).xyz;
 	outNormal = (transforms[pc.drawId].mvInvTr * vec4(vertices[gl_VertexIndex + dd.vertexOffset].normal, 1.0f)).xyz;
-	outLightDir = lights[0].mvPos - outVertPos.xyz;
+	outLightDir = lights[0].mvPos - outVertPos;
 	outHalfVector = outLightDir - outVertPos;
 
 	//debugPrintfEXT("%f | %f | %f\n", lights[0].mvPos.x, lights[0].mvPos.y, lights[0].mvPos.z);

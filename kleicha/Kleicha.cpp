@@ -300,11 +300,11 @@ void Kleicha::init_image_buffers() {
 void Kleicha::init_static_buffers() {
 
 	std::vector<vkt::IndexedMesh> meshes{};
-	//meshes.emplace_back(utils::generate_pyramid_mesh());
-	//meshes.emplace_back(utils::generate_sphere(48));
-	//meshes.emplace_back(utils::generate_torus(48, 2.5f, 0.7f));
-	//meshes.emplace_back(utils::load_obj_mesh("../models/shuttle.obj"));
-	//meshes.emplace_back(utils::load_obj_mesh("../models/icosphere.obj"));
+	meshes.emplace_back(utils::generate_pyramid_mesh());
+	meshes.emplace_back(utils::generate_sphere(48));
+	meshes.emplace_back(utils::generate_torus(48, 2.5f, 0.7f));
+	meshes.emplace_back(utils::load_obj_mesh("../models/shuttle.obj"));
+	meshes.emplace_back(utils::load_obj_mesh("../models/icosphere.obj"));
 	meshes.emplace_back(utils::load_obj_mesh("../models/dolphin.obj"));
 
 	m_meshIndexData.resize(meshes.size());
@@ -367,7 +367,7 @@ void Kleicha::init_lights() {
 		.ambient = {0.2f, 0.2f, 0.2f, 1.0f},
 		.diffuse = {1.0f, 1.0f, 1.0f, 1.0f},
 		.specular = {1.0f, 1.0f, 1.0f, 1.0f},
-		.mPos = {0.0f, 2.0f, -2.0f}
+		.mPos = {0.0f, 0.0f, 0.0f}
 	};
 	m_lights.push_back(pointLight);
 }
@@ -767,7 +767,7 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 	glm::mat4 view{ m_camera.getViewMatrix() };
 
 	// TODO: Only update if there was an updated to a buffer
-	m_meshTransforms[0].mv = view * glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, 0.0f, -3.0f }) /** glm::rotate(glm::mat4{ 1.0f }, currentTime, glm::vec3{ 1.0f, 0.0f, 0.0f })*/ * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 2.0f, 2.0f, 2.0f });
+	m_meshTransforms[0].mv = view * glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, 0.0f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, currentTime, glm::vec3{ 1.0f, 0.0f, 0.0f }) /** glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 2.0f, 2.0f, 2.0f })*/;
 	m_meshTransforms[0].mvInvTr = glm::transpose(glm::inverse(m_meshTransforms[0].mv));
 
 	// compute light posiiton in camera coordinate frame
