@@ -365,3 +365,16 @@ FodyWeavers.xsd
 /samples/Basic_Cube_Mesh_Instanced/shaders
 /textures/concrete.png
 /textures/tiled.png
+/kleicha/imgui.cpp
+/kleicha/imgui.h
+/kleicha/imgui_impl_glfw.cpp
+/kleicha/imgui_impl_glfw.h
+/kleicha/imgui_impl_vulkan.cpp
+/kleicha/imgui_impl_vulkan.h
+/kleicha/imgui.natstepfilter
+/kleicha/imgui.natvis
+/kleicha/imgui_demo.cpp
+/kleicha/imgui_draw.cpp
+/kleicha/imgui_tables.cpp
+/kleicha/imgui_widgets.cpp
+/imgui
