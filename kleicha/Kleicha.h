@@ -41,6 +41,7 @@ private:
 	//global descriptor resources
 	VkDescriptorSetLayout m_globDescSetLayout;
 	VkDescriptorPool m_descPool{};
+	VkDescriptorPool m_imguiDescPool{};
 	VkDescriptorSet m_globalDescSet{};
 	// per frame descriptor resources
 	VkDescriptorSetLayout m_frameDescSetLayout{};
@@ -74,6 +75,7 @@ private:
 	void init_graphics_pipelines();
 	void init_descriptors();
 	void init_vma();
+	void init_imgui();
 	void init_draw_data();
 	void init_lights();
 	void init_materials();

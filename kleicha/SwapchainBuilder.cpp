@@ -94,5 +94,5 @@ vkt::Swapchain SwapchainBuilder::build() {
 		VkImageViewCreateInfo imageViewInfo{ init::create_image_view_info(images[i], swapchainImageFormat.format, VK_IMAGE_ASPECT_COLOR_BIT, 1)};
 		VK_CHECK(vkCreateImageView(m_device, &imageViewInfo, nullptr, &imageViews[i]));
 	}
-	return vkt::Swapchain{ .swapchain = swapchain, .images = images, .imageCount = imageCount, .imageViews = imageViews, .imageExtent = swapchainImageExtent };
+	return vkt::Swapchain{ .swapchain = swapchain, .images = images, .imageCount = imageCount, .imageViews = imageViews, .imageExtent = swapchainImageExtent, .imageFormat = swapchainImageFormat };
 }

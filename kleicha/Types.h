@@ -52,6 +52,7 @@ namespace vkt {
 		std::size_t imageCount{};
 		std::vector<VkImageView> imageViews{};
 		VkExtent2D imageExtent{};
+		VkSurfaceFormatKHR imageFormat{};
 	};
 
 	struct Image {
@@ -90,6 +91,7 @@ namespace vkt {
 	};
 
 	enum class TextureType {
+		NONE,
 		BRICK,
 		EARTH,
 		CONCRETE,
@@ -97,8 +99,11 @@ namespace vkt {
 	};
 
 	enum class MaterialType {
+		NONE,
 		GOLD,
 		JADE,
+		PEARL,
+		SILVER,
 	};
 
 	struct DrawData {
@@ -149,6 +154,16 @@ namespace vkt {
 		alignas(16)float shininess{};
 
 		// surface material helpers
+		
+		static Material none() {
+			return {
+				.ambient = {0.05f, 0.05f, 0.05f, 1.0f},
+				.diffuse = {0.2f, 0.2f, 0.2f, 1.0f},
+				.specular = {1.0f, 1.0f, 1.0f, 1.0f},
+				.shininess = 51.2f
+			};
+		}
+		
 		static Material gold() {
 			return {
 				.ambient = {0.050f, 0.033f, 0.007f, 1.0f},
@@ -164,6 +179,24 @@ namespace vkt {
 				.diffuse = {0.253f, 0.768f, 0.355f, .95f},
 				.specular = {0.082f, 0.082f, 0.082f, .95f},
 				.shininess = 12.8f
+			};
+		}
+
+		static Material pearl() {
+			return {
+				.ambient = {0.051f, 0.035f, 0.035f, .922f},
+				.diffuse = {1.0f, 0.654f, 0.654f, .922f},
+				.specular = {0.072f, 0.072f, 0.072f, .922f},
+				.shininess = 11.264f
+			};
+		}
+
+		static Material silver() {
+			return {
+				.ambient = {0.031f, 0.031f, 0.031f, 1.0f},
+				.diffuse = {0.221f, 0.221f, 0.221f, 1.0f},
+				.specular = {0.222f, 0.222f, 0.222f, 1.0f},
+				.shininess = 51.2f
 			};
 		}
 	};

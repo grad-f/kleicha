@@ -91,7 +91,7 @@
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>F:\Projects\libraries\tinyobjloader;F:\Projects\libraries\stb_image;C:\VulkanSDK\1.4.313.1\Include;F:\Projects\libraries\fmt\include\fmt;F:\Projects\libraries\glfw\include;F:\Projects\libraries\vma\3.2.1\include;F:\Projects\libraries\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <TreatWarningAsError>true</TreatWarningAsError>
+      <TreatWarningAsError>false</TreatWarningAsError>
       <AdditionalOptions>/w44365 %(AdditionalOptions)</AdditionalOptions>
       <ExternalWarningLevel>Level3</ExternalWarningLevel>
       <LanguageStandard>stdcpp20</LanguageStandard>
@@ -112,7 +112,7 @@
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>F:\Projects\libraries\tinyobjloader;F:\Projects\libraries\stb_image;C:\VulkanSDK\1.4.313.1\Include;F:\Projects\libraries\fmt\include\fmt;F:\Projects\libraries\glfw\include;F:\Projects\libraries\vma\3.2.1\include;F:\Projects\libraries\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <TreatWarningAsError>true</TreatWarningAsError>
+      <TreatWarningAsError>false</TreatWarningAsError>
       <AdditionalOptions>/w44365 %(AdditionalOptions)</AdditionalOptions>
       <ExternalWarningLevel>Level3</ExternalWarningLevel>
       <LanguageStandard>stdcpp20</LanguageStandard>
@@ -132,7 +132,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <TreatWarningAsError>true</TreatWarningAsError>
+      <TreatWarningAsError>false</TreatWarningAsError>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <AdditionalIncludeDirectories>F:\Projects\libraries\tinyobjloader;F:\Projects\libraries\stb_image;C:\VulkanSDK\1.4.313.1\Include;F:\Projects\libraries\fmt\include\fmt;F:\Projects\libraries\glfw\include;F:\Projects\libraries\vma\3.2.1\include;F:\Projects\libraries\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -154,7 +154,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <TreatWarningAsError>true</TreatWarningAsError>
+      <TreatWarningAsError>false</TreatWarningAsError>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <AdditionalIncludeDirectories>F:\Projects\libraries\tinyobjloader;F:\Projects\libraries\stb_image;C:\VulkanSDK\1.4.313.1\Include;F:\Projects\libraries\fmt\include\fmt;F:\Projects\libraries\glfw\include;F:\Projects\libraries\vma\3.2.1\include;F:\Projects\libraries\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -171,6 +171,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\imgui\imgui.cpp" />
+    <ClCompile Include="..\imgui\imgui_demo.cpp" />
+    <ClCompile Include="..\imgui\imgui_draw.cpp" />
+    <ClCompile Include="..\imgui\imgui_impl_glfw.cpp" />
+    <ClCompile Include="..\imgui\imgui_impl_vulkan.cpp" />
+    <ClCompile Include="..\imgui\imgui_tables.cpp" />
+    <ClCompile Include="..\imgui\imgui_widgets.cpp" />
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="DeviceBuilder.cpp" />
     <ClCompile Include="Initializers.cpp" />
@@ -182,6 +189,14 @@
     <ClCompile Include="Utils.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\imgui\imconfig.h" />
+    <ClInclude Include="..\imgui\imgui.h" />
+    <ClInclude Include="..\imgui\imgui_impl_glfw.h" />
+    <ClInclude Include="..\imgui\imgui_impl_vulkan.h" />
+    <ClInclude Include="..\imgui\imgui_internal.h" />
+    <ClInclude Include="..\imgui\imstb_rectpack.h" />
+    <ClInclude Include="..\imgui\imstb_textedit.h" />
+    <ClInclude Include="..\imgui\imstb_truetype.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="Initializers.h" />
     <ClInclude Include="InstanceBuilder.h" />
@@ -193,6 +208,7 @@
     <ClInclude Include="Utils.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\imgui\imgui.natstepfilter" />
     <None Include="..\shaders\basic.frag" />
     <None Include="..\shaders\basic.vert" />
     <None Include="..\shaders\blinnPhong.frag" />
@@ -208,6 +224,9 @@
     <Image Include="..\textures\concrete.png" />
     <Image Include="..\textures\sun.jpg" />
     <Image Include="..\textures\tiled.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="..\imgui\imgui.natvis" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -13,6 +13,11 @@
 #include <vk_mem_alloc.h>
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
+
+#include "../imgui/imgui.h"
+#include "../imgui/imgui_impl_glfw.h"
+#include "../imgui/imgui_impl_vulkan.h"
+
 #pragma warning(pop)
 
 
@@ -50,6 +55,7 @@ void Kleicha::init() {
 	init_descriptors();
 	init_graphics_pipelines();
 	init_vma();
+	init_imgui();
 	init_draw_data();
 	init_image_buffers();
 	init_materials();
@@ -271,6 +277,52 @@ void Kleicha::init_vma() {
 	VK_CHECK(vmaCreateAllocator(&allocatorInfo, &m_allocator));
 }
 
+void Kleicha::init_imgui() {
+
+	// create imgui descriptor pool
+	VkDescriptorPoolSize pool_sizes[] =
+	{
+		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, IMGUI_IMPL_VULKAN_MINIMUM_IMAGE_SAMPLER_POOL_SIZE },
+	};
+	VkDescriptorPoolCreateInfo pool_info = {};
+	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+	pool_info.maxSets = 0;
+	for (VkDescriptorPoolSize& pool_size : pool_sizes)
+		pool_info.maxSets += pool_size.descriptorCount;
+	pool_info.poolSizeCount = (uint32_t)IM_ARRAYSIZE(pool_sizes);
+	pool_info.pPoolSizes = pool_sizes;
+
+	VK_CHECK(vkCreateDescriptorPool(m_device.device, &pool_info, nullptr, &m_imguiDescPool));
+
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+
+	ImGuiIO& io{ ImGui::GetIO() };
+	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+	
+	ImGui_ImplGlfw_InitForVulkan(m_window, true);
+	ImGui_ImplVulkan_InitInfo init_info = {};
+	init_info.Instance = m_instance.instance;
+	init_info.PhysicalDevice = m_device.physicalDevice.device;
+	init_info.Device = m_device.device;
+	init_info.QueueFamily = m_device.physicalDevice.queueFamilyIndex;
+	init_info.Queue = m_device.queue;
+	init_info.DescriptorPool = m_imguiDescPool;
+	init_info.MinImageCount = 3;
+	init_info.ImageCount = 3;
+	init_info.UseDynamicRendering = true;
+	init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+
+	init_info.PipelineRenderingCreateInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
+	init_info.PipelineRenderingCreateInfo.colorAttachmentCount = 1;
+	init_info.PipelineRenderingCreateInfo.pColorAttachmentFormats = &m_swapchain.imageFormat.format;
+
+	ImGui_ImplVulkan_Init(&init_info);
+
+	ImGui_ImplVulkan_CreateFontsTexture();
+}
+
 void Kleicha::init_image_buffers() {
 
 	VkImageCreateInfo rasterImageInfo{ init::create_image_info(INTERMEDIATE_IMAGE_FORMAT, m_swapchain.imageExtent,
@@ -357,9 +409,9 @@ void Kleicha::init_draw_data() {
 
 	std::vector<vkt::MeshDrawData> canonicalMeshes{ load_mesh_data() };
 	std::vector<vkt::DrawData> drawData{};
-	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::DOLPHIN, vkt::MaterialType::GOLD, vkt::TextureType::BRICK));
-	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::ICOSPHERE, vkt::MaterialType::JADE, vkt::TextureType::BRICK));
-	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::SHUTTLE, vkt::MaterialType::GOLD, vkt::TextureType::BRICK));
+	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::DOLPHIN, vkt::MaterialType::GOLD, vkt::TextureType::NONE));
+	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::SPHERE, vkt::MaterialType::SILVER, vkt::TextureType::NONE));
+	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::SHUTTLE, vkt::MaterialType::NONE, vkt::TextureType::SHUTTLE));
 
 	m_drawBuffer = upload_data(drawData.data(), drawData.size() * sizeof(vkt::DrawData), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 
@@ -388,8 +440,8 @@ void Kleicha::init_lights() {
 
 	// create a standard white light 
 	vkt::Light pointLight{
-		.ambient = {0.2f, 0.2f, 0.2f, 1.0f},
-		.diffuse = {1.0f, 1.0f, 1.0f, 1.0f},
+		.ambient = {0.05f, 0.05f, 0.05f, 1.0f},
+		.diffuse = {0.6f, 0.6f, 0.6f, 1.0f},
 		.specular = {1.0f, 1.0f, 1.0f, 1.0f},
 		.mPos = {0.0f, 0.0f, 0.0f}
 	};
@@ -397,14 +449,17 @@ void Kleicha::init_lights() {
 }
 
 void Kleicha::init_materials() {
-
+	m_textures.push_back(upload_texture_image("../textures/empty.jpg"));		//0
 	m_textures.push_back(upload_texture_image("../textures/brick.png"));		//0
 	m_textures.push_back(upload_texture_image("../textures/earth.jpg"));		//1
 	m_textures.push_back(upload_texture_image("../textures/concrete.png"));		//2
 	m_textures.push_back(upload_texture_image("../textures/shuttle.jpg"));		//3
 
+	m_materials.push_back(vkt::Material::none());
 	m_materials.push_back(vkt::Material::gold());
 	m_materials.push_back(vkt::Material::jade());
+	m_materials.push_back(vkt::Material::pearl());
+	m_materials.push_back(vkt::Material::silver());
 }
 
 vkt::Buffer Kleicha::upload_data(void* data, VkDeviceSize bufferSize, VkBufferUsageFlags bufferUsage, VkBool32 bdaUsage) {
@@ -686,6 +741,13 @@ void Kleicha::start() {
 		m_deltaTime = currentTime - m_lastFrame;
 		m_lastFrame = currentTime;
 
+		ImGui_ImplVulkan_NewFrame();
+		ImGui_ImplGlfw_NewFrame(); 
+		ImGui::NewFrame();
+		ImGui::ShowDemoWindow();
+
+		ImGui::Render();
+
 		draw(currentTime);
 	}
 	// wait for all driver access to conclude before cleanup
@@ -797,6 +859,9 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 
 	m_meshTransforms[2].mv = view * glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 6.0f, 0.0f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, currentTime, glm::vec3{ 1.0f, 0.0f, 0.0f }) /** glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 2.0f, 2.0f, 2.0f })*/;
 	m_meshTransforms[2].mvInvTr = glm::transpose(glm::inverse(m_meshTransforms[2].mv));
+
+
+	m_lights[0].mPos.x = 8.0f * cos(currentTime*0.8f);
 
 	// compute light posiiton in camera coordinate frame
 	for (auto& light : m_lights)
@@ -916,6 +981,8 @@ void Kleicha::cleanup() const {
 	vmaDestroyAllocator(m_allocator);
 
 	vkDestroyDescriptorPool(m_device.device, m_descPool, nullptr);
+	ImGui_ImplVulkan_Shutdown();
+	vkDestroyDescriptorPool(m_device.device, m_imguiDescPool, nullptr);
 	vkDestroyDescriptorSetLayout(m_device.device, m_globDescSetLayout, nullptr);
 	vkDestroyDescriptorSetLayout(m_device.device, m_frameDescSetLayout, nullptr);
 
