@@ -156,8 +156,9 @@ namespace utils {
         };
     }*/
 
-    vkt::IndexedMesh generate_pyramid_mesh() {
+    vkt::Mesh generate_pyramid_mesh() {
         return {
+            .meshType = vkt::MeshType::PYRAMID,
             .tInd {
                 {6,2,5},
                 {4,5,2},
@@ -182,13 +183,13 @@ namespace utils {
     }
 
     // procedurally generated sphere - prec defines the number of vertices per slice and number of slices
-    vkt::IndexedMesh generate_sphere(uint32_t prec) {
+    vkt::Mesh generate_sphere(uint32_t prec) {
 
         // + 1 here is the additional aliased horizontal and vertical slice of vertices with different texture coordinates to resolve continuity issues at the edges of the texture
         uint32_t vertexCount{ (prec + 1) * (prec + 1) };
         uint32_t triangleCount{ prec * prec * 2 };
         // pre-allocate
-        vkt::IndexedMesh mesh{};
+        vkt::Mesh mesh{.meshType = vkt::MeshType::SPHERE};
         mesh.verts.resize(vertexCount);
         mesh.tInd.resize(triangleCount);
         for (uint32_t i{ 0 }; i <= prec; ++i) { // traverse each slice
@@ -215,11 +216,11 @@ namespace utils {
         return mesh;
     }
 
-    vkt::IndexedMesh generate_torus(uint32_t prec, float inner, float outer) {
+    vkt::Mesh generate_torus(uint32_t prec, float inner, float outer) {
         uint32_t vertexCount{ (prec + 1) * (prec + 1) };
         uint32_t triangleCount{ prec * prec * 2 };
 
-        vkt::IndexedMesh mesh{};
+        vkt::Mesh mesh{.meshType = vkt::MeshType::TORUS};
         mesh.verts.resize(vertexCount);
         mesh.tInd.resize(triangleCount);
 
@@ -269,14 +270,13 @@ namespace utils {
         return mesh;
     }
 
-    vkt::IndexedMesh load_obj_mesh(const char* filePath) {
+    vkt::Mesh load_obj_mesh(const char* filePath, vkt::MeshType meshType) {
         // attrib stores arrays of vertex attributes as floats
         tinyobj::attrib_t attrib;
         std::vector<tinyobj::shape_t> shapes;
         std::string err{};
 
-        vkt::IndexedMesh mesh{};
-
+        vkt::Mesh mesh{.meshType = meshType};
         if (!tinyobj::LoadObj(&attrib, &shapes, nullptr, &err, filePath)) {
             throw std::runtime_error{ "[Kleicha] Failed to load mesh from file: " + std::string{filePath} + "\nError: " + err };
         }

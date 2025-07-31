@@ -86,18 +86,45 @@ namespace vkt {
 		}
 	};
 
+	enum class MeshType {
+		PYRAMID,
+		SPHERE,
+		TORUS,
+		SHUTTLE,
+		ICOSPHERE,
+		DOLPHIN
+	};
+
+	enum class TextureType {
+		BRICK,
+		EARTH,
+		CONCRETE,
+		SHUTTLE,
+	};
+
+	enum class MaterialType {
+		GOLD,
+		JADE,
+	};
+
 	struct DrawData {
 		uint32_t materialIndex{};
+		uint32_t textureIndex{};
+		uint32_t transformIndex{};
+		uint32_t padding0;
+	};
+
+	struct MeshDrawData {
+		vkt::MeshType meshType{};
+		uint32_t indicesCount{};
+		// an offset in the index buffer in which this meshes index data begins
+		uint32_t indicesOffset{};
+		// an offset in the vertex buffer in which this meshes vertex data begins
 		uint32_t vertexOffset{};
 	};
 
-	struct MeshIndexData {
-		uint32_t indicesCount{};
-		// specifies index offset within the index buffer at which the meshes indices begin
-		uint32_t indicesOffset{};
-	};
-
-	struct IndexedMesh {
+	struct Mesh {
+		MeshType meshType{};
 		// triangle indices
 		std::vector<glm::uvec3> tInd{};
 		std::vector<Vertex> verts{};

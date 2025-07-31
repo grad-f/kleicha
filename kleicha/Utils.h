@@ -28,10 +28,10 @@ namespace utils {
         VkExtent2D srcExtent, VkExtent2D dstExtent, uint32_t srcMipLevel, uint32_t dstMipLevel);
 
 //    vkt::IndexedMesh generate_cube_mesh();
-    vkt::IndexedMesh generate_pyramid_mesh();
-    vkt::IndexedMesh generate_sphere(uint32_t prec);
-    vkt::IndexedMesh generate_torus(uint32_t prec, float inner, float outer);
-    vkt::IndexedMesh load_obj_mesh(const char* filePath);
+    vkt::Mesh generate_pyramid_mesh();
+    vkt::Mesh generate_sphere(uint32_t prec);
+    vkt::Mesh generate_torus(uint32_t prec, float inner, float outer);
+    vkt::Mesh load_obj_mesh(const char* filePath, vkt::MeshType meshType);
 
     vkt::Buffer create_buffer(VmaAllocator allocator, VkDeviceSize bufferSize, VkBufferUsageFlags bufferUsage,
                                 VmaMemoryUsage memoryUsage, VkMemoryPropertyFlags requiredFlags, VmaAllocationCreateFlags flags = 0);

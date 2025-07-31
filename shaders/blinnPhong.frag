@@ -5,6 +5,13 @@ struct GlobalData {
 	vec4 ambientLight;
 };
 
+struct DrawData {
+	uint materialIndex;
+	uint textureIndex;
+	uint transformIndex;
+	uint padding0;
+};
+
 struct Material {
 	vec4 ambient;
 	vec4 diffuse;
@@ -22,6 +29,10 @@ struct Light {
 
 layout(binding = 2, set = 0) readonly buffer Globals {
 	GlobalData globals;
+};
+
+layout(binding = 1, set = 0) readonly buffer Draws {
+	DrawData draws[];
 };
 
 layout(binding = 1, set = 1) readonly buffer Materials {
@@ -50,6 +61,8 @@ layout(push_constant) uniform constants {
 }pc;
 
 void main() {
+	DrawData dd = draws[pc.drawId];
+
     //outColor = inColor;
     //outColor = inColor * texture(texSampler[inTexID], inUV);
 
@@ -60,23 +73,21 @@ void main() {
 
 	float cosTheta = dot(N,L);
 
-	
-
 	// compute ambient light contributions from global ambient and point light. 
-	vec3 ambient = (globals.ambientLight * materials[pc.drawId].ambient + lights[0].ambient * materials[pc.drawId].ambient).xyz;
+	vec3 ambient = (globals.ambientLight * materials[dd.materialIndex].ambient + lights[0].ambient * materials[dd.materialIndex].ambient).xyz;
 	// diffuse is similar to ambient but the angle between the normal and light direction vectors is also a factor and per color channel
-	vec3 diffuse = lights[0].diffuse.xyz * materials[pc.drawId].diffuse.xyz * max(cosTheta, 0.0f);
+	vec3 diffuse = lights[0].diffuse.xyz * materials[dd.materialIndex].diffuse.xyz * max(cosTheta, 0.0f);
 	
 	vec3 specular = vec3(0.0f, 0.0f, 0.0f);
 	
 	if (cosTheta > 0.0f) {
 		// half-vector approximation of cos(phi) where phi is the angle between light reflect vector and view vector
 		float cosPhi = dot(H, N);
-		specular = lights[0].specular.xyz * materials[pc.drawId].specular.xyz * pow(max(cosPhi, 0.0f), materials[pc.drawId].shininess);
+		specular = lights[0].specular.xyz * materials[dd.materialIndex].specular.xyz * pow(max(cosPhi, 0.0f), materials[dd.materialIndex].shininess);
 	}
 
-	//vec3 specular = lights[0].specular.xyz * pow(max(cosPhi, 0.0f), materials[pc.drawId].shininess);
+	//vec3 specular = lights[0].specular.xyz * pow(max(cosPhi, 0.0f), materials[dd.materialIndex].shininess);
 	outColor = vec4(ambient + diffuse + specular, 1.0f);
 
-	//outColor = texture(texSampler[3], inUV) * (globals.ambientLight * lights[0].ambient + lights[0].diffuse * max(dot(N, L), 0.0f) + lights[0].specular * pow(max(cosPhi, 0.0f), materials[pc.drawId].shininess*2.0f));
+	//outColor = texture(texSampler[3], inUV) * (globals.ambientLight * lights[0].ambient + lights[0].diffuse * max(dot(N, L), 0.0f) + lights[0].specular * pow(max(cosPhi, 0.0f), materials[dd.materialIndex].shininess*2.0f));
 }
