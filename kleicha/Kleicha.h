@@ -74,18 +74,15 @@ private:
 	void init_graphics_pipelines();
 	void init_descriptors();
 	void init_vma();
+	void init_draw_data();
 	void init_lights();
 	void init_materials();
 	void init_image_buffers();
-	void init_static_buffers();
 	void init_dynamic_buffers();
 	void init_write_descriptor_sets();
 	
-	void init_draw_data();
 	vkt::DrawData create_draw(const std::vector<vkt::MeshDrawData>& canonicalMeshes, vkt::MeshType meshType, vkt::MaterialType materialType, vkt::TextureType textureType);
-
 	std::vector<vkt::MeshDrawData> load_mesh_data();
-
 
 	vkt::PushConstants m_pushConstants{};
 	std::stack<glm::mat4> m_mStack{};
@@ -99,7 +96,6 @@ private:
 	// must be r-value reference as we'll be supplying lambdas
 	void immediate_submit(std::function<void(VkCommandBuffer cmdBuffer)>&& func) const;
 	void process_inputs();
-	//void draw_mesh(const vkt::Frame& frame, const vkt::GPUMeshAllocation& mesh, const glm::mat4& model);
 
 	uint32_t m_framesRendered{};
 	const vkt::Frame& get_current_frame() const {

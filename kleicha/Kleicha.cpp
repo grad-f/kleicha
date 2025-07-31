@@ -50,11 +50,8 @@ void Kleicha::init() {
 	init_descriptors();
 	init_graphics_pipelines();
 	init_vma();
-	init_image_buffers();
-
 	init_draw_data();
-
-	//init_static_buffers();
+	init_image_buffers();
 	init_materials();
 	init_lights();
 	init_dynamic_buffers();
@@ -360,9 +357,9 @@ void Kleicha::init_draw_data() {
 
 	std::vector<vkt::MeshDrawData> canonicalMeshes{ load_mesh_data() };
 	std::vector<vkt::DrawData> drawData{};
-	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::SPHERE, vkt::MaterialType::GOLD, vkt::TextureType::BRICK));
+	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::DOLPHIN, vkt::MaterialType::GOLD, vkt::TextureType::BRICK));
 	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::ICOSPHERE, vkt::MaterialType::JADE, vkt::TextureType::BRICK));
-	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::SHUTTLE, vkt::MaterialType::JADE, vkt::TextureType::BRICK));
+	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::SHUTTLE, vkt::MaterialType::GOLD, vkt::TextureType::BRICK));
 
 	m_drawBuffer = upload_data(drawData.data(), drawData.size() * sizeof(vkt::DrawData), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 
@@ -370,57 +367,6 @@ void Kleicha::init_draw_data() {
 
 	vkt::GlobalData globalData{ .ambientLight = glm::vec4{0.7f, 0.7f, 0.7f, 1.0f} };
 	m_globalsBuffer = upload_data(&globalData, sizeof(globalData), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
-}
-
-void Kleicha::init_static_buffers() {
-
-	std::vector<vkt::Mesh> meshes{};
-	meshes.emplace_back(utils::generate_pyramid_mesh());
-	meshes.emplace_back(utils::generate_sphere(48));
-	meshes.emplace_back(utils::generate_torus(48, 2.5f, 0.7f));
-	meshes.emplace_back(utils::load_obj_mesh("../models/shuttle.obj", vkt::MeshType::SHUTTLE));
-	meshes.emplace_back(utils::load_obj_mesh("../models/icosphere.obj", vkt::MeshType::ICOSPHERE));
-	meshes.emplace_back(utils::load_obj_mesh("../models/dolphin.obj", vkt::MeshType::DOLPHIN));
-
-	m_meshDrawData.resize(meshes.size());
-	m_meshTransforms.resize(meshes.size());
-	// unify the vertex and index data
-	std::vector<vkt::DrawData> drawData{};
-	std::vector<vkt::Vertex> vertexData{};
-	std::vector<glm::uvec3> triangleData{};
-	for (std::size_t i{ 0 }; i < meshes.size(); ++i) {
-
-		// store the current vertex and triangle counts
-		std::size_t vertexCount{ vertexData.size() };
-		std::size_t triangleCount{ triangleData.size() };
-
-		// draw data stores mesh material index and its vertex offset.
-		// the vertex offset specifies at which vertex index this meshes vertices begin in the buffer
-		vkt::DrawData draw{};
-		draw.materialIndex = static_cast<uint32_t>(i);
-		//draw.vertexOffset = static_cast<uint32_t>(vertexCount);
-		drawData.emplace_back(draw);
-
-		vertexData.reserve(vertexCount + meshes[i].verts.size());
-		vertexData.insert(vertexData.end(), meshes[i].verts.begin(), meshes[i].verts.end());
-
-		triangleData.reserve(triangleCount + meshes[i].tInd.size());
-		triangleData.insert(triangleData.end(), meshes[i].tInd.begin(), meshes[i].tInd.end());
-
-		// for each mesh, store the number of indices and the offset within the contiguous indext buffer to be used later with vkCmdDrawIndexed
-		vkt::MeshDrawData meshIndexData{.indicesCount = static_cast<uint32_t>(meshes[i].tInd.size() * glm::uvec3::length()), .indicesOffset = static_cast<uint32_t>(triangleCount * 3) };
-		m_meshDrawData[i] = meshIndexData;
-	}
-
-
-	m_vertexBuffer = upload_data(vertexData.data(), vertexData.size() * sizeof(vkt::Vertex), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
-	m_indexBuffer = upload_data(triangleData.data(), triangleData.size() * sizeof(glm::uvec3), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
-
-	m_drawBuffer = upload_data(drawData.data(), drawData.size() * sizeof(vkt::DrawData), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
-
-	vkt::GlobalData globalData{ .ambientLight = glm::vec4{0.7f, 0.7f, 0.7f, 1.0f} };
-	m_globalsBuffer = upload_data(&globalData, sizeof(globalData), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
-	
 }
 
 void Kleicha::init_dynamic_buffers() {

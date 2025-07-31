@@ -69,12 +69,6 @@ namespace vkt {
 		VkDeviceSize deviceAddress{};
 	};
 
-	struct GPUMeshAllocation {
-		Buffer vertBuffer{};
-		Buffer indexBuffer{};
-		uint32_t indexCount{};
-	};
-
 	struct Vertex {
 		alignas(16)glm::vec3 position{};
 		alignas(16)glm::vec2 UV{};
