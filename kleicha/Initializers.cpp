@@ -95,4 +95,18 @@ namespace init {
 
 		return bufferInfo;
 	}
+
+	VkRenderingAttachmentInfo create_rendering_attachment_info(VkImageView imageView, VkImageLayout imageLayout, const VkClearValue* clearValue) {
+		VkRenderingAttachmentInfo renderingAttachmentInfo{ .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
+		renderingAttachmentInfo.pNext = nullptr;
+		renderingAttachmentInfo.imageView = imageView;
+		renderingAttachmentInfo.imageLayout = imageLayout;
+		renderingAttachmentInfo.loadOp = clearValue ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
+		renderingAttachmentInfo.storeOp = (imageLayout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL) ? VK_ATTACHMENT_STORE_OP_DONT_CARE : VK_ATTACHMENT_STORE_OP_STORE;
+		if (clearValue)
+			renderingAttachmentInfo.clearValue = *clearValue;
+
+		return renderingAttachmentInfo;
+	}
+
 }

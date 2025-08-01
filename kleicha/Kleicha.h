@@ -93,6 +93,7 @@ private:
 	vkt::Buffer upload_data(void* data, VkDeviceSize bufferSize, VkBufferUsageFlags bufferUsage, VkBool32 bdaUsage = VK_FALSE);
 
 	void draw(float currentTime);
+	void draw_imgui(VkCommandBuffer frameCmdBuffer, VkImageView swapchainImage) const;
 	void recreate_swapchain();
 	void deallocate_frame_images() const;
 	// must be r-value reference as we'll be supplying lambdas

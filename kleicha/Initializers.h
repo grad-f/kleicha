@@ -19,5 +19,7 @@ namespace init {
 
 	VkDescriptorBufferInfo create_descriptor_buffer_info(VkBuffer buffer, VkDeviceSize offset = 0, VkDeviceSize range = VK_WHOLE_SIZE);
 
+	VkRenderingAttachmentInfo create_rendering_attachment_info(VkImageView imageView, VkImageLayout imageLayout, const VkClearValue* clearValue);
+
 }
 #endif // !INITIALIZERS_H

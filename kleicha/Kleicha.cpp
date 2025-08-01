@@ -410,8 +410,8 @@ void Kleicha::init_draw_data() {
 	std::vector<vkt::MeshDrawData> canonicalMeshes{ load_mesh_data() };
 	std::vector<vkt::DrawData> drawData{};
 	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::DOLPHIN, vkt::MaterialType::GOLD, vkt::TextureType::NONE));
-	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::SPHERE, vkt::MaterialType::SILVER, vkt::TextureType::NONE));
-	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::SHUTTLE, vkt::MaterialType::NONE, vkt::TextureType::SHUTTLE));
+	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::ICOSPHERE, vkt::MaterialType::SILVER, vkt::TextureType::NONE));
+	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::SHUTTLE, vkt::MaterialType::JADE, vkt::TextureType::SHUTTLE));
 
 	m_drawBuffer = upload_data(drawData.data(), drawData.size() * sizeof(vkt::DrawData), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 
@@ -795,23 +795,13 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 	// image memory barrier
 	vkCmdPipelineBarrier2(frame.cmdBuffer, &dependencyInfo);
 
-	// specify the attachments to be used during the rendering pass
-	VkRenderingAttachmentInfo colorAttachment{ .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-	colorAttachment.pNext = nullptr;
-	colorAttachment.imageView = rasterImage.imageView;
-	colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-	colorAttachment.clearValue.color = { {0.0f, 0.0f, 0.0f} };
 
-	VkRenderingAttachmentInfo depthAttachment{ .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-	depthAttachment.pNext = nullptr;
-	depthAttachment.imageView = depthImage.imageView;
-	depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
-	depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	// depth ranges from 0 to 1. since our depth is reversed, we set this to zero as that is our furthest depth.
-	depthAttachment.clearValue.depthStencil.depth = 0.0f;
+	VkClearValue colorDepthClearValue{};
+	colorDepthClearValue.color = { {0.0f, 0.0f, 0.0f, 0.0f} };
+	colorDepthClearValue.depthStencil = { {0.0f} };
+	// specify the attachments to be used during the rendering pass
+	VkRenderingAttachmentInfo colorAttachment{ init::create_rendering_attachment_info(rasterImage.imageView, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, &colorDepthClearValue)};
+	VkRenderingAttachmentInfo depthAttachment{ init::create_rendering_attachment_info(depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, &colorDepthClearValue) };
 
 	VkRenderingInfo renderingInfo{ .sType = VK_STRUCTURE_TYPE_RENDERING_INFO };
 	renderingInfo.pNext = nullptr;
@@ -894,7 +884,12 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 	utils::blit_image(frame.cmdBuffer, rasterImage.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, m_swapchain.images[imageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, m_swapchain.imageExtent, m_swapchain.imageExtent, 0, 0);
 
 	utils::image_memory_barrier(frame.cmdBuffer, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
-		VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_NONE, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, m_swapchain.images[imageIndex], 1);
+		VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_2_COLOR_ATTACHMENT_READ_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, m_swapchain.images[imageIndex], 1);
+
+	draw_imgui(frame.cmdBuffer, m_swapchain.imageViews[imageIndex]);
+
+	utils::image_memory_barrier(frame.cmdBuffer, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+		VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_NONE, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, m_swapchain.images[imageIndex], 1);
 
 	VK_CHECK(vkEndCommandBuffer(frame.cmdBuffer));
 	
@@ -939,6 +934,28 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 
 	++m_framesRendered;
 	process_inputs();
+}
+
+void Kleicha::draw_imgui(VkCommandBuffer frameCmdBuffer, VkImageView swapchainImage) const {
+
+	VkRenderingAttachmentInfo colorAttachment{ init::create_rendering_attachment_info(swapchainImage, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, nullptr) };
+
+	VkRenderingInfo renderingInfo{ .sType = VK_STRUCTURE_TYPE_RENDERING_INFO };
+	renderingInfo.pNext = nullptr;
+	renderingInfo.renderArea.extent = m_swapchain.imageExtent;
+	renderingInfo.renderArea.offset = { 0,0 };
+	renderingInfo.layerCount = 1;
+	renderingInfo.viewMask = 0; //we're not using multiview
+	renderingInfo.colorAttachmentCount = 1;
+	renderingInfo.pColorAttachments = &colorAttachment;
+	renderingInfo.pDepthAttachment = nullptr;
+
+	// start imgui render pass -- imgui is drawn directly into the swap chain image after the intermediate raster image is copied into it
+	vkCmdBeginRendering(frameCmdBuffer, &renderingInfo);
+
+	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), frameCmdBuffer);
+
+	vkCmdEndRendering(frameCmdBuffer);
 }
 
 void Kleicha::process_inputs() {
