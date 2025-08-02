@@ -37,6 +37,7 @@ struct Light {
 	vec4 ambient;
 	vec4 diffuse;
 	vec4 specular;
+	vec3 attenuationFactors;
 	vec3 mPos;
 	vec3 mvPos;
 };

@@ -421,7 +421,7 @@ void Kleicha::init_draw_data() {
 	std::vector<vkt::MeshDrawData> canonicalMeshes{ load_mesh_data() };
 
 	std::vector<vkt::DrawData> drawData{};
-	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::SPHERE, vkt::MaterialType::SILVER, vkt::TextureType::NONE));
+	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::ICOSPHERE, vkt::MaterialType::SILVER, vkt::TextureType::NONE));
 	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::DOLPHIN, vkt::MaterialType::GOLD, vkt::TextureType::NONE));
 	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::SHUTTLE, vkt::MaterialType::NONE, vkt::TextureType::SHUTTLE));
 
@@ -459,6 +459,7 @@ void Kleicha::init_lights() {
 		.ambient = {0.05f, 0.05f, 0.05f, 1.0f},
 		.diffuse = {0.6f, 0.6f, 0.6f, 1.0f},
 		.specular = {1.0f, 1.0f, 1.0f, 1.0f},
+		.attenuationFactors = {1.0f, 0.153f, 0.153f},
 		.mPos = {0.0f, 0.0f, 0.0f}
 	};
 	m_lights.push_back(pointLight);
@@ -770,6 +771,7 @@ void Kleicha::start() {
 				ImGui::SliderFloat3("Light Ambient", &m_lights[i].ambient.r, 0.0f, 1.0f);
 				ImGui::SliderFloat3("Light Diffuse", &m_lights[i].diffuse.r, 0.0f, 1.0f);
 				ImGui::SliderFloat3("Light Specular", &m_lights[i].specular.r, 0.0f, 1.0f);
+				ImGui::SliderFloat3("Attenuation Factors", &m_lights[i].attenuationFactors.s, 0.0f, 10.0f);
 				ImGui::NewLine();
 				ImGui::PopID();
 			}

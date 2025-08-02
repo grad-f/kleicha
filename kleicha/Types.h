@@ -142,6 +142,7 @@ namespace vkt {
 		glm::vec4 ambient{};
 		glm::vec4 diffuse{};
 		glm::vec4 specular{};
+		alignas(16)glm::vec3 attenuationFactors{};
 		alignas(16)glm::vec3 mPos{};
 		alignas(16)glm::vec3 mvPos{};
 	};
