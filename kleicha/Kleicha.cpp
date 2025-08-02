@@ -425,7 +425,7 @@ void Kleicha::init_draw_data() {
 
 	std::vector<vkt::DrawData> drawData{};
 	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::SPHERE, vkt::MaterialType::SILVER, vkt::TextureType::NONE));
-	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::SPHERE, vkt::MaterialType::GOLD, vkt::TextureType::NONE));
+	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::DOLPHIN, vkt::MaterialType::GOLD, vkt::TextureType::NONE));
 	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::SHUTTLE, vkt::MaterialType::NONE, vkt::TextureType::SHUTTLE));
 
 	m_drawBuffer = upload_data(drawData.data(), drawData.size() * sizeof(vkt::DrawData), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
@@ -771,6 +771,7 @@ void Kleicha::start() {
 		ImGui::SliderFloat3("Material Ambient", &m_materials[1].ambient.r, 0.0f, 1.0f);
 		ImGui::SliderFloat3("Material Diffuse", &m_materials[1].diffuse.r, 0.0f, 1.0f);
 		ImGui::SliderFloat3("Material Specular", &m_materials[1].specular.r, 0.0f, 1.0f);
+		ImGui::SliderFloat("Shininess", &m_materials[1].shininess, 0.0f, 100.0f);
 
 		ImGui::Render();
 
