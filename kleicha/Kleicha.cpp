@@ -25,12 +25,25 @@ static void key_callback(GLFWwindow* window, int key, [[maybe_unused]]int scanco
 
 	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, GLFW_TRUE);
+
+	if (key == GLFW_KEY_F1 && action == GLFW_PRESS) {
+
+		if (glfwGetInputMode(window, GLFW_CURSOR) == GLFW_CURSOR_DISABLED)
+			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+		else
+			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
+	}
+
 }
 
 static void cursor_callback(GLFWwindow* window, double xpos, double ypos) {
-	// xpos and ypos are effectively measures of displacement
-	Kleicha* kleicha{ reinterpret_cast<Kleicha*>(glfwGetWindowUserPointer(window)) };
-	kleicha->m_camera.updateEulerAngles(static_cast<float>(xpos), static_cast<float>(ypos));
+
+	if (glfwGetInputMode(window, GLFW_CURSOR) == GLFW_CURSOR_DISABLED) {
+		// xpos and ypos are effectively measures of displacement
+		Kleicha* kleicha{ reinterpret_cast<Kleicha*>(glfwGetWindowUserPointer(window)) };
+		kleicha->m_camera.updateEulerAngles(static_cast<float>(xpos), static_cast<float>(ypos));
+	}
 }
 
 // init calls the required functions to initialize vulkan
@@ -354,7 +367,7 @@ std::vector<vkt::MeshDrawData> Kleicha::load_mesh_data() {
 	std::vector<vkt::Mesh> meshes{};
 	meshes.emplace_back(utils::generate_pyramid_mesh());
 	meshes.emplace_back(utils::generate_sphere(48));
-	meshes.emplace_back(utils::generate_torus(48, 2.5f, 0.7f));
+	meshes.emplace_back(utils::generate_torus(48, 1.2f, 0.45f));
 	meshes.emplace_back(utils::load_obj_mesh("../models/shuttle.obj", vkt::MeshType::SHUTTLE));
 	meshes.emplace_back(utils::load_obj_mesh("../models/icosphere.obj", vkt::MeshType::ICOSPHERE));
 	meshes.emplace_back(utils::load_obj_mesh("../models/dolphin.obj", vkt::MeshType::DOLPHIN));
@@ -407,11 +420,13 @@ vkt::DrawData Kleicha::create_draw(const std::vector<vkt::MeshDrawData>& canonic
 
 void Kleicha::init_draw_data() {
 
+	// an array where each element is a mesh i have loaded in. it stores the indices/reference data into the unified array on the graphics card
 	std::vector<vkt::MeshDrawData> canonicalMeshes{ load_mesh_data() };
+
 	std::vector<vkt::DrawData> drawData{};
-	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::DOLPHIN, vkt::MaterialType::GOLD, vkt::TextureType::NONE));
-	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::ICOSPHERE, vkt::MaterialType::SILVER, vkt::TextureType::NONE));
-	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::SHUTTLE, vkt::MaterialType::JADE, vkt::TextureType::SHUTTLE));
+	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::SPHERE, vkt::MaterialType::SILVER, vkt::TextureType::NONE));
+	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::SPHERE, vkt::MaterialType::GOLD, vkt::TextureType::NONE));
+	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::SHUTTLE, vkt::MaterialType::NONE, vkt::TextureType::SHUTTLE));
 
 	m_drawBuffer = upload_data(drawData.data(), drawData.size() * sizeof(vkt::DrawData), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 
@@ -744,7 +759,18 @@ void Kleicha::start() {
 		ImGui_ImplVulkan_NewFrame();
 		ImGui_ImplGlfw_NewFrame(); 
 		ImGui::NewFrame();
-		ImGui::ShowDemoWindow();
+
+		ImGui::Text("Light");
+		ImGui::SliderFloat3("Light World Pos", &m_lights[0].mPos.x, -10.0f, 10.0f);
+		ImGui::SliderFloat3("Light Ambient", &m_lights[0].ambient.r, 0.0f, 1.0f);
+		ImGui::SliderFloat3("Light Diffuse", &m_lights[0].diffuse.r, 0.0f, 1.0f);
+		ImGui::SliderFloat3("Light Specular", &m_lights[0].specular.r, 0.0f, 1.0f);
+
+		ImGui::NewLine();
+		ImGui::Text("Materials");
+		ImGui::SliderFloat3("Material Ambient", &m_materials[1].ambient.r, 0.0f, 1.0f);
+		ImGui::SliderFloat3("Material Diffuse", &m_materials[1].diffuse.r, 0.0f, 1.0f);
+		ImGui::SliderFloat3("Material Specular", &m_materials[1].specular.r, 0.0f, 1.0f);
 
 		ImGui::Render();
 
@@ -841,17 +867,17 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 	glm::mat4 view{ m_camera.getViewMatrix() };
 
 	// TODO: Only update if there was an updated to a buffer
-	m_meshTransforms[0].mv = view * glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, 0.0f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, currentTime, glm::vec3{ 1.0f, 0.0f, 0.0f }) /** glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 2.0f, 2.0f, 2.0f })*/;
+	m_meshTransforms[0].mv = view * glm::translate(glm::mat4{ 1.0f }, glm::vec3{ -3.0f, 0.0f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, currentTime, glm::vec3{0.0f, 1.0f, 0.0f}) /** glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 2.0f, 2.0f, 2.0f })*/;
 	m_meshTransforms[0].mvInvTr = glm::transpose(glm::inverse(m_meshTransforms[0].mv));
 
-	m_meshTransforms[1].mv = view * glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 3.0f, 0.0f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, currentTime, glm::vec3{ 1.0f, 0.0f, 0.0f }) /** glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 2.0f, 2.0f, 2.0f })*/;
+	m_meshTransforms[1].mv = view * glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, 0.0f, -3.0f }) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 2.0f, 2.0f, 2.0f }) /* glm::rotate(glm::mat4{ 1.0f }, currentTime * 0.2f, glm::vec3{ 1.0f, 0.0f, 0.0f })*/;
 	m_meshTransforms[1].mvInvTr = glm::transpose(glm::inverse(m_meshTransforms[1].mv));
 
-	m_meshTransforms[2].mv = view * glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 6.0f, 0.0f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, currentTime, glm::vec3{ 1.0f, 0.0f, 0.0f }) /** glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 2.0f, 2.0f, 2.0f })*/;
+	m_meshTransforms[2].mv = view * glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 5.0f, 0.0f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, glm::radians(90.0f), glm::vec3{1.0f, 0.0f, 0.0f}) /** glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 2.0f, 2.0f, 2.0f })*/;
 	m_meshTransforms[2].mvInvTr = glm::transpose(glm::inverse(m_meshTransforms[2].mv));
 
 
-	m_lights[0].mPos.x = 8.0f * cos(currentTime*0.8f);
+	//m_lights[0].mPos.x = 8.0f * cos(currentTime*0.8f);
 
 	// compute light posiiton in camera coordinate frame
 	for (auto& light : m_lights)
@@ -867,6 +893,7 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 	// the below draw calls using a pipeline barrier.
 
 	vkCmdBindIndexBuffer(frame.cmdBuffer, m_indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+
 	for (std::uint32_t i{ 0 }; i < m_meshDrawData.size(); ++i) {
 		m_pushConstants.drawId = i;
 		vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
@@ -959,6 +986,9 @@ void Kleicha::draw_imgui(VkCommandBuffer frameCmdBuffer, VkImageView swapchainIm
 }
 
 void Kleicha::process_inputs() {
+
+
+
 	if (glfwGetKey(m_window, GLFW_KEY_W) == GLFW_PRESS)
 		m_camera.moveCameraPosition(FORWARD, m_deltaTime);
 	if (glfwGetKey(m_window, GLFW_KEY_S) == GLFW_PRESS)
