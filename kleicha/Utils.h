@@ -3,7 +3,10 @@
 
 #include "Types.h"
 
-#include <format.h>
+#pragma warning(push, 0)
+#pragma warning(disable : 6285 26498)
+#include "format.h"
+#pragma warning(pop)
 #include <vulkan/vulkan.h>
 #include <vulkan/vk_enum_string_helper.h>
 #include <fstream>

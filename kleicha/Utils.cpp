@@ -308,10 +308,13 @@ namespace utils {
                 switch (vert % 3) {
                 case 0:
                     mesh.tInd.push_back(glm::uvec3{ uniqueVertices[vertex] });
+                    break;
                 case 1:
                     mesh.tInd[mesh.tInd.size() - 1].y = uniqueVertices[vertex];
+                    break;
                 case 2:
                     mesh.tInd[mesh.tInd.size() - 1].z = uniqueVertices[vertex];
+                    break;
                 }
 
             }

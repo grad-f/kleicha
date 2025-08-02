@@ -9,15 +9,13 @@
 
 #pragma warning(push, 0)
 #pragma warning(disable : 26819 26110 6387 26495 6386 26813 33010 28182 26495 6262 4365)
+#include "../imgui/imgui.h"
+#include "../imgui/imgui_impl_glfw.h"
+#include "../imgui/imgui_impl_vulkan.h"
 #define VMA_IMPLEMENTATION
 #include <vk_mem_alloc.h>
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
-
-#include "../imgui/imgui.h"
-#include "../imgui/imgui_impl_glfw.h"
-#include "../imgui/imgui_impl_vulkan.h"
-
 #pragma warning(pop)
 
 
@@ -34,7 +32,6 @@ static void key_callback(GLFWwindow* window, int key, [[maybe_unused]]int scanco
 			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
 	}
-
 }
 
 static void cursor_callback(GLFWwindow* window, double xpos, double ypos) {
@@ -69,10 +66,10 @@ void Kleicha::init() {
 	init_graphics_pipelines();
 	init_vma();
 	init_imgui();
-	init_draw_data();
 	init_image_buffers();
 	init_materials();
 	init_lights();
+	init_draw_data();
 	init_dynamic_buffers();
 	init_write_descriptor_sets();
 }
@@ -404,12 +401,12 @@ std::vector<vkt::MeshDrawData> Kleicha::load_mesh_data() {
 	return meshDrawData;
 }
 
-vkt::DrawData Kleicha::create_draw(const std::vector<vkt::MeshDrawData>& canonicalMeshes, vkt::MeshType meshType, vkt::MaterialType materialType, vkt::TextureType textureType) {
+vkt::DrawData Kleicha::create_draw(const std::vector<vkt::MeshDrawData>& canonicalMeshes, vkt::MeshType meshType, vkt::MaterialType materialType, vkt::TextureType textureType, bool isLight) {
 	for (const auto& mesh : canonicalMeshes) {
 		if (mesh.meshType == meshType) {
 			m_meshDrawData.push_back(mesh);
 
-			vkt::DrawData drawDatum{ .materialIndex = static_cast<uint32_t>(materialType), .textureIndex = static_cast<uint32_t>(textureType), .transformIndex = static_cast<uint32_t>(m_meshDrawData.size()) - 1 };
+			vkt::DrawData drawDatum{ .materialIndex = static_cast<uint32_t>(materialType), .textureIndex = static_cast<uint32_t>(textureType), .transformIndex = static_cast<uint32_t>(m_meshDrawData.size()) - 1, .isLight = isLight };
 
 			return drawDatum;
 		}
@@ -428,11 +425,15 @@ void Kleicha::init_draw_data() {
 	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::DOLPHIN, vkt::MaterialType::GOLD, vkt::TextureType::NONE));
 	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::SHUTTLE, vkt::MaterialType::NONE, vkt::TextureType::SHUTTLE));
 
+	for ([[maybe_unused]]const auto& light : m_lights) {
+		drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::SPHERE, vkt::MaterialType::PEARL, vkt::TextureType::NONE, true));
+	}
+
 	m_drawBuffer = upload_data(drawData.data(), drawData.size() * sizeof(vkt::DrawData), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 
 	m_meshTransforms.resize(m_meshDrawData.size());
 
-	vkt::GlobalData globalData{ .ambientLight = glm::vec4{0.7f, 0.7f, 0.7f, 1.0f} };
+	vkt::GlobalData globalData{ .ambientLight = glm::vec4{0.01f, 0.01f, 0.01f, 1.0f} };
 	m_globalsBuffer = upload_data(&globalData, sizeof(globalData), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 }
 
@@ -760,19 +761,34 @@ void Kleicha::start() {
 		ImGui_ImplGlfw_NewFrame(); 
 		ImGui::NewFrame();
 
-		ImGui::Text("Light");
-		ImGui::SliderFloat3("Light World Pos", &m_lights[0].mPos.x, -10.0f, 10.0f);
-		ImGui::SliderFloat3("Light Ambient", &m_lights[0].ambient.r, 0.0f, 1.0f);
-		ImGui::SliderFloat3("Light Diffuse", &m_lights[0].diffuse.r, 0.0f, 1.0f);
-		ImGui::SliderFloat3("Light Specular", &m_lights[0].specular.r, 0.0f, 1.0f);
+		if (ImGui::CollapsingHeader("Lights")) {
 
-		ImGui::NewLine();
-		ImGui::Text("Materials");
-		ImGui::SliderFloat3("Material Ambient", &m_materials[1].ambient.r, 0.0f, 1.0f);
-		ImGui::SliderFloat3("Material Diffuse", &m_materials[1].diffuse.r, 0.0f, 1.0f);
-		ImGui::SliderFloat3("Material Specular", &m_materials[1].specular.r, 0.0f, 1.0f);
-		ImGui::SliderFloat("Shininess", &m_materials[1].shininess, 0.0f, 100.0f);
+			for (std::size_t i{ 0 }; i < m_lights.size(); ++i) {
+				ImGui::PushID(static_cast<int>(i));
+				ImGui::Text("Light %d", i);
+				ImGui::SliderFloat3("Light World Pos", &m_lights[i].mPos.x, -10.0f, 10.0f);
+				ImGui::SliderFloat3("Light Ambient", &m_lights[i].ambient.r, 0.0f, 1.0f);
+				ImGui::SliderFloat3("Light Diffuse", &m_lights[i].diffuse.r, 0.0f, 1.0f);
+				ImGui::SliderFloat3("Light Specular", &m_lights[i].specular.r, 0.0f, 1.0f);
+				ImGui::NewLine();
+				ImGui::PopID();
+			}
+		}
+		
 
+		if (ImGui::CollapsingHeader("Materials")) {
+
+			for (std::size_t i{ 1 }; i < m_materials.size(); ++i) {
+				ImGui::PushID(static_cast<int>(i));
+				ImGui::Text("Material %d", i-1);
+				ImGui::SliderFloat3("Material Ambient", &m_materials[i].ambient.r, 0.0f, 1.0f);
+				ImGui::SliderFloat3("Material Diffuse", &m_materials[i].diffuse.r, 0.0f, 1.0f);
+				ImGui::SliderFloat3("Material Specular", &m_materials[i].specular.r, 0.0f, 1.0f);
+				ImGui::SliderFloat("Shininess", &m_materials[i].shininess, 0.0f, 100.0f);
+				ImGui::NewLine();
+				ImGui::PopID();
+			}
+		}
 		ImGui::Render();
 
 		draw(currentTime);
@@ -876,6 +892,9 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 
 	m_meshTransforms[2].mv = view * glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 5.0f, 0.0f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, glm::radians(90.0f), glm::vec3{1.0f, 0.0f, 0.0f}) /** glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 2.0f, 2.0f, 2.0f })*/;
 	m_meshTransforms[2].mvInvTr = glm::transpose(glm::inverse(m_meshTransforms[2].mv));
+
+	m_meshTransforms[3].mv = view * glm::translate(glm::mat4{ 1.0f }, m_lights[0].mPos) * glm::scale(glm::mat4{1.0f}, glm::vec3{0.1f, 0.1f, 0.1f});
+	m_meshTransforms[3].mvInvTr = glm::transpose(glm::inverse(m_meshTransforms[3].mv));
 
 
 	//m_lights[0].mPos.x = 8.0f * cos(currentTime*0.8f);

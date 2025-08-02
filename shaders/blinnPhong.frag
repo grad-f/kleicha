@@ -9,7 +9,7 @@ struct DrawData {
 	uint materialIndex;
 	uint textureIndex;
 	uint transformIndex;
-	uint padding0;
+	uint isLight;
 };
 
 struct Material {
@@ -63,46 +63,47 @@ layout(push_constant) uniform constants {
 void main() {
 	DrawData dd = draws[pc.drawId];
 
-    //outColor = inColor;
-    //outColor = inColor * texture(texSampler[inTexID], inUV);
+	if (dd.isLight == 0) {
+		vec3 N = normalize(inNormal);
+		vec3 L = normalize(inLightDir);
+		vec3 V = normalize(-inVertPos);
+		vec3 H = normalize(inHalfVector);
 
-	vec3 N = normalize(inNormal);
-	vec3 L = normalize(inLightDir);
-	vec3 V = normalize(-inVertPos);
-	vec3 H = normalize(inHalfVector);
-
-	vec3 ambient = vec3(0.0f, 0.0f, 0.0f);
-	vec3 diffuse = vec3(0.0f, 0.0f, 0.0f); 
-	vec3 specular = vec3(0.0f, 0.0f, 0.0f);
+		vec3 ambient = vec3(0.0f, 0.0f, 0.0f);
+		vec3 diffuse = vec3(0.0f, 0.0f, 0.0f); 
+		vec3 specular = vec3(0.0f, 0.0f, 0.0f);
 	
-	float cosTheta = dot(N,L);
+		float cosTheta = dot(N,L);
 
-	if (dd.materialIndex > 0) {
+		if (dd.materialIndex > 0) {
 
-		// compute ambient light contributions from global ambient and point light. 
-		ambient = (globals.ambientLight * materials[dd.materialIndex].ambient + lights[0].ambient * materials[dd.materialIndex].ambient).xyz;
-		// diffuse is similar to ambient but the angle between the normal and light direction vectors is also a factor and per color channel
-		diffuse = lights[0].diffuse.xyz * materials[dd.materialIndex].diffuse.xyz * max(cosTheta, 0.0f);
+			// compute ambient light contributions from global ambient and point light. 
+			ambient = (globals.ambientLight * materials[dd.materialIndex].ambient + lights[0].ambient * materials[dd.materialIndex].ambient).xyz;
+			// diffuse is similar to ambient but the angle between the normal and light direction vectors is also a factor and per color channel
+			diffuse = lights[0].diffuse.xyz * materials[dd.materialIndex].diffuse.xyz * max(cosTheta, 0.0f);
 		
-		specular = vec3(0.0f, 0.0f, 0.0f);
-		if (cosTheta > 0.0f) {
-			// half-vector approximation of cos(phi) where phi is the angle between light reflect vector and view vector
-			float cosPhi = dot(H, N);
-			specular = lights[0].specular.xyz * materials[dd.materialIndex].specular.xyz * pow(max(cosPhi, 0.0f), materials[dd.materialIndex].shininess);
+			specular = vec3(0.0f, 0.0f, 0.0f);
+			if (cosTheta > 0.0f) {
+				// half-vector approximation of cos(phi) where phi is the angle between light reflect vector and view vector
+				float cosPhi = dot(H, N);
+				specular = lights[0].specular.xyz * materials[dd.materialIndex].specular.xyz * pow(max(cosPhi, 0.0f), materials[dd.materialIndex].shininess);
+			}
 		}
-	}
-	else {
+		else {
 	
-		ambient = (globals.ambientLight * lights[0].ambient).xyz;
-		diffuse = lights[0].diffuse.xyz * max(cosTheta, 0.0f);
-		if (cosTheta > 0.0f) {
-			float cosPhi = dot(H, N);
-			specular = lights[0].specular.xyz * pow(max(cosPhi, 0.0f), materials[dd.materialIndex].shininess*3.0f);
+			ambient = (globals.ambientLight * lights[0].ambient).xyz;
+			diffuse = lights[0].diffuse.xyz * max(cosTheta, 0.0f);
+			if (cosTheta > 0.0f) {
+				float cosPhi = dot(H, N);
+				specular = lights[0].specular.xyz * pow(max(cosPhi, 0.0f), materials[dd.materialIndex].shininess*3.0f);
+			}
 		}
-	}
 
-	if (dd.textureIndex > 0)
-		outColor = texture(texSampler[dd.textureIndex], inUV) * vec4(ambient + diffuse + specular, 1.0f);
-	else
-		outColor = vec4(ambient + diffuse + specular, 1.0f);
+		if (dd.textureIndex > 0)
+			outColor = texture(texSampler[dd.textureIndex], inUV) * vec4(ambient + diffuse + specular, 1.0f);
+		else
+			outColor = vec4(ambient + diffuse + specular, 1.0f);
+	} else {
+		outColor = inColor;
+	}
 }

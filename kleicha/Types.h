@@ -110,7 +110,7 @@ namespace vkt {
 		uint32_t materialIndex{};
 		uint32_t textureIndex{};
 		uint32_t transformIndex{};
-		uint32_t padding0;
+		uint32_t isLight;
 	};
 
 	struct MeshDrawData {
@@ -154,7 +154,6 @@ namespace vkt {
 		alignas(16)float shininess{};
 
 		// surface material helpers
-		
 		static Material none() {
 			return {
 				.ambient = {0.05f, 0.05f, 0.05f, 1.0f},

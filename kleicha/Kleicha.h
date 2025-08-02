@@ -83,7 +83,7 @@ private:
 	void init_dynamic_buffers();
 	void init_write_descriptor_sets();
 	
-	vkt::DrawData create_draw(const std::vector<vkt::MeshDrawData>& canonicalMeshes, vkt::MeshType meshType, vkt::MaterialType materialType, vkt::TextureType textureType);
+	vkt::DrawData create_draw(const std::vector<vkt::MeshDrawData>& canonicalMeshes, vkt::MeshType meshType, vkt::MaterialType materialType, vkt::TextureType textureType, bool isLight = false);
 	std::vector<vkt::MeshDrawData> load_mesh_data();
 
 	vkt::PushConstants m_pushConstants{};

@@ -14,7 +14,7 @@ struct DrawData {
 	uint materialIndex;
 	uint textureIndex;
 	uint transformIndex;
-	uint padding0;
+	uint isLight;
 };
 
 struct GlobalData {
@@ -82,15 +82,18 @@ layout(push_constant) uniform constants {
 void main() {
 	DrawData dd = draws[pc.drawId];
 	outTexID = dd.materialIndex;
-
-	// we choose to perform out lighting computations in camera-space.
-	outVertPos = (	transforms[pc.drawId].mv * vec4(vertices[gl_VertexIndex].position, 1.0f)	).xyz;
-	outNormal = (transforms[pc.drawId].mvInvTr * vec4(vertices[gl_VertexIndex].normal, 1.0f)).xyz;
-	outLightDir = lights[0].mvPos - outVertPos;
-	outHalfVector = outLightDir - outVertPos;
+	
+	if (dd.isLight == 0) {
+		// we choose to perform out lighting computations in camera-space.
+		outVertPos = (	transforms[pc.drawId].mv * vec4(vertices[gl_VertexIndex].position, 1.0f)	).xyz;
+		outNormal = (transforms[pc.drawId].mvInvTr * vec4(vertices[gl_VertexIndex].normal, 1.0f)).xyz;
+		outLightDir = lights[0].mvPos - outVertPos;
+		outHalfVector = outLightDir - outVertPos;
+	}
 
 	//debugPrintfEXT("%f | %f | %f\n", lights[0].mvPos.x, lights[0].mvPos.y, lights[0].mvPos.z);
 
 	gl_Position = pc.perspectiveProj * transforms[pc.drawId].mv * vec4(vertices[gl_VertexIndex].position, 1.0f);
 	outUV = vertices[gl_VertexIndex].UV;
+	outVertColor = vec4(1.0f, 1.0f, 1.0f, 1.0f);
 }
