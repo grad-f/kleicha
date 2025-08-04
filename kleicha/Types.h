@@ -87,7 +87,8 @@ namespace vkt {
 		TORUS,
 		SHUTTLE,
 		ICOSPHERE,
-		DOLPHIN
+		DOLPHIN,
+		PLANE,
 	};
 
 	enum class TextureType {
@@ -131,6 +132,7 @@ namespace vkt {
 
 	struct GlobalData {
 		glm::vec4 ambientLight{};
+		alignas(16) uint32_t lightCount{};
 	};
 
 	struct Transform {

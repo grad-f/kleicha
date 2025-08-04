@@ -368,6 +368,7 @@ std::vector<vkt::MeshDrawData> Kleicha::load_mesh_data() {
 	meshes.emplace_back(utils::load_obj_mesh("../models/shuttle.obj", vkt::MeshType::SHUTTLE));
 	meshes.emplace_back(utils::load_obj_mesh("../models/icosphere.obj", vkt::MeshType::ICOSPHERE));
 	meshes.emplace_back(utils::load_obj_mesh("../models/dolphin.obj", vkt::MeshType::DOLPHIN));
+	meshes.emplace_back(utils::load_obj_mesh("../models/grid.obj", vkt::MeshType::PLANE));
 
 	std::vector<vkt::MeshDrawData> meshDrawData(meshes.size());
 	// create unified vertex and index buffers for upload. meshDrawData will keep track of mesh buffer offsets within the unified buffer.
@@ -421,19 +422,20 @@ void Kleicha::init_draw_data() {
 	std::vector<vkt::MeshDrawData> canonicalMeshes{ load_mesh_data() };
 
 	std::vector<vkt::DrawData> drawData{};
-	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::ICOSPHERE, vkt::MaterialType::SILVER, vkt::TextureType::NONE));
+	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::TORUS, vkt::MaterialType::SILVER, vkt::TextureType::NONE));
 	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::DOLPHIN, vkt::MaterialType::GOLD, vkt::TextureType::NONE));
 	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::SHUTTLE, vkt::MaterialType::NONE, vkt::TextureType::SHUTTLE));
+	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::PLANE, vkt::MaterialType::NONE, vkt::TextureType::BRICK));
 
 	for ([[maybe_unused]]const auto& light : m_lights) {
-		drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::SPHERE, vkt::MaterialType::PEARL, vkt::TextureType::NONE, true));
+		drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::SPHERE, vkt::MaterialType::NONE, vkt::TextureType::NONE, true));
 	}
 
 	m_drawBuffer = upload_data(drawData.data(), drawData.size() * sizeof(vkt::DrawData), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 
 	m_meshTransforms.resize(m_meshDrawData.size());
-
-	vkt::GlobalData globalData{ .ambientLight = glm::vec4{0.01f, 0.01f, 0.01f, 1.0f} };
+	
+	vkt::GlobalData globalData{ .ambientLight = glm::vec4{0.01f, 0.01f, 0.01f, 1.0f}, .lightCount = static_cast<uint32_t>(m_lights.size())};
 	m_globalsBuffer = upload_data(&globalData, sizeof(globalData), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 }
 
@@ -459,9 +461,11 @@ void Kleicha::init_lights() {
 		.ambient = {0.05f, 0.05f, 0.05f, 1.0f},
 		.diffuse = {0.6f, 0.6f, 0.6f, 1.0f},
 		.specular = {1.0f, 1.0f, 1.0f, 1.0f},
-		.attenuationFactors = {1.0f, 0.153f, 0.153f},
-		.mPos = {0.0f, 0.0f, 0.0f}
+		.attenuationFactors = {1.0f, 0.0765f, 0.0765f},
+		.mPos = {-1.3f, 1.5f, 0.0f}
 	};
+	m_lights.push_back(pointLight);
+	pointLight.mPos = { 0.0f, 1.5f, -4.0f };
 	m_lights.push_back(pointLight);
 }
 
@@ -886,24 +890,29 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 	glm::mat4 view{ m_camera.getViewMatrix() };
 
 	// TODO: Only update if there was an updated to a buffer
-	m_meshTransforms[0].mv = view * glm::translate(glm::mat4{ 1.0f }, glm::vec3{ -3.0f, 0.0f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, currentTime, glm::vec3{0.0f, 1.0f, 0.0f}) /** glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 2.0f, 2.0f, 2.0f })*/;
+	m_meshTransforms[0].mv = view * glm::translate(glm::mat4{ 1.0f }, glm::vec3{ -3.0f, 1.0f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, glm::radians(90.0f), glm::vec3{1.0f, 0.0f, 0.0f}) /** glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 2.0f, 2.0f, 2.0f })*/;
 	m_meshTransforms[0].mvInvTr = glm::transpose(glm::inverse(m_meshTransforms[0].mv));
 
 	m_meshTransforms[1].mv = view * glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, 0.0f, -3.0f }) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 2.0f, 2.0f, 2.0f }) /* glm::rotate(glm::mat4{ 1.0f }, currentTime * 0.2f, glm::vec3{ 1.0f, 0.0f, 0.0f })*/;
 	m_meshTransforms[1].mvInvTr = glm::transpose(glm::inverse(m_meshTransforms[1].mv));
 
-	m_meshTransforms[2].mv = view * glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 5.0f, 0.0f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, glm::radians(90.0f), glm::vec3{1.0f, 0.0f, 0.0f}) /** glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 2.0f, 2.0f, 2.0f })*/;
+	m_meshTransforms[2].mv = view * glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 3.0f, 0.0f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, glm::radians(180.0f), glm::vec3{0.0f, 1.0f, 0.0f}) /** glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 2.0f, 2.0f, 2.0f })*/;
 	m_meshTransforms[2].mvInvTr = glm::transpose(glm::inverse(m_meshTransforms[2].mv));
 
-	m_meshTransforms[3].mv = view * glm::translate(glm::mat4{ 1.0f }, m_lights[0].mPos) * glm::scale(glm::mat4{1.0f}, glm::vec3{0.1f, 0.1f, 0.1f});
+	m_meshTransforms[3].mv = view * glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, -0.9f, -3.0f }) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 5.0f, 5.0f, 5.0f });
 	m_meshTransforms[3].mvInvTr = glm::transpose(glm::inverse(m_meshTransforms[3].mv));
 
+	
+	// This is somewhat okay but not very robust as it depends on the light meshes being added last. This may be fine, it may not... We'll see and provide an alternative solution if needed.
+	std::size_t lightMeshIndStart{ m_meshTransforms.size() - m_lights.size() };
+	for (std::size_t i{ lightMeshIndStart }; i < m_meshTransforms.size(); ++i) {
 
-	//m_lights[0].mPos.x = 8.0f * cos(currentTime*0.8f);
+		// compute light position in camera coordinate frame
+		m_lights[i - lightMeshIndStart].mvPos = view * glm::vec4{m_lights[i - lightMeshIndStart].mPos, 1.0f};
 
-	// compute light posiiton in camera coordinate frame
-	for (auto& light : m_lights)
-		light.mvPos = view * glm::vec4{ light.mPos, 1.0f };
+		m_meshTransforms[i].mv = view * glm::translate(glm::mat4{ 1.0f }, m_lights[i - lightMeshIndStart].mPos) * glm::scale(glm::mat4{1.0f}, glm::vec3{0.1f, 0.1f, 0.1f});
+		m_meshTransforms[i].mvInvTr = glm::transpose(glm::inverse(m_meshTransforms[i].mv));
+	}
 
 	// update per frame buffers
 	memcpy(frame.transformBuffer.allocation->GetMappedData(), m_meshTransforms.data(), sizeof(vkt::Transform) * m_meshDrawData.size());

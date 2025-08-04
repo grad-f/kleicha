@@ -19,6 +19,7 @@ struct DrawData {
 
 struct GlobalData {
 	vec4 ambientLight;
+	uint lightsCount;
 };
 
 struct Transform {
@@ -71,9 +72,7 @@ layout (location = 0) out vec4 outVertColor;
 layout (location = 1) out vec2 outUV;
 layout (location = 2) out flat uint outTexID;
 layout (location = 3) out vec3 outNormal;
-layout (location = 4) out vec3 outLightDir;
 layout (location = 5) out vec3 outVertPos;
-layout (location = 6) out vec3 outHalfVector;
 
 layout(push_constant) uniform constants {
 	mat4 perspectiveProj;
@@ -83,13 +82,11 @@ layout(push_constant) uniform constants {
 void main() {
 	DrawData dd = draws[pc.drawId];
 	outTexID = dd.materialIndex;
-	
+
 	if (dd.isLight == 0) {
 		// we choose to perform out lighting computations in camera-space.
 		outVertPos = (	transforms[pc.drawId].mv * vec4(vertices[gl_VertexIndex].position, 1.0f)	).xyz;
 		outNormal = (transforms[pc.drawId].mvInvTr * vec4(vertices[gl_VertexIndex].normal, 1.0f)).xyz;
-		outLightDir = lights[0].mvPos - outVertPos;
-		outHalfVector = outLightDir - outVertPos;
 	}
 
 	//debugPrintfEXT("%f | %f | %f\n", lights[0].mvPos.x, lights[0].mvPos.y, lights[0].mvPos.z);
