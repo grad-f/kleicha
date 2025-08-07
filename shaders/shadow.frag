@@ -50,8 +50,6 @@ layout(set = 0, binding = 3) uniform sampler2D texSampler[];
 layout (location = 0) in vec4 inColor;
 layout (location = 1) in vec3 inVertPos;
 
-layout (location = 0) out vec4 outColor;
-
 layout(push_constant) uniform constants {
 	mat4 perspectiveProj;
 	uint drawId;
@@ -59,5 +57,5 @@ layout(push_constant) uniform constants {
 
 void main() {
 	DrawData dd = draws[pc.drawId];
-	outColor = vec4(1.0f, 0.0f, 0.0f, 0.0f);
+	//outColor = vec4(1.0f, 0.0f, 0.0f, 0.0f);
 }

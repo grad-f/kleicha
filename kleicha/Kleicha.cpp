@@ -192,7 +192,7 @@ void Kleicha::init_graphics_pipelines() {
 	m_renderPipeline = pipelineBuilder.build();
 
 	pipelineBuilder.set_shaders(shadowVertModule, shadowFragModule);
-	
+	pipelineBuilder.disable_color_output();
 	m_shadowPipeline = pipelineBuilder.build();
 
 	// we're free to destroy shader modules after pipeline creation
@@ -880,29 +880,6 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 	// image memory barrier
 	vkCmdPipelineBarrier2(frame.cmdBuffer, &dependencyInfo);
 
-
-	VkClearValue colorDepthClearValue{};
-	colorDepthClearValue.color = { {0.0f, 0.0f, 0.0f, 0.0f} };
-	colorDepthClearValue.depthStencil = { {0.0f} };
-	// specify the attachments to be used during the rendering pass
-	VkRenderingAttachmentInfo colorAttachment{ init::create_rendering_attachment_info(rasterImage.imageView, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, &colorDepthClearValue)};
-	VkRenderingAttachmentInfo depthAttachment{ init::create_rendering_attachment_info(depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, &colorDepthClearValue) };
-
-	VkRenderingInfo renderingInfo{ .sType = VK_STRUCTURE_TYPE_RENDERING_INFO };
-	renderingInfo.pNext = nullptr;
-	renderingInfo.renderArea.extent = m_swapchain.imageExtent;
-	renderingInfo.renderArea.offset = { 0,0 };
-	renderingInfo.layerCount = 1;
-	renderingInfo.viewMask = 0; //we're not using multiview
-	renderingInfo.colorAttachmentCount = 1;
-	renderingInfo.pColorAttachments = &colorAttachment;
-	renderingInfo.pDepthAttachment = &depthAttachment;
-
-	// begin a render pass
-	vkCmdBeginRendering(frame.cmdBuffer, &renderingInfo);
-
-	vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_renderPipeline);
-
 	// will be used to compute the viewport transformation (NDC to screen space)
 	VkViewport viewport{};
 	viewport.x = 0;
@@ -959,9 +936,50 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 	// does not have the property 'VK_MEMORY_PROPERTY_HOST_COHERENT_BIT', we should make all host writes visible before
 	// the below draw calls using a pipeline barrier.
 
+	VkClearValue colorDepthClearValue{};
+	colorDepthClearValue.color = { {0.0f, 0.0f, 0.0f, 0.0f} };
+	colorDepthClearValue.depthStencil = { {0.0f} };
+	// specify the attachments to be used during the rendering pass
+	VkRenderingAttachmentInfo colorAttachment{ init::create_rendering_attachment_info(rasterImage.imageView, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, &colorDepthClearValue) };
+	VkRenderingAttachmentInfo depthAttachment{ init::create_rendering_attachment_info(depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, &colorDepthClearValue) };
+
+	VkRenderingInfo renderingInfo{ .sType = VK_STRUCTURE_TYPE_RENDERING_INFO };
+	renderingInfo.pNext = nullptr;
+	renderingInfo.renderArea.extent = m_swapchain.imageExtent;
+	renderingInfo.renderArea.offset = { 0,0 };
+	renderingInfo.layerCount = 1;
+	renderingInfo.viewMask = 0; //we're not using multiview
+	renderingInfo.colorAttachmentCount = 0;
+	renderingInfo.pColorAttachments = nullptr;
+
 	vkCmdBindIndexBuffer(frame.cmdBuffer, m_indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
-	for (std::uint32_t i{ 0 }; i < m_meshDrawData.size(); ++i) {
+
+	vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_shadowPipeline);
+	for (const auto& shadowMap : frame.shadowMaps) {
+
+		VkRenderingAttachmentInfo shadowDepthAttachment{ init::create_rendering_attachment_info(shadowMap.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, &colorDepthClearValue) };
+		renderingInfo.pDepthAttachment = &shadowDepthAttachment;
+		vkCmdBeginRendering(frame.cmdBuffer, &renderingInfo);
+
+		for (std::uint32_t i{ 0 }; i < m_meshDrawData.size() - m_lights.size(); ++i) {
+			m_pushConstants.drawId = i;
+			vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
+			vkCmdDrawIndexed(frame.cmdBuffer, m_meshDrawData[i].indicesCount, 1, m_meshDrawData[i].indicesOffset, static_cast<int32_t>(m_meshDrawData[i].vertexOffset), 0);
+		}
+
+		vkCmdEndRendering(frame.cmdBuffer);
+	}
+
+	renderingInfo.colorAttachmentCount = 1;
+	renderingInfo.pColorAttachments = &colorAttachment;
+	renderingInfo.pDepthAttachment = &depthAttachment;
+
+	vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_renderPipeline);
+	// begin a render pass
+	vkCmdBeginRendering(frame.cmdBuffer, &renderingInfo);
+
+	for (std::uint32_t i{0}; i < m_meshDrawData.size(); ++i) {
 		m_pushConstants.drawId = i;
 		vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
 		vkCmdDrawIndexed(frame.cmdBuffer, m_meshDrawData[i].indicesCount, 1, m_meshDrawData[i].indicesOffset, static_cast<int32_t>(m_meshDrawData[i].vertexOffset), 0);

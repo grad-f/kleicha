@@ -75,6 +75,12 @@ PipelineBuilder& PipelineBuilder::set_depth_attachment_format(VkFormat format) {
 }
 
 VkPipeline PipelineBuilder::build() {
+
+	if (m_color_output_disabled) {
+		m_renderingInfo.colorAttachmentCount = 0;
+		m_renderingInfo.pColorAttachmentFormats = nullptr;
+	}
+
 	VkGraphicsPipelineCreateInfo pipelineInfo{ .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
 	pipelineInfo.pNext = &m_renderingInfo;
 	pipelineInfo.stageCount = static_cast<uint32_t>(m_shaderInfos.size());

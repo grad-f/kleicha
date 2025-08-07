@@ -26,6 +26,11 @@ public:
 	PipelineBuilder& set_color_attachment_format(VkFormat format);
 	PipelineBuilder& set_depth_attachment_format(VkFormat format);
 
+	PipelineBuilder& disable_color_output() {
+		m_color_output_disabled = true;
+
+		return *this;
+	}
 private:
 	std::vector<VkPipelineShaderStageCreateInfo>	m_shaderInfos{};
 	VkPipelineVertexInputStateCreateInfo			m_vertInputInfo{};
@@ -36,6 +41,8 @@ private:
 	VkPipelineColorBlendStateCreateInfo				m_colorBlendInfo{};
 	// viewport and scissor will be dynamic
 	VkPipelineDynamicStateCreateInfo				m_dynamicStateInfo{};
+
+	bool											m_color_output_disabled{ false };
 
 	// description of attachments to be used by the pipeline
 	VkPipelineRenderingCreateInfo m_renderingInfo{};
