@@ -14,6 +14,10 @@ void PipelineBuilder::reset() {
 }
 
 PipelineBuilder& PipelineBuilder::set_shaders(VkShaderModule vertexShader, VkShaderModule fragmentShader) {
+	
+	if (!m_shaderInfos.empty())
+		m_shaderInfos.clear();
+
 	VkPipelineShaderStageCreateInfo shaderInfo{ .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
 	shaderInfo.pNext = nullptr;
 	shaderInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;

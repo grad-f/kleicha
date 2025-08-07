@@ -35,7 +35,8 @@ private:
 	VkCommandBuffer m_immCmdBuffer{};
 	VkFence m_immFence{};
 	VkPipelineLayout m_dummyPipelineLayout{};
-	VkPipeline m_graphicsPipeline{};
+	VkPipeline m_renderPipeline{};
+	VkPipeline m_shadowPipeline{};
 	VmaAllocator m_allocator{};
 
 	//global descriptor resources

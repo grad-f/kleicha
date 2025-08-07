@@ -68,10 +68,7 @@ layout(binding = 2, set = 1) readonly buffer Lights {
 };
 
 layout (location = 0) out vec4 outVertColor;
-layout (location = 1) out vec2 outUV;
-layout (location = 2) out flat uint outTexID;
-layout (location = 3) out vec3 outNormal;
-layout (location = 4) out vec3 outVertPos;
+layout (location = 1) out vec3 outVertPos;
 
 layout(push_constant) uniform constants {
 	mat4 perspectiveProj;
@@ -80,22 +77,10 @@ layout(push_constant) uniform constants {
 
 void main() {
 	DrawData dd = draws[pc.drawId];
-	outTexID = dd.materialIndex;
-
-	// if mesh light draw
-	if (dd.isLight > 0) {
-		gl_Position = pc.perspectiveProj * transforms[pc.drawId].mv * vec4(vertices[gl_VertexIndex].position, 1.0f);
-		outUV = vertices[gl_VertexIndex].UV;
-		outVertColor = vec4(1.0f, 1.0f, 1.0f, 1.0f);
-		return;
-	}
 
 	// we choose to perform out lighting computations in camera-space.
 	outVertPos = (	transforms[pc.drawId].mv * vec4(vertices[gl_VertexIndex].position, 1.0f)	).xyz;
-	outNormal = (transforms[pc.drawId].mvInvTr * vec4(vertices[gl_VertexIndex].normal, 1.0f)).xyz;
-
 	gl_Position = pc.perspectiveProj * transforms[pc.drawId].mv * vec4(vertices[gl_VertexIndex].position, 1.0f);
-	outUV = vertices[gl_VertexIndex].UV;
 	outVertColor = vec4(1.0f, 1.0f, 1.0f, 1.0f);
 
 	//debugPrintfEXT("%f | %f | %f\n", lights[0].mvPos.x, lights[0].mvPos.y, lights[0].mvPos.z);

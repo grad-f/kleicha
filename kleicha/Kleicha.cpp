@@ -175,21 +175,31 @@ void Kleicha::init_graphics_pipelines() {
 	VkShaderModule vertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_cubeInstanced.spv") };
 	VkShaderModule vertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_pyrTextured.spv") };
 	VkShaderModule fragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_pyrTextured.spv") };*/
-	VkShaderModule vertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_blinnPhong.spv") };
-	VkShaderModule fragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_blinnPhong.spv") };
+	VkShaderModule renderVertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_blinnPhong.spv") };
+	VkShaderModule renderFragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_blinnPhong.spv") };
+
+	VkShaderModule shadowVertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_shadow.spv") };
+	VkShaderModule shadowFragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_shadow.spv") };
 
 	PipelineBuilder pipelineBuilder{ m_device.device };
 	pipelineBuilder.pipelineLayout = m_dummyPipelineLayout;
-	pipelineBuilder.set_shaders(vertModule, fragModule);								//ccw winding
+	pipelineBuilder.set_shaders(renderVertModule, renderFragModule);								//ccw winding
 	pipelineBuilder.set_rasterizer_state(VK_POLYGON_MODE_FILL , VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
 	pipelineBuilder.set_depth_stencil_state(VK_TRUE);
 	pipelineBuilder.set_depth_attachment_format(DEPTH_IMAGE_FORMAT);
 	pipelineBuilder.set_color_attachment_format(INTERMEDIATE_IMAGE_FORMAT);
-	m_graphicsPipeline = pipelineBuilder.build();
+
+	m_renderPipeline = pipelineBuilder.build();
+
+	pipelineBuilder.set_shaders(shadowVertModule, shadowFragModule);
+	
+	m_shadowPipeline = pipelineBuilder.build();
 
 	// we're free to destroy shader modules after pipeline creation
-	vkDestroyShaderModule(m_device.device, vertModule, nullptr);
-	vkDestroyShaderModule(m_device.device, fragModule, nullptr);
+	vkDestroyShaderModule(m_device.device, renderVertModule, nullptr);
+	vkDestroyShaderModule(m_device.device, renderFragModule, nullptr);
+	vkDestroyShaderModule(m_device.device, shadowVertModule, nullptr);
+	vkDestroyShaderModule(m_device.device, shadowFragModule, nullptr);
 }
 
 void Kleicha::init_descriptors() {
@@ -366,11 +376,14 @@ void Kleicha::init_image_buffers() {
 
 	// transition depth image layouts
 	immediate_submit([&](VkCommandBuffer cmdBuffer) {
-		utils::image_memory_barrier(cmdBuffer, VK_PIPELINE_STAGE_NONE, VK_ACCESS_2_NONE, VK_PIPELINE_STAGE_NONE, VK_ACCESS_2_NONE, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, depthImage.image, depthImage.mipLevels);
+		utils::image_memory_barrier(cmdBuffer, VK_PIPELINE_STAGE_2_NONE, VK_ACCESS_2_NONE, VK_PIPELINE_STAGE_2_NONE, VK_ACCESS_2_NONE, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, depthImage.image, depthImage.mipLevels);
 
-		
-
-
+		for (auto& frame : m_frames) {
+			frame.shadowMaps.resize(m_lights.size());
+			for (auto& shadowMap : frame.shadowMaps) {
+				utils::image_memory_barrier(cmdBuffer, VK_PIPELINE_STAGE_2_NONE, VK_ACCESS_2_NONE, VK_PIPELINE_STAGE_2_NONE, VK_ACCESS_2_NONE, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, shadowMap.image, shadowMap.mipLevels);
+			}
+		}
 		});
 }
 
@@ -888,7 +901,7 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 	// begin a render pass
 	vkCmdBeginRendering(frame.cmdBuffer, &renderingInfo);
 
-	vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
+	vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_renderPipeline);
 
 	// will be used to compute the viewport transformation (NDC to screen space)
 	VkViewport viewport{};
@@ -1087,7 +1100,8 @@ void Kleicha::cleanup() const {
 	vkDestroyDescriptorSetLayout(m_device.device, m_globDescSetLayout, nullptr);
 	vkDestroyDescriptorSetLayout(m_device.device, m_frameDescSetLayout, nullptr);
 
-	vkDestroyPipeline(m_device.device, m_graphicsPipeline, nullptr);
+	vkDestroyPipeline(m_device.device, m_shadowPipeline, nullptr);
+	vkDestroyPipeline(m_device.device, m_renderPipeline, nullptr);
 	vkDestroyPipelineLayout(m_device.device, m_dummyPipelineLayout, nullptr);
 
 	for (const auto& renderedSemaphore : m_renderedSemaphores) {
