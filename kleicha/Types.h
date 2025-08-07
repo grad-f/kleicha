@@ -213,6 +213,8 @@ namespace vkt {
 		vkt::Buffer transformBuffer{};
 		vkt::Buffer materialBuffer{};
 		vkt::Buffer lightBuffer{};
+
+		std::vector<vkt::Image> shadowMaps{};
 	};
 
 	// chained and encapsulated device features struct

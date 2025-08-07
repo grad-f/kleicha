@@ -66,9 +66,9 @@ void Kleicha::init() {
 	init_graphics_pipelines();
 	init_vma();
 	init_imgui();
-	init_image_buffers();
 	init_materials();
 	init_lights();
+	init_image_buffers();
 	init_draw_data();
 	init_dynamic_buffers();
 	init_write_descriptor_sets();
@@ -335,6 +335,7 @@ void Kleicha::init_imgui() {
 
 void Kleicha::init_image_buffers() {
 
+
 	VkImageCreateInfo rasterImageInfo{ init::create_image_info(INTERMEDIATE_IMAGE_FORMAT, m_swapchain.imageExtent,
 		VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, 1)};
 
@@ -353,9 +354,23 @@ void Kleicha::init_image_buffers() {
 	VkImageViewCreateInfo depthViewInfo{ init::create_image_view_info(depthImage.image, DEPTH_IMAGE_FORMAT, VK_IMAGE_ASPECT_DEPTH_BIT, 1) };
 	VK_CHECK(vkCreateImageView(m_device.device, &depthViewInfo, nullptr, &depthImage.imageView));
 
+	// allocate per frame shadow maps that'll be used as depth attachments in their own passes
+	for (auto& frame : m_frames) {
+		frame.shadowMaps.resize(m_lights.size());
+		for (auto& shadowMap : frame.shadowMaps) {
+			VK_CHECK(vmaCreateImage(m_allocator, &depthImageInfo, &allocationInfo, &shadowMap.image, &shadowMap.allocation, &shadowMap.allocationInfo));
+			VkImageViewCreateInfo shadowViewInfo{ init::create_image_view_info(shadowMap.image, DEPTH_IMAGE_FORMAT, VK_IMAGE_ASPECT_DEPTH_BIT, shadowMap.mipLevels) };
+			VK_CHECK(vkCreateImageView(m_device.device, &shadowViewInfo, nullptr, &shadowMap.imageView));
+		}
+	}
+
 	// transition depth image layouts
 	immediate_submit([&](VkCommandBuffer cmdBuffer) {
 		utils::image_memory_barrier(cmdBuffer, VK_PIPELINE_STAGE_NONE, VK_ACCESS_2_NONE, VK_PIPELINE_STAGE_NONE, VK_ACCESS_2_NONE, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, depthImage.image, depthImage.mipLevels);
+
+		
+
+
 		});
 }
 
@@ -687,6 +702,14 @@ void Kleicha::deallocate_frame_images() const {
 
 	vmaDestroyImage(m_allocator, depthImage.image, depthImage.allocation);
 	vkDestroyImageView(m_device.device, depthImage.imageView, nullptr);
+
+	for (const auto& frame : m_frames) {
+		for (const auto& shadowMap : frame.shadowMaps) {
+			vmaDestroyImage(m_allocator, shadowMap.image, shadowMap.allocation);
+			vkDestroyImageView(m_device.device, shadowMap.imageView, nullptr);
+		}
+	}
+
 }
 
 void Kleicha::immediate_submit(std::function<void(VkCommandBuffer cmdBuffer)>&& func) const {
