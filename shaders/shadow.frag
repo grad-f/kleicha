@@ -27,6 +27,7 @@ struct Light {
 	vec3 attenuationFactors;
 	vec3 mPos;
 	vec3 mvPos;
+	mat4 view;
 };
 
 layout(binding = 2, set = 0) readonly buffer Globals {
@@ -47,12 +48,11 @@ layout(binding = 2, set = 1) readonly buffer Lights {
 
 layout(set = 0, binding = 3) uniform sampler2D texSampler[];
 
-layout (location = 0) in vec4 inColor;
-layout (location = 1) in vec3 inVertPos;
 
 layout(push_constant) uniform constants {
 	mat4 perspectiveProj;
 	uint drawId;
+	uint lightId;
 }pc;
 
 void main() {

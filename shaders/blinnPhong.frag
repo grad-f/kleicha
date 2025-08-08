@@ -27,6 +27,8 @@ struct Light {
 	vec3 attenuationFactors;
 	vec3 mPos;
 	vec3 mvPos;
+	mat4 view;
+
 };
 
 layout(binding = 2, set = 0) readonly buffer Globals {
@@ -58,6 +60,7 @@ layout (location = 0) out vec4 outColor;
 layout(push_constant) uniform constants {
 	mat4 perspectiveProj;
 	uint drawId;
+	uint lightId;
 }pc;
 
 void main() {

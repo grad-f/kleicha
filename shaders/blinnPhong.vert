@@ -22,8 +22,9 @@ struct GlobalData {
 };
 
 struct Transform {
-		mat4 mv;
-		mat4 mvInvTr;
+		mat4 model;
+		mat4 modelView;
+		mat4 modelViewInvTr;
 };
 
 struct Material {
@@ -40,6 +41,7 @@ struct Light {
 	vec3 attenuationFactors;
 	vec3 mPos;
 	vec3 mvPos;
+	mat4 view;
 };
 
 layout(binding = 0, set = 0) readonly buffer Vertices {
@@ -76,6 +78,7 @@ layout (location = 4) out vec3 outVertPos;
 layout(push_constant) uniform constants {
 	mat4 perspectiveProj;
 	uint drawId;
+	uint lightId;
 }pc;
 
 void main() {
@@ -84,17 +87,17 @@ void main() {
 
 	// if mesh light draw
 	if (dd.isLight > 0) {
-		gl_Position = pc.perspectiveProj * transforms[pc.drawId].mv * vec4(vertices[gl_VertexIndex].position, 1.0f);
+		gl_Position = pc.perspectiveProj * transforms[pc.drawId].modelView * vec4(vertices[gl_VertexIndex].position, 1.0f);
 		outUV = vertices[gl_VertexIndex].UV;
 		outVertColor = vec4(1.0f, 1.0f, 1.0f, 1.0f);
 		return;
 	}
 
 	// we choose to perform out lighting computations in camera-space.
-	outVertPos = (	transforms[pc.drawId].mv * vec4(vertices[gl_VertexIndex].position, 1.0f)	).xyz;
-	outNormal = (transforms[pc.drawId].mvInvTr * vec4(vertices[gl_VertexIndex].normal, 1.0f)).xyz;
+	outVertPos = (	transforms[pc.drawId].modelView * vec4(vertices[gl_VertexIndex].position, 1.0f)	).xyz;
+	outNormal = (transforms[pc.drawId].modelViewInvTr * vec4(vertices[gl_VertexIndex].normal, 1.0f)).xyz;
 
-	gl_Position = pc.perspectiveProj * transforms[pc.drawId].mv * vec4(vertices[gl_VertexIndex].position, 1.0f);
+	gl_Position = pc.perspectiveProj * transforms[pc.drawId].modelView * vec4(vertices[gl_VertexIndex].position, 1.0f);
 	outUV = vertices[gl_VertexIndex].UV;
 	outVertColor = vec4(1.0f, 1.0f, 1.0f, 1.0f);
 

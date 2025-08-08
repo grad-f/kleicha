@@ -22,8 +22,9 @@ struct GlobalData {
 };
 
 struct Transform {
-		mat4 mv;
-		mat4 mvInvTr;
+		mat4 model;
+		mat4 modelView;
+		mat4 modelViewInvTr;
 };
 
 struct Material {
@@ -40,6 +41,7 @@ struct Light {
 	vec3 attenuationFactors;
 	vec3 mPos;
 	vec3 mvPos;
+	mat4 view;
 };
 
 layout(binding = 0, set = 0) readonly buffer Vertices {
@@ -67,21 +69,17 @@ layout(binding = 2, set = 1) readonly buffer Lights {
 	Light lights[];
 };
 
-layout (location = 0) out vec4 outVertColor;
-layout (location = 1) out vec3 outVertPos;
-
 layout(push_constant) uniform constants {
 	mat4 perspectiveProj;
 	uint drawId;
+	uint lightId;
 }pc;
 
 void main() {
-	DrawData dd = draws[pc.drawId];
+	//DrawData dd = draws[pc.drawId];
 
 	// we choose to perform out lighting computations in camera-space.
-	outVertPos = (	transforms[pc.drawId].mv * vec4(vertices[gl_VertexIndex].position, 1.0f)	).xyz;
-	gl_Position = pc.perspectiveProj * transforms[pc.drawId].mv * vec4(vertices[gl_VertexIndex].position, 1.0f);
-	outVertColor = vec4(1.0f, 1.0f, 1.0f, 1.0f);
+	gl_Position = pc.perspectiveProj * lights[pc.lightId].view * transforms[pc.drawId].model * vec4(vertices[gl_VertexIndex].position, 1.0f);
 
 	//debugPrintfEXT("%f | %f | %f\n", lights[0].mvPos.x, lights[0].mvPos.y, lights[0].mvPos.z);
 }

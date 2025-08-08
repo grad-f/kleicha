@@ -490,11 +490,16 @@ void Kleicha::init_lights() {
 		.diffuse = {0.6f, 0.6f, 0.6f, 1.0f},
 		.specular = {1.0f, 1.0f, 1.0f, 1.0f},
 		.attenuationFactors = {1.0f, 0.153f, 0.153f},
-		.mPos = {-1.3f, 1.5f, 0.0f}
+		.mPos = {2.0f, 1.5f, 1.0f}
 	};
 	m_lights.push_back(pointLight);
-	pointLight.mPos = { 0.0f, 1.5f, -4.0f };
+
+	pointLight.mPos = { 0.0f, 1.5f, -6.0f };
 	m_lights.push_back(pointLight);
+
+	/*pointLight.mPos = {-6.0f, 1.5f, -5.0f};
+	m_lights.push_back(pointLight);*/
+
 }
 
 void Kleicha::init_materials() {
@@ -900,31 +905,39 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 	VkDescriptorSet descSets[]{ m_globalDescSet, frame.descriptorSet };
 	vkCmdBindDescriptorSets(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_dummyPipelineLayout, 0, std::size(descSets), descSets, 0, nullptr);
 	m_pushConstants.perspectiveProjection = m_perspProj;
+
+	// update light view
+	for (auto& light : m_lights)
+		light.view = utils::lookAt(light.mPos, glm::vec3{ 0.0f, 0.0f, 0.0f }, WORLD_UP);
+
+	// render pass
 	glm::mat4 view{ m_camera.getViewMatrix() };
-
 	// TODO: Only update if there was an updated to a buffer
-	m_meshTransforms[0].mv = view * glm::translate(glm::mat4{ 1.0f }, glm::vec3{ -3.0f, 1.0f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, glm::radians(90.0f), glm::vec3{1.0f, 0.0f, 0.0f}) /** glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 2.0f, 2.0f, 2.0f })*/;
-	m_meshTransforms[0].mvInvTr = glm::transpose(glm::inverse(m_meshTransforms[0].mv));
+	m_meshTransforms[0].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ -3.0f, 1.0f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, glm::radians(90.0f), glm::vec3{ 1.0f, 0.0f, 0.0f }) /** glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 2.0f, 2.0f, 2.0f })*/;
+	m_meshTransforms[0].modelView = view * m_meshTransforms[0].model;
+	m_meshTransforms[0].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[0].modelView));
 
-	m_meshTransforms[1].mv = view * glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, 0.0f, -3.0f }) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 2.0f, 2.0f, 2.0f }) /* glm::rotate(glm::mat4{ 1.0f }, currentTime * 0.2f, glm::vec3{ 1.0f, 0.0f, 0.0f })*/;
-	m_meshTransforms[1].mvInvTr = glm::transpose(glm::inverse(m_meshTransforms[1].mv));
+	m_meshTransforms[1].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, 0.0f, -3.0f }) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 2.0f, 2.0f, 2.0f }) /* glm::rotate(glm::mat4{ 1.0f }, currentTime * 0.2f, glm::vec3{ 1.0f, 0.0f, 0.0f })*/;
+	m_meshTransforms[1].modelView = view * m_meshTransforms[1].model;
+	m_meshTransforms[1].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[1].modelView));
 
-	m_meshTransforms[2].mv = view * glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 3.0f, 0.0f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, glm::radians(180.0f), glm::vec3{0.0f, 1.0f, 0.0f}) /** glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 2.0f, 2.0f, 2.0f })*/;
-	m_meshTransforms[2].mvInvTr = glm::transpose(glm::inverse(m_meshTransforms[2].mv));
+	m_meshTransforms[2].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 3.0f, 0.0f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, glm::radians(180.0f), glm::vec3{ 0.0f, 1.0f, 0.0f }) /** glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 2.0f, 2.0f, 2.0f })*/;
+	m_meshTransforms[2].modelView = view * m_meshTransforms[2].model;
+	m_meshTransforms[2].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[2].modelView));
 
-	m_meshTransforms[3].mv = view * glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, -0.9f, -3.0f }) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 5.0f, 5.0f, 5.0f });
-	m_meshTransforms[3].mvInvTr = glm::transpose(glm::inverse(m_meshTransforms[3].mv));
+	m_meshTransforms[3].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, -0.9f, -3.0f }) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 5.0f, 5.0f, 5.0f });
+	m_meshTransforms[3].modelView = view * m_meshTransforms[3].model;
+	m_meshTransforms[3].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[3].modelView));
 
-	
 	// This is somewhat okay but not very robust as it depends on the light meshes being added last. This may be fine, it may not... We'll see and provide an alternative solution if needed.
 	std::size_t lightMeshIndStart{ m_meshTransforms.size() - m_lights.size() };
 	for (std::size_t i{ lightMeshIndStart }; i < m_meshTransforms.size(); ++i) {
 
 		// compute light position in camera coordinate frame
-		m_lights[i - lightMeshIndStart].mvPos = view * glm::vec4{m_lights[i - lightMeshIndStart].mPos, 1.0f};
+		m_lights[i - lightMeshIndStart].mvPos = view * glm::vec4{ m_lights[i - lightMeshIndStart].mPos, 1.0f };
 
-		m_meshTransforms[i].mv = view * glm::translate(glm::mat4{ 1.0f }, m_lights[i - lightMeshIndStart].mPos) * glm::scale(glm::mat4{1.0f}, glm::vec3{0.1f, 0.1f, 0.1f});
-		m_meshTransforms[i].mvInvTr = glm::transpose(glm::inverse(m_meshTransforms[i].mv));
+		m_meshTransforms[i].modelView = view * glm::translate(glm::mat4{ 1.0f }, m_lights[i - lightMeshIndStart].mPos) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 0.1f, 0.1f, 0.1f });
+		m_meshTransforms[i].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[i].modelView));
 	}
 
 	// update per frame buffers
@@ -951,17 +964,18 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 	renderingInfo.viewMask = 0; //we're not using multiview
 	renderingInfo.colorAttachmentCount = 0;
 	renderingInfo.pColorAttachments = nullptr;
-
+	
 	vkCmdBindIndexBuffer(frame.cmdBuffer, m_indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-
-
 	vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_shadowPipeline);
-	for (const auto& shadowMap : frame.shadowMaps) {
-
-		VkRenderingAttachmentInfo shadowDepthAttachment{ init::create_rendering_attachment_info(shadowMap.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, &colorDepthClearValue) };
+	
+	// shadow passes
+	for (uint32_t j{ 0 }; j < m_lights.size(); ++j) {
+		VkRenderingAttachmentInfo shadowDepthAttachment{ init::create_rendering_attachment_info(frame.shadowMaps[j].imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, &colorDepthClearValue) };
 		renderingInfo.pDepthAttachment = &shadowDepthAttachment;
 		vkCmdBeginRendering(frame.cmdBuffer, &renderingInfo);
-
+		
+		m_pushConstants.lightId = j;
+			;
 		for (std::uint32_t i{ 0 }; i < m_meshDrawData.size() - m_lights.size(); ++i) {
 			m_pushConstants.drawId = i;
 			vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);

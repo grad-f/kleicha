@@ -16,6 +16,7 @@ namespace vkt {
 	struct PushConstants {
 		glm::mat4 perspectiveProjection{};
 		uint32_t drawId{};
+		uint32_t lightId{};
 	};
 
 	struct Instance {
@@ -136,8 +137,9 @@ namespace vkt {
 	};
 
 	struct Transform {
-		glm::mat4 mv{};
-		glm::mat4 mvInvTr{};
+		glm::mat4 model{};
+		glm::mat4 modelView{};
+		glm::mat4 modelViewInvTr{};
 	};
 
 	struct Light {
@@ -147,6 +149,7 @@ namespace vkt {
 		alignas(16)glm::vec3 attenuationFactors{};
 		alignas(16)glm::vec3 mPos{};
 		alignas(16)glm::vec3 mvPos{};
+		alignas(16)glm::mat4 view{};
 	};
 
 	struct Material {
