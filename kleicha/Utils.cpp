@@ -335,7 +335,7 @@ namespace utils {
             0.0f, 0.0f, 1.0f, 0.0f,
             -eye.x, -eye.y, -eye.z, 1.0f
         };
-
+       
         glm::mat4 invRotate{
             u.x, v.x, -w.x, 0.0f,
             u.y, v.y, -w.y, 0.0f,

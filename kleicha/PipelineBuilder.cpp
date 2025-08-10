@@ -34,14 +34,16 @@ PipelineBuilder& PipelineBuilder::set_shaders(VkShaderModule vertexShader, VkSha
 	return *this;
 }
 
-PipelineBuilder& PipelineBuilder::set_rasterizer_state(VkPolygonMode polygonMode, VkCullModeFlags cullMode, VkFrontFace frontFace) {
+PipelineBuilder& PipelineBuilder::set_rasterizer_state(VkPolygonMode polygonMode, VkCullModeFlags cullMode, VkFrontFace frontFace, float depthBiasConstant, float depthBiasSlope) {
 	m_rasterizationInfo.pNext = nullptr;
 	m_rasterizationInfo.depthClampEnable = VK_FALSE;
 	m_rasterizationInfo.rasterizerDiscardEnable = VK_FALSE;
 	m_rasterizationInfo.polygonMode = polygonMode;
 	m_rasterizationInfo.cullMode = cullMode;
 	m_rasterizationInfo.frontFace = frontFace;
-	m_rasterizationInfo.depthBiasEnable = VK_FALSE;
+	m_rasterizationInfo.depthBiasEnable = depthBiasConstant || depthBiasSlope ? VK_TRUE : VK_FALSE;
+	m_rasterizationInfo.depthBiasConstantFactor = depthBiasConstant;
+	m_rasterizationInfo.depthBiasSlopeFactor = depthBiasSlope;
 	// specifies the number of pixels covered by a line per column.
 	m_rasterizationInfo.lineWidth = 1.0f;
 	return *this;
@@ -52,7 +54,6 @@ PipelineBuilder& PipelineBuilder::set_depth_stencil_state(VkBool32 depthTestEnab
 	m_depthStencilInfo.depthTestEnable = depthTestEnable;
 	m_depthStencilInfo.depthWriteEnable = VK_TRUE;
 	m_depthStencilInfo.depthCompareOp = VK_COMPARE_OP_GREATER_OR_EQUAL;
-
 	// sample depth should fall between [0,1] NDC, if it doesn't it shouldn't be reflected in the fragment's coverage mask.
 	m_depthStencilInfo.depthBoundsTestEnable = VK_TRUE;
 	m_depthStencilInfo.stencilTestEnable = VK_FALSE;

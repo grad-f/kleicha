@@ -19,7 +19,8 @@ namespace init {
 
 	VkDescriptorBufferInfo create_descriptor_buffer_info(VkBuffer buffer, VkDeviceSize offset = 0, VkDeviceSize range = VK_WHOLE_SIZE);
 
-	VkRenderingAttachmentInfo create_rendering_attachment_info(VkImageView imageView, VkImageLayout imageLayout, const VkClearValue* clearValue);
+	VkRenderingAttachmentInfo create_rendering_attachment_info(VkImageView imageView, VkImageLayout imageLayout, const VkClearValue* clearValue, VkBool32 storeDepth = VK_FALSE);
 
+	VkSamplerCreateInfo create_sampler_info(const vkt::Device& device, VkFilter magFilter, VkFilter minFilter, VkSamplerMipmapMode mipmapMode, VkSamplerAddressMode addressMode, VkBool32 anisotropicFiltering = VK_FALSE, float maxLod = 0.0f);
 }
 #endif // !INITIALIZERS_H

@@ -53,6 +53,7 @@ private:
 	std::vector<VkSemaphore> m_renderedSemaphores{};
 
 	VkSampler m_textureSampler{};
+	VkSampler m_shadowSampler{};
 	std::vector<vkt::Image> m_textures{};
 
 	vkt::Buffer m_vertexBuffer{};

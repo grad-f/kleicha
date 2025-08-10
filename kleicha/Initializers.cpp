@@ -96,17 +96,42 @@ namespace init {
 		return bufferInfo;
 	}
 
-	VkRenderingAttachmentInfo create_rendering_attachment_info(VkImageView imageView, VkImageLayout imageLayout, const VkClearValue* clearValue) {
+	VkRenderingAttachmentInfo create_rendering_attachment_info(VkImageView imageView, VkImageLayout imageLayout, const VkClearValue* clearValue, VkBool32 storeDepth) {
 		VkRenderingAttachmentInfo renderingAttachmentInfo{ .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
 		renderingAttachmentInfo.pNext = nullptr;
 		renderingAttachmentInfo.imageView = imageView;
 		renderingAttachmentInfo.imageLayout = imageLayout;
 		renderingAttachmentInfo.loadOp = clearValue ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
-		renderingAttachmentInfo.storeOp = (imageLayout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL) ? VK_ATTACHMENT_STORE_OP_DONT_CARE : VK_ATTACHMENT_STORE_OP_STORE;
+		renderingAttachmentInfo.storeOp = (imageLayout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL) && !storeDepth ? VK_ATTACHMENT_STORE_OP_DONT_CARE : VK_ATTACHMENT_STORE_OP_STORE;
 		if (clearValue)
 			renderingAttachmentInfo.clearValue = *clearValue;
 
 		return renderingAttachmentInfo;
 	}
+
+	VkSamplerCreateInfo create_sampler_info(const vkt::Device& device, VkFilter magFilter, VkFilter minFilter, VkSamplerMipmapMode mipmapMode, 
+		VkSamplerAddressMode addressMode, VkBool32 anisotropicFiltering, float maxLod) {
+
+		VkSamplerCreateInfo samplerInfo{ .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
+		samplerInfo.pNext = nullptr;
+		samplerInfo.magFilter = magFilter;
+		samplerInfo.minFilter = minFilter;
+		samplerInfo.mipmapMode = mipmapMode;
+		samplerInfo.addressModeU = addressMode;
+		samplerInfo.addressModeV = addressMode;
+		samplerInfo.addressModeW = addressMode;
+		samplerInfo.mipLodBias = 0.0f;
+		samplerInfo.anisotropyEnable = anisotropicFiltering;
+		samplerInfo.maxAnisotropy = device.physicalDevice.deviceProperties.properties.limits.maxSamplerAnisotropy;
+		samplerInfo.compareEnable = VK_TRUE;
+		samplerInfo.compareOp = VK_COMPARE_OP_GREATER_OR_EQUAL;
+		samplerInfo.minLod = 0.0f;
+		samplerInfo.maxLod = maxLod;
+		samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+		samplerInfo.unnormalizedCoordinates = VK_FALSE;
+		
+		return samplerInfo;
+	}
+
 
 }

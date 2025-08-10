@@ -74,6 +74,7 @@ layout (location = 1) out vec2 outUV;
 layout (location = 2) out flat uint outTexID;
 layout (location = 3) out vec3 outNormal;
 layout (location = 4) out vec3 outVertPos;
+layout (location = 5) out vec3 outVertWorld;
 
 layout(push_constant) uniform constants {
 	mat4 perspectiveProj;
@@ -95,6 +96,7 @@ void main() {
 
 	// we choose to perform out lighting computations in camera-space.
 	outVertPos = (	transforms[pc.drawId].modelView * vec4(vertices[gl_VertexIndex].position, 1.0f)	).xyz;
+	outVertWorld = (	transforms[pc.drawId].model * vec4(vertices[gl_VertexIndex].position, 1.0f)	).xyz;
 	outNormal = (transforms[pc.drawId].modelViewInvTr * vec4(vertices[gl_VertexIndex].normal, 1.0f)).xyz;
 
 	gl_Position = pc.perspectiveProj * transforms[pc.drawId].modelView * vec4(vertices[gl_VertexIndex].position, 1.0f);

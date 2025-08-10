@@ -21,7 +21,7 @@ public:
 	VkPipeline build();
 
 	PipelineBuilder& set_shaders(VkShaderModule vertexShader, VkShaderModule fragmentShader);
-	PipelineBuilder& set_rasterizer_state(VkPolygonMode polygonMode, VkCullModeFlags cullMode, VkFrontFace frontFace);
+	PipelineBuilder& set_rasterizer_state(VkPolygonMode polygonMode, VkCullModeFlags cullMode, VkFrontFace frontFace, float depthBiasConstant = 0.0f, float depthBiasSlope = 0.0f);
 	PipelineBuilder& set_depth_stencil_state(VkBool32 depthTestEnable);
 	PipelineBuilder& set_color_attachment_format(VkFormat format);
 	PipelineBuilder& set_depth_attachment_format(VkFormat format);

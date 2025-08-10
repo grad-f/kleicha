@@ -1,5 +1,6 @@
 #version 450
 #extension GL_EXT_nonuniform_qualifier : require
+#extension GL_EXT_debug_printf : enable
 
 struct GlobalData {
 	vec4 ambientLight;
@@ -48,12 +49,15 @@ layout(binding = 2, set = 1) readonly buffer Lights {
 };
 
 layout(set = 0, binding = 3) uniform sampler2D texSampler[];
+layout(set = 1, binding = 3) uniform sampler2DShadow shadowSampler[];
+
 
 layout (location = 0) in vec4 inColor;
 layout (location = 1) in vec2 inUV;
 layout (location = 2) in flat int inTexID;
 layout (location = 3) in vec3 inNormal;
 layout (location = 4) in vec3 inVertPos;
+layout (location = 5) in vec3 inVertWorld;
 
 layout (location = 0) out vec4 outColor;
 
@@ -62,6 +66,11 @@ layout(push_constant) uniform constants {
 	uint drawId;
 	uint lightId;
 }pc;
+
+mat4 B = mat4(0.5f, 0.0f, 0.0f, 0.0f,
+			  0.0f, 0.5f, 0.0f, 0.0f,
+			  0.0f, 0.0f, 1.0f, 0.0f,
+			  0.5f, 0.5f, 0.0f, 1.0f);
 
 void main() {
 
@@ -99,6 +108,16 @@ void main() {
 		L = normalize(L);
 		H = normalize(L - inVertPos);
 
+		// determine if this pixel fragment is occluded with respect to the this light (in shadow)
+		// applies light transformation to pixel fragment local pos then the B transform to map NDC to [0,1]
+		vec4 shadow_coord = B * pc.perspectiveProj * light.view * vec4(inVertWorld,1.0f);
+
+		float notInShadow = textureProj(shadowSampler[i], shadow_coord);
+							debugPrintfEXT("%f\n", notInShadow);
+
+		/*if(i == 0)
+			debugPrintfEXT("%f | %f | %f\n", shadow_coord.x/shadow_coord.w, shadow_coord.y/shadow_coord.w, shadow_coord.z/shadow_coord.w);*/
+
 		attenuationFactor = 1.0f/(light.attenuationFactors.x + light.attenuationFactors.y * dist + light.attenuationFactors.z * dist * dist);
 
 		cosTheta = dot(N,L);
@@ -125,8 +144,15 @@ void main() {
 				specular = light.specular.xyz * pow(max(cosPhi, 0.0f), material.shininess*3.0f);
 			}
 		}
+		
 
-		lightContrib += attenuationFactor * (ambient + diffuse + specular);
+		if (notInShadow == 1.0f)
+			lightContrib += diffuse;
+		else
+			lightContrib += attenuationFactor * (ambient + diffuse + specular);
+
+		/*if (notInShadow == 1.0f)
+			lightContrib = vec3(1.0f, 0.0f, 0.0f);*/
 	}		
 
 	if (dd.textureIndex > 0)
