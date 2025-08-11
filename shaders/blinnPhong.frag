@@ -112,13 +112,15 @@ void main() {
 		// applies light transformation to pixel fragment local pos then the B transform to map NDC to [0,1]
 		vec4 shadow_coord = B * pc.perspectiveProj * light.view * vec4(inVertWorld,1.0f);
 
+		// textureProj homogenizes shadow_coord and uses the resulting vec3 to compare the depth of this pixel fragment and that of which is stored in the shadow map.
+		// returns 1.0f if pixel fragment's depth is greater (closer in our case) than that of what is stored.
 		float notInShadow = textureProj(shadowSampler[i], shadow_coord);
-							debugPrintfEXT("%f\n", notInShadow);
+							//debugPrintfEXT("%f\n", notInShadow);
 
-		/*if(i == 0)
-			debugPrintfEXT("%f | %f | %f\n", shadow_coord.x/shadow_coord.w, shadow_coord.y/shadow_coord.w, shadow_coord.z/shadow_coord.w);*/
+		//if(i == 0)
+			//debugPrintfEXT("%f | %f | %f\n", shadow_coord.x/shadow_coord.w, shadow_coord.y/shadow_coord.w, shadow_coord.z/shadow_coord.w);
 
-		attenuationFactor = 1.0f/(light.attenuationFactors.x + light.attenuationFactors.y * dist + light.attenuationFactors.z * dist * dist);
+		attenuationFactor = 1.0f / (light.attenuationFactors.x + light.attenuationFactors.y * dist + light.attenuationFactors.z * dist * dist);
 
 		cosTheta = dot(N,L);
 
@@ -147,9 +149,9 @@ void main() {
 		
 
 		if (notInShadow == 1.0f)
-			lightContrib += diffuse;
-		else
 			lightContrib += attenuationFactor * (ambient + diffuse + specular);
+		if (notInShadow == 0.0f)
+			lightContrib += attenuationFactor * ambient;
 
 		/*if (notInShadow == 1.0f)
 			lightContrib = vec3(1.0f, 0.0f, 0.0f);*/
