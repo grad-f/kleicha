@@ -110,7 +110,7 @@ namespace init {
 	}
 
 	VkSamplerCreateInfo create_sampler_info(const vkt::Device& device, VkFilter magFilter, VkFilter minFilter, VkSamplerMipmapMode mipmapMode, 
-		VkSamplerAddressMode addressMode, VkBool32 anisotropicFiltering, float maxLod) {
+		VkSamplerAddressMode addressMode, VkBool32 anisotropicFiltering, float maxLod, VkCompareOp compareOp) {
 
 		VkSamplerCreateInfo samplerInfo{ .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
 		samplerInfo.pNext = nullptr;
@@ -123,8 +123,8 @@ namespace init {
 		samplerInfo.mipLodBias = 0.0f;
 		samplerInfo.anisotropyEnable = anisotropicFiltering;
 		samplerInfo.maxAnisotropy = device.physicalDevice.deviceProperties.properties.limits.maxSamplerAnisotropy;
-		samplerInfo.compareEnable = VK_TRUE;
-		samplerInfo.compareOp = VK_COMPARE_OP_GREATER_OR_EQUAL;
+		samplerInfo.compareEnable = compareOp == VK_COMPARE_OP_NEVER ? VK_FALSE : VK_TRUE;
+		samplerInfo.compareOp = compareOp;
 		samplerInfo.minLod = 0.0f;
 		samplerInfo.maxLod = maxLod;
 		samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;

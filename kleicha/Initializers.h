@@ -21,6 +21,6 @@ namespace init {
 
 	VkRenderingAttachmentInfo create_rendering_attachment_info(VkImageView imageView, VkImageLayout imageLayout, const VkClearValue* clearValue, VkBool32 storeDepth = VK_FALSE);
 
-	VkSamplerCreateInfo create_sampler_info(const vkt::Device& device, VkFilter magFilter, VkFilter minFilter, VkSamplerMipmapMode mipmapMode, VkSamplerAddressMode addressMode, VkBool32 anisotropicFiltering = VK_FALSE, float maxLod = 0.0f);
+	VkSamplerCreateInfo create_sampler_info(const vkt::Device& device, VkFilter magFilter, VkFilter minFilter, VkSamplerMipmapMode mipmapMode, VkSamplerAddressMode addressMode, VkBool32 anisotropicFiltering = VK_FALSE, float maxLod = 0.0f, VkCompareOp comapreOp = VK_COMPARE_OP_NEVER);
 }
 #endif // !INITIALIZERS_H
