@@ -1,6 +1,6 @@
 #version 450
 #extension GL_EXT_nonuniform_qualifier : require
-#extension GL_EXT_debug_printf : enable
+//#extension GL_EXT_debug_printf : enable
 
 struct GlobalData {
 	vec4 ambientLight;
@@ -115,7 +115,6 @@ void main() {
 		// textureProj homogenizes shadow_coord and uses the resulting vec3 to compare the depth of this pixel fragment and that of which is stored in the shadow map.
 		// returns 1.0f if pixel fragment's depth is greater (closer in our case) than that of what is stored.
 		float notInShadow = textureProj(shadowSampler[i], shadow_coord);
-							//debugPrintfEXT("%f\n", notInShadow);
 
 		//if(i == 0)
 			//debugPrintfEXT("%f | %f | %f\n", shadow_coord.x/shadow_coord.w, shadow_coord.y/shadow_coord.w, shadow_coord.z/shadow_coord.w);

@@ -69,6 +69,7 @@ void Kleicha::init() {
 	init_image_buffers();
 	init_draw_data();
 	init_dynamic_buffers();
+	init_samplers();
 	init_descriptors();
 	init_graphics_pipelines();
 	init_write_descriptor_sets();
@@ -379,6 +380,8 @@ void Kleicha::init_image_buffers() {
 		}
 	}
 
+	fmt::println("[Kleicha] Recreated per frame shadow map image buffers.");
+
 	// transition depth image layouts
 	immediate_submit([&](VkCommandBuffer cmdBuffer) {
 		utils::image_memory_barrier(cmdBuffer, VK_PIPELINE_STAGE_2_NONE, VK_ACCESS_2_NONE, VK_PIPELINE_STAGE_2_NONE, VK_ACCESS_2_NONE, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, depthImage.image, depthImage.mipLevels);
@@ -468,7 +471,7 @@ void Kleicha::init_draw_data() {
 
 	m_meshTransforms.resize(m_meshDrawData.size());
 	
-	vkt::GlobalData globalData{ .ambientLight = glm::vec4{0.01f, 0.01f, 0.01f, 1.0f}, .lightCount = static_cast<uint32_t>(m_lights.size())};
+	vkt::GlobalData globalData{ .ambientLight = glm::vec4{0.22f, 0.22f, 0.22f, 1.0f}, .lightCount = static_cast<uint32_t>(m_lights.size())};
 	m_globalsBuffer = upload_data(&globalData, sizeof(globalData), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 }
 
@@ -494,7 +497,7 @@ void Kleicha::init_lights() {
 		.ambient = {0.05f, 0.05f, 0.05f, 1.0f},
 		.diffuse = {0.6f, 0.6f, 0.6f, 1.0f},
 		.specular = {1.0f, 1.0f, 1.0f, 1.0f},
-		.attenuationFactors = {1.0f, 0.153f, 0.153f},
+		.attenuationFactors = {1.0f, 0.133f, 0.050f},
 		.mPos = {2.0f, 1.5f, 1.0f}
 	};
 	m_lights.push_back(pointLight);
@@ -559,14 +562,15 @@ vkt::Buffer Kleicha::upload_data(void* data, VkDeviceSize bufferSize, VkBufferUs
 	return deviceBuffer;
 }
 
-void Kleicha::init_write_descriptor_sets() {
-
-
+void Kleicha::init_samplers() {
 	VkSamplerCreateInfo textureSamplerInfo{ init::create_sampler_info(m_device, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_TRUE, 16.0f) };
 	VK_CHECK(vkCreateSampler(m_device.device, &textureSamplerInfo, nullptr, &m_textureSampler));
 
 	VkSamplerCreateInfo shadowSamplerInfo{ init::create_sampler_info(m_device, VK_FILTER_NEAREST, VK_FILTER_NEAREST, VK_SAMPLER_MIPMAP_MODE_NEAREST, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_FALSE, 0.0f, VK_COMPARE_OP_GREATER_OR_EQUAL) };
 	VK_CHECK(vkCreateSampler(m_device.device, &shadowSamplerInfo, nullptr, &m_shadowSampler));
+}
+
+void Kleicha::init_write_descriptor_sets() {
 
 	utils::update_set_buffer_descriptor(m_device.device, m_globalDescSet, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, m_vertexBuffer.buffer);
 	utils::update_set_buffer_descriptor(m_device.device, m_globalDescSet, 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, m_drawBuffer.buffer);
@@ -578,41 +582,10 @@ void Kleicha::init_write_descriptor_sets() {
 		utils::update_set_buffer_descriptor(m_device.device, frame.descriptorSet, 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, frame.materialBuffer.buffer);
 		utils::update_set_buffer_descriptor(m_device.device, frame.descriptorSet, 2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, frame.lightBuffer.buffer);
 
-		uint32_t shadowMapCount{ static_cast<uint32_t>(frame.shadowMaps.size()) };
-
-		VkWriteDescriptorSet shadowSamplerWriteDescSet{ .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-		shadowSamplerWriteDescSet.dstSet = frame.descriptorSet;
-		shadowSamplerWriteDescSet.dstBinding = 3;
-		shadowSamplerWriteDescSet.dstArrayElement = 0;
-		shadowSamplerWriteDescSet.descriptorCount = shadowMapCount;
-		shadowSamplerWriteDescSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-
-		std::vector<VkDescriptorImageInfo> imageInfos(shadowMapCount);
-		for (std::size_t i{ 0 }; i < imageInfos.size(); ++i) {
-			imageInfos[i].sampler = m_shadowSampler;
-			imageInfos[i].imageView = frame.shadowMaps[i].imageView;
-			imageInfos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		}
-		shadowSamplerWriteDescSet.pImageInfo = imageInfos.data();
-		vkUpdateDescriptorSets(m_device.device, 1, &shadowSamplerWriteDescSet, 0, nullptr);
+		utils::update_set_image_sampler_descriptor(m_device.device, frame.descriptorSet, 3, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL, m_shadowSampler, frame.shadowMaps);
 	}
 
-	std::vector<VkDescriptorImageInfo> imageInfos{};
-	VkDescriptorImageInfo imageInfo{};
-	imageInfo.sampler = m_textureSampler;
-	imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	for (const auto& texture : m_textures) {
-		imageInfo.imageView = texture.imageView;
-		imageInfos.emplace_back(imageInfo);
-	}
-	VkWriteDescriptorSet texSamplerWriteDescSet{ .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-	texSamplerWriteDescSet.dstSet = m_globalDescSet;
-	texSamplerWriteDescSet.dstBinding = 3;
-	texSamplerWriteDescSet.dstArrayElement = 0;
-	texSamplerWriteDescSet.descriptorCount = static_cast<uint32_t>(imageInfos.size());
-	texSamplerWriteDescSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	texSamplerWriteDescSet.pImageInfo = imageInfos.data();
-	vkUpdateDescriptorSets(m_device.device, 1, &texSamplerWriteDescSet, 0, nullptr);
+	utils::update_set_image_sampler_descriptor(m_device.device, m_globalDescSet, 3, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, m_textureSampler, m_textures);
 }
 
 vkt::Image Kleicha::upload_texture_image(const char* filePath) {
@@ -725,6 +698,7 @@ vkt::Image Kleicha::upload_texture_image(const char* filePath) {
 }
 
 void Kleicha::deallocate_frame_images() const {
+
 	vmaDestroyImage(m_allocator, rasterImage.image, rasterImage.allocation);
 	vkDestroyImageView(m_device.device, rasterImage.imageView, nullptr);
 
@@ -768,7 +742,6 @@ void Kleicha::immediate_submit(std::function<void(VkCommandBuffer cmdBuffer)>&& 
 }
 
 void Kleicha::recreate_swapchain() {
-
 	// handle case where window is minimized
 	int width{}, height{};
 	glfwGetFramebufferSize(m_window, &width, &height);
@@ -803,6 +776,11 @@ void Kleicha::recreate_swapchain() {
 		static_cast<float>(m_windowExtent.width) / m_windowExtent.height, 1000.0f, 0.1f) * utils::perspective(1000.0f, 0.1f);
 	init_swapchain();
 	init_image_buffers();
+
+	// update per frame shadow map descriptors to reference the new image buffers
+	for (const auto& frame : m_frames) {
+		utils::update_set_image_sampler_descriptor(m_device.device, frame.descriptorSet, 3, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL, m_shadowSampler, frame.shadowMaps);
+	}
 }
 
 void Kleicha::start() {

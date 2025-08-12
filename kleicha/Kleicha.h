@@ -83,6 +83,7 @@ private:
 	void init_materials();
 	void init_image_buffers();
 	void init_dynamic_buffers();
+	void init_samplers();
 	void init_write_descriptor_sets();
 	
 	vkt::DrawData create_draw(const std::vector<vkt::MeshDrawData>& canonicalMeshes, vkt::MeshType meshType, vkt::MaterialType materialType, vkt::TextureType textureType, bool isLight = false);
