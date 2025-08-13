@@ -472,7 +472,16 @@ void Kleicha::init_draw_data() {
 
 	m_meshTransforms.resize(m_meshDrawData.size());
 	
-	vkt::GlobalData globalData{ .ambientLight = glm::vec4{0.22f, 0.22f, 0.22f, 1.0f}, .lightCount = static_cast<uint32_t>(m_lights.size())};
+	vkt::GlobalData globalData{};
+	globalData.ambientLight = glm::vec4{ 0.22f, 0.22f, 0.22f, 1.0f };
+	globalData.bias = glm::mat4{
+		0.5f, 0.0f, 0.0f, 0.0f,
+		0.0f, 0.5f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		0.5f, 0.5f, 0.0f, 1.0f
+	};
+	globalData.lightCount = static_cast<uint32_t>(m_lights.size());
+
 	m_globalsBuffer = upload_data(&globalData, sizeof(globalData), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 }
 

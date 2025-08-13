@@ -3,6 +3,7 @@
 
 struct GlobalData {
 	vec4 ambientLight;
+	mat4 bias;
 	uint lightsCount;
 };
 

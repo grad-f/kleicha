@@ -18,6 +18,7 @@ struct DrawData {
 
 struct GlobalData {
 	vec4 ambientLight;
+	mat4 bias;
 	uint lightsCount;
 };
 
@@ -73,7 +74,7 @@ layout (location = 0) out vec4 outVertColor;
 layout (location = 1) out vec2 outUV;
 layout (location = 2) out flat uint outTexID;
 layout (location = 3) out vec3 outNormal;
-layout (location = 4) out vec3 outVertPos;
+layout (location = 4) out vec3 outVertView;
 layout (location = 5) out vec3 outVertWorld;
 
 layout(push_constant) uniform constants {
@@ -97,7 +98,11 @@ void main() {
 	}
 
 	// we choose to perform out lighting computations in camera-space.
-	outVertPos = (	transform.modelView * vec4(vert.position, 1.0f)	).xyz;
+
+	// vertex in camera space
+	outVertView = (	transform.modelView * vec4(vert.position, 1.0f)	).xyz;
+
+	// vertex in world space (to be transformed into light space in the frag kernel for shadow computatations)
 	outVertWorld = (	transform.model * vec4(vert.position, 1.0f)	).xyz;
 	outNormal = (	transform.modelViewInvTr * vec4(vert.normal, 1.0f)	).xyz;
 

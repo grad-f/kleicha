@@ -133,6 +133,8 @@ namespace vkt {
 
 	struct GlobalData {
 		glm::vec4 ambientLight{};
+		// Bias matrix maps NDC to texture space [0,1]
+		glm::mat4 bias{};
 		alignas(16) uint32_t lightCount{};
 	};
 
