@@ -193,7 +193,7 @@ void Kleicha::init_graphics_pipelines() {
 	m_renderPipeline = pipelineBuilder.build();
 
 	pipelineBuilder.set_shaders(shadowVertModule, shadowFragModule);
-	pipelineBuilder.set_rasterizer_state(VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE, -1.25f, -1.75f);
+	pipelineBuilder.set_rasterizer_state(VK_POLYGON_MODE_FILL, VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE, -1.25f, -1.75f);
 	pipelineBuilder.disable_color_output();
 	m_shadowPipeline = pipelineBuilder.build();
 
@@ -461,7 +461,8 @@ void Kleicha::init_draw_data() {
 	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::TORUS, vkt::MaterialType::SILVER, vkt::TextureType::NONE));
 	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::DOLPHIN, vkt::MaterialType::GOLD, vkt::TextureType::NONE));
 	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::SHUTTLE, vkt::MaterialType::NONE, vkt::TextureType::SHUTTLE));
-	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::PLANE, vkt::MaterialType::NONE, vkt::TextureType::CONCRETE));
+	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::PLANE, vkt::MaterialType::NONE, vkt::TextureType::BRICK));
+	//drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::PLANE, vkt::MaterialType::NONE, vkt::TextureType::CONCRETE));
 
 	for ([[maybe_unused]]const auto& light : m_lights) {
 		drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::SPHERE, vkt::MaterialType::NONE, vkt::TextureType::NONE, true));
@@ -502,8 +503,8 @@ void Kleicha::init_lights() {
 	};
 	m_lights.push_back(pointLight);
 
-	//pointLight.mPos = { 0.0f, 1.5f, -6.0f };
-	//m_lights.push_back(pointLight);
+	pointLight.mPos = { 0.0f, 1.5f, -6.0f };
+	m_lights.push_back(pointLight);
 
 	/*pointLight.mPos = {-6.0f, 1.5f, -5.0f};
 	m_lights.push_back(pointLight);*/
@@ -566,7 +567,7 @@ void Kleicha::init_samplers() {
 	VkSamplerCreateInfo textureSamplerInfo{ init::create_sampler_info(m_device, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_TRUE, 16.0f) };
 	VK_CHECK(vkCreateSampler(m_device.device, &textureSamplerInfo, nullptr, &m_textureSampler));
 
-	VkSamplerCreateInfo shadowSamplerInfo{ init::create_sampler_info(m_device, VK_FILTER_NEAREST, VK_FILTER_NEAREST, VK_SAMPLER_MIPMAP_MODE_NEAREST, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_FALSE, 0.0f, VK_COMPARE_OP_GREATER_OR_EQUAL) };
+	VkSamplerCreateInfo shadowSamplerInfo{ init::create_sampler_info(m_device, VK_FILTER_NEAREST, VK_FILTER_NEAREST, VK_SAMPLER_MIPMAP_MODE_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE, 0.0f, VK_COMPARE_OP_GREATER_OR_EQUAL) };
 	VK_CHECK(vkCreateSampler(m_device.device, &shadowSamplerInfo, nullptr, &m_shadowSampler));
 }
 
@@ -582,7 +583,7 @@ void Kleicha::init_write_descriptor_sets() {
 		utils::update_set_buffer_descriptor(m_device.device, frame.descriptorSet, 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, frame.materialBuffer.buffer);
 		utils::update_set_buffer_descriptor(m_device.device, frame.descriptorSet, 2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, frame.lightBuffer.buffer);
 
-		utils::update_set_image_sampler_descriptor(m_device.device, frame.descriptorSet, 3, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL, m_shadowSampler, frame.shadowMaps);
+		utils::update_set_image_sampler_descriptor(m_device.device, frame.descriptorSet, 3, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, m_shadowSampler, frame.shadowMaps);
 	}
 
 	utils::update_set_image_sampler_descriptor(m_device.device, m_globalDescSet, 3, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, m_textureSampler, m_textures);
@@ -896,7 +897,7 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 
 	// update light view
 	for (auto& light : m_lights)
-		light.view = utils::lookAt(light.mPos, glm::vec3{ 0.0f, 0.0f, 0.0f }, WORLD_UP);
+		light.viewProj = m_perspProj * utils::lookAt(light.mPos, glm::vec3{ 0.0f, 0.0f, 0.0f }, WORLD_UP);
 
 	// render pass
 	glm::mat4 view{ m_camera.getViewMatrix() };
@@ -916,6 +917,10 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 	m_meshTransforms[3].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, -0.9f, -3.0f }) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 5.0f, 5.0f, 5.0f });
 	m_meshTransforms[3].modelView = view * m_meshTransforms[3].model;
 	m_meshTransforms[3].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[3].modelView));
+
+	/*m_meshTransforms[4].model = glm::translate(glm::mat4{1.0f}, glm::vec3{0.0f, -1.9f, -3.0f}) * glm::scale(glm::mat4{1.0f}, glm::vec3{5.0f, 5.0f, 5.0f});
+	m_meshTransforms[4].modelView = view * m_meshTransforms[4].model;
+	m_meshTransforms[4].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[4].modelView));*/
 
 	// This is somewhat okay but not very robust as it depends on the light meshes being added last. This may be fine, it may not... We'll see and provide an alternative solution if needed.
 	std::size_t lightMeshIndStart{ m_meshTransforms.size() - m_lights.size() };

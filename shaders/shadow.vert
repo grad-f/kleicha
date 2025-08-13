@@ -41,7 +41,7 @@ struct Light {
 	vec3 attenuationFactors;
 	vec3 mPos;
 	vec3 mvPos;
-	mat4 view;
+	mat4 viewProj;
 };
 
 layout(binding = 0, set = 0) readonly buffer Vertices {
@@ -76,10 +76,10 @@ layout(push_constant) uniform constants {
 }pc;
 
 void main() {
-	//DrawData dd = draws[pc.drawId];
+	DrawData dd = draws[pc.drawId];
 
 	// we choose to perform out lighting computations in camera-space.
-	gl_Position = pc.perspectiveProj * lights[pc.lightId].view * transforms[pc.drawId].model * vec4(vertices[gl_VertexIndex].position, 1.0f);
+	gl_Position = lights[pc.lightId].viewProj * transforms[dd.transformIndex].model * vec4(vertices[gl_VertexIndex].position, 1.0f);
 
 	//debugPrintfEXT("%f | %f | %f\n", lights[0].mvPos.x, lights[0].mvPos.y, lights[0].mvPos.z);
 }

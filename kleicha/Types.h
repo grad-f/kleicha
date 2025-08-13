@@ -149,7 +149,7 @@ namespace vkt {
 		alignas(16)glm::vec3 attenuationFactors{};
 		alignas(16)glm::vec3 mPos{};
 		alignas(16)glm::vec3 mvPos{};
-		alignas(16)glm::mat4 view{};
+		alignas(16)glm::mat4 viewProj{};
 	};
 
 	struct Material {

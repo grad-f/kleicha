@@ -28,8 +28,7 @@ struct Light {
 	vec3 attenuationFactors;
 	vec3 mPos;
 	vec3 mvPos;
-	mat4 view;
-
+	mat4 viewProj;
 };
 
 layout(binding = 2, set = 0) readonly buffer Globals {
@@ -110,7 +109,7 @@ void main() {
 
 		// determine if this pixel fragment is occluded with respect to the this light (in shadow)
 		// applies light transformation to pixel fragment local pos then the B transform to map NDC to [0,1]
-		vec4 shadow_coord = B * pc.perspectiveProj * light.view * vec4(inVertWorld,1.0f);
+		vec4 shadow_coord = B * light.viewProj * vec4(inVertWorld,1.0f);
 
 		// textureProj homogenizes shadow_coord and uses the resulting vec3 to compare the depth of this pixel fragment and that of which is stored in the shadow map.
 		// returns 1.0f if pixel fragment's depth is greater (closer in our case) than that of what is stored.
@@ -145,12 +144,11 @@ void main() {
 				specular = light.specular.xyz * pow(max(cosPhi, 0.0f), material.shininess*3.0f);
 			}
 		}
-		
+
+		lightContrib += attenuationFactor * ambient;
 
 		if (notInShadow == 1.0f)
-			lightContrib += attenuationFactor * (ambient + diffuse + specular);
-		if (notInShadow == 0.0f)
-			lightContrib += attenuationFactor * ambient;
+			lightContrib += attenuationFactor * (diffuse + specular);
 
 		/*if (notInShadow == 1.0f)
 			lightContrib = vec3(1.0f, 0.0f, 0.0f);*/
