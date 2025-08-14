@@ -34,9 +34,14 @@ private:
 	VkCommandPool m_commandPool{};
 	VkCommandBuffer m_immCmdBuffer{};
 	VkFence m_immFence{};
+
 	VkPipelineLayout m_dummyPipelineLayout{};
-	VkPipeline m_renderPipeline{};
+	VkPipeline m_lightPipeline{};
+	VkPipeline m_lightShadowPipeline{};
 	VkPipeline m_shadowPipeline{};
+
+	bool m_enableShadows{ true };
+
 	VmaAllocator m_allocator{};
 
 	//global descriptor resources
@@ -67,7 +72,7 @@ private:
 	std::vector<vkt::Material> m_materials{};
 	std::vector<vkt::Light> m_lights{};
 
-	glm::mat4 m_perspProj{ utils::orthographicProj(glm::radians(60.0f),
+	glm::mat4 m_perspProj{ utils::orthographicProj(glm::radians(75.0f),
 		static_cast<float>(m_windowExtent.width) / m_windowExtent.height, 1000.0f, 0.1f) * utils::perspective(1000.0f, 0.1f) };
 
 	void init_vulkan();

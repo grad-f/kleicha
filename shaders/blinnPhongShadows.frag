@@ -57,6 +57,7 @@ layout (location = 1) in vec2 inUV;
 layout (location = 2) in flat int inTexID;
 layout (location = 3) in vec3 inNormal;
 layout (location = 4) in vec3 inVertView;
+layout (location = 5) in vec3 inVertWorld;
 
 layout (location = 0) out vec4 outColor;
 
@@ -102,6 +103,17 @@ void main() {
 		L = normalize(L);
 		H = normalize(L - inVertView);
 
+		// determine if this pixel fragment is occluded with respect to the this light (in shadow)
+		// applies light transformation to pixel fragment world pos then the bias to map NDC to [0,1] (technically not [0,1] because the shadow_coord has yet to be homogenized)
+		vec4 shadow_coord = globals.bias * light.viewProj * vec4(inVertWorld,1.0f);
+
+		// textureProj homogenizes shadow_coord and uses the resulting vec3 to compare the depth of this pixel fragment and that of which is stored in the shadow map.
+		// returns 1.0f if pixel fragment's depth is greater (closer in our case) than that of what is stored.
+		float notInShadow = textureProj(shadowSampler[i], shadow_coord);
+
+		//if(i == 0)
+			//debugPrintfEXT("%f | %f | %f\n", shadow_coord.x/shadow_coord.w, shadow_coord.y/shadow_coord.w, shadow_coord.z/shadow_coord.w);
+
 		attenuationFactor = 1.0f / (light.attenuationFactors.x + light.attenuationFactors.y * dist + light.attenuationFactors.z * dist * dist);
 
 		cosTheta = dot(N,L);
@@ -129,7 +141,13 @@ void main() {
 			}
 		}
 
-		lightContrib += attenuationFactor * (ambient + diffuse + specular);
+		lightContrib += attenuationFactor * ambient;
+
+		if (notInShadow == 1.0f)
+			lightContrib += attenuationFactor * (diffuse + specular);
+
+		/*if (notInShadow == 1.0f)
+			lightContrib = vec3(1.0f, 0.0f, 0.0f);*/
 	}		
 
 	if (dd.textureIndex > 0)

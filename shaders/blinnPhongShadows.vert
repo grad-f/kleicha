@@ -75,6 +75,7 @@ layout (location = 1) out vec2 outUV;
 layout (location = 2) out flat uint outTexID;
 layout (location = 3) out vec3 outNormal;
 layout (location = 4) out vec3 outVertView;
+layout (location = 5) out vec3 outVertWorld;
 
 layout(push_constant) uniform constants {
 	mat4 perspectiveProj;
@@ -101,8 +102,12 @@ void main() {
 	// vertex in camera space
 	outVertView = (	transform.modelView * vec4(vert.position, 1.0f)	).xyz;
 
+	// vertex in world space (to be transformed into light space in the frag kernel for shadow computatations)
+	outVertWorld = (	transform.model * vec4(vert.position, 1.0f)	).xyz;
 	outNormal = (	transform.modelViewInvTr * vec4(vert.normal, 1.0f)	).xyz;
 
 	gl_Position = pc.perspectiveProj * transform.modelView * vec4(vert.position, 1.0f);
 	outUV = vert.UV;
+
+	//debugPrintfEXT("%f | %f | %f\n", lights[0].mvPos.x, lights[0].mvPos.y, lights[0].mvPos.z);
 }
