@@ -169,6 +169,9 @@
     <None Include="..\shaders\blinnPhongShadows.frag">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="..\shaders\blinnPhongShadowsPCF.frag">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Image Include="..\textures\brick.png">

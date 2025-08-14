@@ -13,4 +13,6 @@ C:\VulkanSDK\1.4.313.1\Bin\glslc.exe shadow.frag -o frag_shadow.spv -g
 C:\VulkanSDK\1.4.313.1\Bin\glslc.exe blinnPhongShadows.vert -o vert_blinnPhongShadows.spv -g
 C:\VulkanSDK\1.4.313.1\Bin\glslc.exe blinnPhongShadows.frag -o frag_blinnPhongShadows.spv -g
 
+C:\VulkanSDK\1.4.313.1\Bin\glslc.exe blinnPhongShadowsPCF.frag -o frag_blinnPhongShadowsPCF.spv -g
+
 pause

@@ -1,0 +1,113 @@
+#version 450
+#extension GL_EXT_debug_printf : enable
+
+struct Vertex {
+	vec3 position;
+	vec2 UV;
+	vec3 normal;
+	vec3 tangent;
+	vec3 bitangent;
+};
+
+struct DrawData {
+	uint materialIndex;
+	uint textureIndex;
+	uint transformIndex;
+	uint isLight;
+};
+
+struct GlobalData {
+	vec4 ambientLight;
+	mat4 bias;
+	uint lightsCount;
+};
+
+struct Transform {
+		mat4 model;
+		mat4 modelView;
+		mat4 modelViewInvTr;
+};
+
+struct Material {
+	vec4 ambient;
+	vec4 diffuse;
+	vec4 specular;
+	float shininess;
+};
+
+struct Light {
+	vec4 ambient;
+	vec4 diffuse;
+	vec4 specular;
+	vec3 attenuationFactors;
+	vec3 mPos;
+	vec3 mvPos;
+	mat4 viewProj;
+};
+
+layout(binding = 0, set = 0) readonly buffer Vertices {
+	Vertex vertices[];
+};
+
+layout(binding = 1, set = 0) readonly buffer Draws {
+	DrawData draws[];
+};
+
+layout(binding = 2, set = 0) readonly buffer Globals {
+	GlobalData globals;
+};
+
+// view * model
+layout(binding = 0, set = 1) readonly buffer Transforms {
+	Transform transforms[];
+};
+
+layout(binding = 1, set = 1) readonly buffer Materials {
+	Material materials[];
+};
+
+layout(binding = 2, set = 1) readonly buffer Lights {
+	Light lights[];
+};
+
+layout (location = 0) out vec4 outVertColor;
+layout (location = 1) out vec2 outUV;
+layout (location = 2) out flat uint outTexID;
+layout (location = 3) out vec3 outNormal;
+layout (location = 4) out vec3 outVertView;
+layout (location = 5) out vec3 outVertWorld;
+
+layout(push_constant) uniform constants {
+	mat4 perspectiveProj;
+	uint drawId;
+	uint lightId;
+}pc;
+
+void main() {
+	DrawData dd = draws[pc.drawId];
+	outTexID = dd.materialIndex;
+	Vertex vert = vertices[gl_VertexIndex];
+	Transform transform = transforms[dd.transformIndex];
+
+	// if mesh light draw
+	if (dd.isLight > 0) {
+		gl_Position = pc.perspectiveProj * transform.modelView * vec4(vert.position, 1.0f);
+		outUV = vert.UV;
+		outVertColor = vec4(1.0f, 1.0f, 1.0f, 1.0f);
+		return;
+	}
+
+	// we choose to perform out lighting computations in camera-space.
+
+	// vertex in camera space
+	outVertView = (	transform.modelView * vec4(vert.position, 1.0f)	).xyz;
+
+	// vertex in world space (to be transformed into light space in the frag kernel for shadow computatations)
+	outVertWorld = (	transform.model * vec4(vert.position, 1.0f)	).xyz;
+	outNormal = (	transform.modelViewInvTr * vec4(vert.normal, 1.0f)	).xyz;
+
+	gl_Position = pc.perspectiveProj * transform.modelView * vec4(vert.position, 1.0f);
+	outUV = vert.UV;
+
+	//debugPrintfEXT("%f | %f | %f\n", lights[0].mvPos.x, lights[0].mvPos.y, lights[0].mvPos.z);
+}

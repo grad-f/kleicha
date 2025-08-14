@@ -177,7 +177,7 @@ void Kleicha::init_graphics_pipelines() {
 	VkShaderModule vertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_pyrTextured.spv") };
 	VkShaderModule fragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_pyrTextured.spv") };*/
 	VkShaderModule lightShadowVertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_blinnPhongShadows.spv") };
-	VkShaderModule lightShadowFragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_blinnPhongShadows.spv") };
+	VkShaderModule lightShadowFragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_blinnPhongShadowsPCF.spv") };
 
 	VkShaderModule lightVertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_blinnPhong.spv") };
 	VkShaderModule lightFragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_blinnPhong.spv") };
@@ -923,7 +923,7 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 	// render pass
 	glm::mat4 view{ m_camera.getViewMatrix() };
 	// TODO: Only update if there was an updated to a buffer
-	m_meshTransforms[0].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ -3.0f, 0.2f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, currentTime, glm::vec3{ 1.0f, .27f, .5f }) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 0.5f, 0.5f, 0.5f });
+	m_meshTransforms[0].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ -3.0f, 0.35f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, currentTime, glm::vec3{ 1.0f, .27f, .5f }) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 0.5f, 0.5f, 0.5f });
 	m_meshTransforms[0].modelView = view * m_meshTransforms[0].model;
 	m_meshTransforms[0].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[0].modelView));
 
@@ -931,7 +931,7 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 	m_meshTransforms[1].modelView = view * m_meshTransforms[1].model;
 	m_meshTransforms[1].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[1].modelView));
 
-	m_meshTransforms[2].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 3.0f, 0.0f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, currentTime, glm::vec3{ 0.0f, 1.0f, 0.0f }) /** glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 2.0f, 2.0f, 2.0f })*/;
+	m_meshTransforms[2].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 3.0f, 0.0f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, currentTime, glm::vec3{ 0.0f, 1.0f, 0.0f }) /*glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 2.0f, 2.0f, 2.0f })*/;
 	m_meshTransforms[2].modelView = view * m_meshTransforms[2].model;
 	m_meshTransforms[2].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[2].modelView));
 

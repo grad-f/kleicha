@@ -57,6 +57,7 @@ layout (location = 1) in vec2 inUV;
 layout (location = 2) in flat int inTexID;
 layout (location = 3) in vec3 inNormal;
 layout (location = 4) in vec3 inVertView;
+layout (location = 5) in vec3 inVertWorld;
 
 layout (location = 0) out vec4 outColor;
 
@@ -65,6 +66,13 @@ layout(push_constant) uniform constants {
 	uint drawId;
 	uint lightId;
 }pc;
+
+float shadowLookup(vec4 shadowPos, float offsetX, float offsetY, uint mapIndex) {
+	// determine whether the pixel fragment at the offset is in shadow (occluded)
+	float notInShadow = textureProj(shadowSampler[mapIndex], shadowPos + vec4(offsetX * 0.0005f * (shadowPos.w), offsetY * 0.001f * (shadowPos.w), 0.005f, 0.0f));
+
+	return notInShadow;
+}
 
 void main() {
 
@@ -94,7 +102,7 @@ void main() {
 	vec3 L;
 	vec3 H;
 
-	for (int i = 0; i < globals.lightsCount; ++i) {
+	for (uint i = 0; i < globals.lightsCount; ++i) {
 		light = lights[i];
 		L = light.mvPos - inVertView;
 		// compute distance between vertex and light
@@ -102,7 +110,33 @@ void main() {
 		L = normalize(L);
 		H = normalize(L - inVertView);
 
+		// determine if this pixel fragment is occluded with respect to the this light (in shadow)
+		// applies light transformation to pixel fragment world pos then the bias to map NDC to [0,1] (technically not [0,1] because the shadow_coord has yet to be homogenized)
+		vec4 shadow_coord = globals.bias * light.viewProj * vec4(inVertWorld,1.0f);
+
+		// textureProj homogenizes shadow_coord and uses the resulting vec3 to compare the depth of this pixel fragment and that of which is stored in the shadow map.
+		// returns 1.0f if pixel fragment's depth is greater (closer in our case) than that of what is stored.
+		float notInShadow = textureProj(shadowSampler[i], shadow_coord);
+
+		//if(i == 0)
+			//debugPrintfEXT("%f | %f | %f\n", shadow_coord.x/shadow_coord.w, shadow_coord.y/shadow_coord.w, shadow_coord.z/shadow_coord.w);
+
 		attenuationFactor = 1.0f / (light.attenuationFactors.x + light.attenuationFactors.y * dist + light.attenuationFactors.z * dist * dist);
+
+		// s here is for shadow
+		float sOffsetFactor = 2.5f;
+		
+		// compute 1 of 4 sample patterns for the given pixel fragment (0,0), (1,0), (0,1) or (1,1) and scale this by our offset factor
+		vec2 offset = mod(floor(gl_FragCoord.xy), 2.0f) * sOffsetFactor;
+
+		// Using the offsets, sample close-by pixel fragments are not in shadow
+		float sFactor = shadowLookup(shadow_coord, -1.5f * sOffsetFactor + offset.x, 1.5f * sOffsetFactor - offset.y, i);
+		sFactor +=		shadowLookup(shadow_coord, -1.5f * sOffsetFactor + offset.x, -0.5f * sOffsetFactor - offset.y, i);
+		sFactor +=		shadowLookup(shadow_coord, 0.5f * sOffsetFactor + offset.x, 1.5f * sOffsetFactor - offset.y, i);
+		sFactor +=		shadowLookup(shadow_coord, 0.5f * sOffsetFactor + offset.x, -0.5f * sOffsetFactor - offset.y, i);
+
+		// average samples
+		sFactor /= 4.0f;
 
 		cosTheta = dot(N,L);
 
@@ -128,8 +162,7 @@ void main() {
 				specular = light.specular.xyz * pow(max(cosPhi, 0.0f), material.shininess*3.0f);
 			}
 		}
-
-		lightContrib += attenuationFactor * (ambient + diffuse + specular);
+		lightContrib += attenuationFactor * ((sFactor * (diffuse + specular)) + ambient);
 	}		
 
 	if (dd.textureIndex > 0)
