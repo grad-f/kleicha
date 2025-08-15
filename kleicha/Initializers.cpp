@@ -36,14 +36,14 @@ namespace init {
 		return imageBarrier;
 	}
 
-	VkImageCreateInfo create_image_info(VkFormat format, VkExtent2D extent, VkImageUsageFlags usage, uint32_t mipLevels) {
+	VkImageCreateInfo create_image_info(VkFormat format, VkExtent2D extent, VkImageUsageFlags usage, uint32_t mipLevels, uint32_t layerCount) {
 		VkImageCreateInfo imageInfo{ .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
 		imageInfo.pNext = nullptr;
 		imageInfo.imageType = VK_IMAGE_TYPE_2D;
 		imageInfo.format = format;
 		imageInfo.extent = VkExtent3D{ extent.width, extent.height, 1U };
 		imageInfo.mipLevels = mipLevels;
-		imageInfo.arrayLayers = 1;
+		imageInfo.arrayLayers = layerCount;
 		imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
 		imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
 		imageInfo.usage = usage;
@@ -64,11 +64,11 @@ namespace init {
 	}
 
 
-	VkImageViewCreateInfo create_image_view_info(VkImage image, VkFormat format, VkImageAspectFlags aspectMask, uint32_t mipLevels) {
+	VkImageViewCreateInfo create_image_view_info(VkImage image, VkFormat format, VkImageAspectFlags aspectMask, uint32_t mipLevels, uint32_t layerCount) {
 		VkImageViewCreateInfo imageViewInfo{ .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
 		imageViewInfo.pNext = nullptr;
 		imageViewInfo.image = image;
-		imageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		imageViewInfo.viewType = (layerCount > 1) ? VK_IMAGE_VIEW_TYPE_2D_ARRAY : VK_IMAGE_VIEW_TYPE_2D;
 		imageViewInfo.format = format;
 		// allows us to remap image pixel components (changes how the image viewer interprets the image)
 		// VK_COMPONENT_SWIZZLE_IDENTITY effectively means don't remap.
@@ -82,7 +82,7 @@ namespace init {
 		imageViewInfo.subresourceRange.baseMipLevel = 0;
 		imageViewInfo.subresourceRange.levelCount = mipLevels;
 		imageViewInfo.subresourceRange.baseArrayLayer = 0;
-		imageViewInfo.subresourceRange.layerCount = 1;
+		imageViewInfo.subresourceRange.layerCount = layerCount;
 
 		return imageViewInfo;
 	}

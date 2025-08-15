@@ -49,7 +49,7 @@ layout(binding = 2, set = 1) readonly buffer Lights {
 };
 
 layout(set = 0, binding = 3) uniform sampler2D texSampler[];
-layout(set = 1, binding = 3) uniform sampler2DShadow shadowSampler[];
+layout(set = 1, binding = 3) uniform sampler2DArray shadowSampler[];
 
 
 layout (location = 0) in vec4 inColor;
@@ -67,9 +67,22 @@ layout(push_constant) uniform constants {
 	uint lightId;
 }pc;
 
+float textureProj(uint samplerIndex, vec4 shadowCoord) {
+	
+	// homogenize shadow coordinates
+	shadowCoord /= shadowCoord.w;
+
+	float closestDepth = texture(shadowSampler[samplerIndex], vec3(shadowCoord.xy, 0.0f)).r;
+
+	// if shadow map depth is greater than pixel fragment depth, the pixel fragment is in the shadow.
+	float notInShadow = closestDepth > shadowCoord.z ? 0.0f : 1.0f;
+
+	return notInShadow;
+}
+
 float shadowLookup(vec4 shadowPos, float offsetX, float offsetY, uint mapIndex) {
 	// determine whether the pixel fragment at the offset is in shadow (occluded)
-	float notInShadow = textureProj(shadowSampler[mapIndex], shadowPos + vec4(offsetX * 0.0005f * (shadowPos.w), offsetY * 0.001f * (shadowPos.w), 0.005f, 0.0f));
+	float notInShadow = textureProj(mapIndex, shadowPos + vec4(offsetX * 0.0005f * (1.0f - shadowPos.w), offsetY * 0.001f * (1.0f - shadowPos.w), 0.005f, 0.0f));
 
 	return notInShadow;
 }
@@ -114,10 +127,6 @@ void main() {
 		// applies light transformation to pixel fragment world pos then the bias to map NDC to [0,1] (technically not [0,1] because the shadow_coord has yet to be homogenized)
 		vec4 shadow_coord = globals.bias * light.viewProj * vec4(inVertWorld,1.0f);
 
-		// textureProj homogenizes shadow_coord and uses the resulting vec3 to compare the depth of this pixel fragment and that of which is stored in the shadow map.
-		// returns 1.0f if pixel fragment's depth is greater (closer in our case) than that of what is stored.
-		float notInShadow = textureProj(shadowSampler[i], shadow_coord);
-
 		//if(i == 0)
 			//debugPrintfEXT("%f | %f | %f\n", shadow_coord.x/shadow_coord.w, shadow_coord.y/shadow_coord.w, shadow_coord.z/shadow_coord.w);
 
@@ -137,6 +146,16 @@ void main() {
 
 		// average samples
 		sFactor /= 4.0f;
+
+		/*float endp = sOffsetFactor * 3.0f + sOffsetFactor / 2.0f;
+		float sFactor = 0.0f;
+		for (float m = -endp; m <= endp; m+=sOffsetFactor) {
+			for (float n = -endp; n <= endp; n+=sOffsetFactor) {
+				sFactor += shadowLookup(shadow_coord, m, n, i);
+			}
+		}
+
+		sFactor /= 64.0f;*/
 
 		cosTheta = dot(N,L);
 

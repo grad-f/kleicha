@@ -362,6 +362,8 @@ void Kleicha::init_image_buffers() {
 	VkImageCreateInfo depthImageInfo{ init::create_image_info(DEPTH_IMAGE_FORMAT, m_swapchain.imageExtent,
 		VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, 1) };
 
+	VkImageCreateInfo shadowImageInfo{ init::create_image_info(DEPTH_IMAGE_FORMAT, m_swapchain.imageExtent, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, 1, 6) };
+
 	VmaAllocationCreateInfo allocationInfo{};
 	allocationInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
 	allocationInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
@@ -374,15 +376,12 @@ void Kleicha::init_image_buffers() {
 	VkImageViewCreateInfo depthViewInfo{ init::create_image_view_info(depthImage.image, DEPTH_IMAGE_FORMAT, VK_IMAGE_ASPECT_DEPTH_BIT, 1) };
 	VK_CHECK(vkCreateImageView(m_device.device, &depthViewInfo, nullptr, &depthImage.imageView));
 
-	// append sample usage to depth image info for depth maps to be used as shadow maps
-	depthImageInfo.usage |= VK_IMAGE_USAGE_SAMPLED_BIT;
-
 	// allocate per frame shadow maps that'll be used as depth attachments in their own passes
 	for (auto& frame : m_frames) {
 		frame.shadowMaps.resize(m_lights.size());
 		for (auto& shadowMap : frame.shadowMaps) {
-			VK_CHECK(vmaCreateImage(m_allocator, &depthImageInfo, &allocationInfo, &shadowMap.image, &shadowMap.allocation, &shadowMap.allocationInfo));
-			VkImageViewCreateInfo shadowViewInfo{ init::create_image_view_info(shadowMap.image, DEPTH_IMAGE_FORMAT, VK_IMAGE_ASPECT_DEPTH_BIT, shadowMap.mipLevels) };
+			VK_CHECK(vmaCreateImage(m_allocator, &shadowImageInfo, &allocationInfo, &shadowMap.image, &shadowMap.allocation, &shadowMap.allocationInfo));
+			VkImageViewCreateInfo shadowViewInfo{ init::create_image_view_info(shadowMap.image, DEPTH_IMAGE_FORMAT, VK_IMAGE_ASPECT_DEPTH_BIT, shadowMap.mipLevels, 6) };
 			VK_CHECK(vkCreateImageView(m_device.device, &shadowViewInfo, nullptr, &shadowMap.imageView));
 		}
 	}
@@ -583,7 +582,7 @@ void Kleicha::init_samplers() {
 	VkSamplerCreateInfo textureSamplerInfo{ init::create_sampler_info(m_device, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_TRUE, 16.0f) };
 	VK_CHECK(vkCreateSampler(m_device.device, &textureSamplerInfo, nullptr, &m_textureSampler));
 
-	VkSamplerCreateInfo shadowSamplerInfo{ init::create_sampler_info(m_device, VK_FILTER_NEAREST, VK_FILTER_NEAREST, VK_SAMPLER_MIPMAP_MODE_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE, 0.0f, VK_COMPARE_OP_GREATER_OR_EQUAL) };
+	VkSamplerCreateInfo shadowSamplerInfo{ init::create_sampler_info(m_device, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_MIPMAP_MODE_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE, 0.0f, VK_COMPARE_OP_GREATER_OR_EQUAL) };
 	VK_CHECK(vkCreateSampler(m_device.device, &shadowSamplerInfo, nullptr, &m_shadowSampler));
 }
 
@@ -931,7 +930,7 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 	m_meshTransforms[1].modelView = view * m_meshTransforms[1].model;
 	m_meshTransforms[1].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[1].modelView));
 
-	m_meshTransforms[2].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 3.0f, 0.0f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, currentTime, glm::vec3{ 0.0f, 1.0f, 0.0f }) /*glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 2.0f, 2.0f, 2.0f })*/;
+	m_meshTransforms[2].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 3.0f, 0.0f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, currentTime, glm::vec3{0.0f, 1.0f, 0.0f}) /*glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 2.0f, 2.0f, 2.0f })*/;
 	m_meshTransforms[2].modelView = view * m_meshTransforms[2].model;
 	m_meshTransforms[2].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[2].modelView));
 
