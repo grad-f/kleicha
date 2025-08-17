@@ -90,6 +90,7 @@ void Kleicha::init_vulkan() {
 	std::vector<const char*> deviceExtensions{ VK_KHR_SWAPCHAIN_EXTENSION_NAME };
 	vkt::DeviceFeatures deviceFeatures{};
 	deviceFeatures.VkFeatures.features.samplerAnisotropy = true;
+	deviceFeatures.Vk11Features.multiview = true;
 	deviceFeatures.Vk12Features.runtimeDescriptorArray = true;
 	deviceFeatures.Vk12Features.timelineSemaphore = true;
 	deviceFeatures.Vk12Features.bufferDeviceAddress = true;
@@ -185,6 +186,9 @@ void Kleicha::init_graphics_pipelines() {
 	VkShaderModule shadowVertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_shadow.spv") };
 	VkShaderModule shadowFragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_shadow.spv") };
 
+	VkShaderModule cubeShadowVertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_omniShadow.spv") };
+	VkShaderModule cubeShadowFragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_omniShadow.spv") };
+
 	PipelineBuilder pipelineBuilder{ m_device.device };
 	pipelineBuilder.pipelineLayout = m_dummyPipelineLayout;
 	pipelineBuilder.set_shaders(lightShadowVertModule, lightShadowFragModule);								//ccw winding
@@ -202,6 +206,12 @@ void Kleicha::init_graphics_pipelines() {
 	pipelineBuilder.disable_color_output();
 	m_shadowPipeline = pipelineBuilder.build();
 
+	pipelineBuilder.set_shaders(cubeShadowVertModule, cubeShadowFragModule);
+	pipelineBuilder.enable_color_output();
+	pipelineBuilder.set_view_mask(0b111111);
+	m_cubeShadowPipeline = pipelineBuilder.build();
+
+
 	// we're free to destroy shader modules after pipeline creation
 	vkDestroyShaderModule(m_device.device, lightShadowVertModule, nullptr);
 	vkDestroyShaderModule(m_device.device, lightShadowFragModule, nullptr);
@@ -209,6 +219,8 @@ void Kleicha::init_graphics_pipelines() {
 	vkDestroyShaderModule(m_device.device, lightFragModule, nullptr);
 	vkDestroyShaderModule(m_device.device, shadowVertModule, nullptr);
 	vkDestroyShaderModule(m_device.device, shadowFragModule, nullptr);
+	vkDestroyShaderModule(m_device.device, cubeShadowVertModule, nullptr);
+	vkDestroyShaderModule(m_device.device, cubeShadowFragModule, nullptr);
 }
 
 void Kleicha::init_descriptors() {
@@ -362,7 +374,13 @@ void Kleicha::init_image_buffers() {
 	VkImageCreateInfo depthImageInfo{ init::create_image_info(DEPTH_IMAGE_FORMAT, m_swapchain.imageExtent,
 		VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, 1) };
 
-	VkImageCreateInfo shadowImageInfo{ init::create_image_info(DEPTH_IMAGE_FORMAT, m_swapchain.imageExtent, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, 1, 6) };
+	VkImageCreateInfo shadowImageInfo{ init::create_image_info(DEPTH_IMAGE_FORMAT, m_swapchain.imageExtent, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, 1) };
+
+
+	// to-do: not all images here need to be recreated on window resize, we should decouple this behavior to avoid unnecessary reallocations
+	VkImageCreateInfo cubeShadowColorImageInfo{ init::create_image_info(VK_FORMAT_R32_SFLOAT, SHADOW_CUBE_EXTENT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, 1, 6) };
+
+	VkImageCreateInfo cubeShadowDepthImageInfo{ init::create_image_info(DEPTH_IMAGE_FORMAT, SHADOW_CUBE_EXTENT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, 1, 6) };
 
 	VmaAllocationCreateInfo allocationInfo{};
 	allocationInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
@@ -379,10 +397,23 @@ void Kleicha::init_image_buffers() {
 	// allocate per frame shadow maps that'll be used as depth attachments in their own passes
 	for (auto& frame : m_frames) {
 		frame.shadowMaps.resize(m_lights.size());
+		frame.cubeShadowMaps.resize(m_lights.size());
 		for (auto& shadowMap : frame.shadowMaps) {
+			// create regular (depth) shadow maps
 			VK_CHECK(vmaCreateImage(m_allocator, &shadowImageInfo, &allocationInfo, &shadowMap.image, &shadowMap.allocation, &shadowMap.allocationInfo));
-			VkImageViewCreateInfo shadowViewInfo{ init::create_image_view_info(shadowMap.image, DEPTH_IMAGE_FORMAT, VK_IMAGE_ASPECT_DEPTH_BIT, shadowMap.mipLevels, 6) };
+			VkImageViewCreateInfo shadowViewInfo{ init::create_image_view_info(shadowMap.image, DEPTH_IMAGE_FORMAT, VK_IMAGE_ASPECT_DEPTH_BIT, shadowMap.mipLevels)};
 			VK_CHECK(vkCreateImageView(m_device.device, &shadowViewInfo, nullptr, &shadowMap.imageView));
+		}
+
+		// create cube shadow maps that wioll store world space distance between surface point and light
+		for (auto& cubeShadowMap : frame.cubeShadowMaps) {
+			VK_CHECK(vmaCreateImage(m_allocator, &cubeShadowColorImageInfo, &allocationInfo, &cubeShadowMap.colorImage.image, &cubeShadowMap.colorImage.allocation, &cubeShadowMap.colorImage.allocationInfo));
+			VkImageViewCreateInfo shadowCubeViewInfo{ init::create_image_view_info(cubeShadowMap.colorImage.image, VK_FORMAT_R32_SFLOAT, VK_IMAGE_ASPECT_COLOR_BIT, 1, VK_REMAINING_ARRAY_LAYERS) };
+			VK_CHECK(vkCreateImageView(m_device.device, &shadowCubeViewInfo, nullptr, &cubeShadowMap.colorImage.imageView));
+
+			VK_CHECK(vmaCreateImage(m_allocator, &cubeShadowDepthImageInfo, &allocationInfo, &cubeShadowMap.depthImage.image, &cubeShadowMap.depthImage.allocation, &cubeShadowMap.depthImage.allocationInfo));
+			VkImageViewCreateInfo shadowCubeDepthViewInfo{ init::create_image_view_info(cubeShadowMap.depthImage.image, DEPTH_IMAGE_FORMAT, VK_IMAGE_ASPECT_DEPTH_BIT, cubeShadowMap.depthImage.mipLevels) };
+			vkCreateImageView(m_device.device, &shadowCubeDepthViewInfo, nullptr, &cubeShadowMap.depthImage.imageView);
 		}
 	}
 
@@ -393,11 +424,14 @@ void Kleicha::init_image_buffers() {
 		utils::image_memory_barrier(cmdBuffer, VK_PIPELINE_STAGE_2_NONE, VK_ACCESS_2_NONE, VK_PIPELINE_STAGE_2_NONE, VK_ACCESS_2_NONE, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, depthImage.image, depthImage.mipLevels);
 
 		for (auto& frame : m_frames) {
-			frame.shadowMaps.resize(m_lights.size());
 			for (auto& shadowMap : frame.shadowMaps) {
 				utils::image_memory_barrier(cmdBuffer, VK_PIPELINE_STAGE_2_NONE, VK_ACCESS_2_NONE, VK_PIPELINE_STAGE_2_NONE, VK_ACCESS_2_NONE, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, shadowMap.image, shadowMap.mipLevels);
 			}
-		}
+
+			for (auto& cubeShadowMap : frame.cubeShadowMaps) {
+				utils::image_memory_barrier(cmdBuffer, VK_PIPELINE_STAGE_2_NONE, VK_ACCESS_2_NONE, VK_PIPELINE_STAGE_2_NONE, VK_ACCESS_2_NONE, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, cubeShadowMap.depthImage.image, cubeShadowMap.depthImage.mipLevels);
+			}
+		}	
 		});
 }
 
@@ -582,7 +616,7 @@ void Kleicha::init_samplers() {
 	VkSamplerCreateInfo textureSamplerInfo{ init::create_sampler_info(m_device, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_TRUE, 16.0f) };
 	VK_CHECK(vkCreateSampler(m_device.device, &textureSamplerInfo, nullptr, &m_textureSampler));
 
-	VkSamplerCreateInfo shadowSamplerInfo{ init::create_sampler_info(m_device, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_MIPMAP_MODE_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FALSE, 0.0f, VK_COMPARE_OP_GREATER_OR_EQUAL) };
+	VkSamplerCreateInfo shadowSamplerInfo{ init::create_sampler_info(m_device, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_MIPMAP_MODE_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE) };
 	VK_CHECK(vkCreateSampler(m_device.device, &shadowSamplerInfo, nullptr, &m_shadowSampler));
 }
 
@@ -715,16 +749,24 @@ vkt::Image Kleicha::upload_texture_image(const char* filePath) {
 
 void Kleicha::deallocate_frame_images() const {
 
-	vmaDestroyImage(m_allocator, rasterImage.image, rasterImage.allocation);
 	vkDestroyImageView(m_device.device, rasterImage.imageView, nullptr);
+	vmaDestroyImage(m_allocator, rasterImage.image, rasterImage.allocation);
 
-	vmaDestroyImage(m_allocator, depthImage.image, depthImage.allocation);
 	vkDestroyImageView(m_device.device, depthImage.imageView, nullptr);
+	vmaDestroyImage(m_allocator, depthImage.image, depthImage.allocation);
 
 	for (const auto& frame : m_frames) {
 		for (const auto& shadowMap : frame.shadowMaps) {
 			vmaDestroyImage(m_allocator, shadowMap.image, shadowMap.allocation);
 			vkDestroyImageView(m_device.device, shadowMap.imageView, nullptr);
+		}
+
+		for (const auto& cubeShadowMap : frame.cubeShadowMaps) {
+			vkDestroyImageView(m_device.device, cubeShadowMap.colorImage.imageView, nullptr);
+			vmaDestroyImage(m_allocator, cubeShadowMap.colorImage.image, cubeShadowMap.colorImage.allocation);
+
+			vkDestroyImageView(m_device.device, cubeShadowMap.depthImage.imageView, nullptr);
+			vmaDestroyImage(m_allocator, cubeShadowMap.depthImage.image, cubeShadowMap.depthImage.allocation);
 		}
 	}
 
@@ -788,7 +830,7 @@ void Kleicha::recreate_swapchain() {
 	set_window_extent(supportDetails.value().capabilities.currentExtent);
 	m_device.physicalDevice.surfaceSupportDetails = supportDetails.value();
 	// recompute perspective proj matrix as the aspect ratio may have changed
-	m_perspProj = utils::orthographicProj(glm::radians(73.0f),
+	m_perspProj = utils::orthographicProj(glm::radians(90.0f),
 		static_cast<float>(m_windowExtent.width) / m_windowExtent.height, 1000.0f, 0.1f) * utils::perspective(1000.0f, 0.1f);
 	init_swapchain();
 	init_image_buffers();
@@ -871,48 +913,41 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 	// implicitly resets command buffer and places it in recording state
 	VK_CHECK(vkBeginCommandBuffer(frame.cmdBuffer, &cmdBufferBeginInfo));
 
+
+	std::vector<VkImageMemoryBarrier2> imageMemoryBarriers{};
+
 	// forms a dependency chain with vkAcquireNextImageKHR signal semaphore. when semaphores are signaled, all pending writes are made available. i dont need to do this manually here
 	VkImageMemoryBarrier2 rastertoTransferDst{ init::create_image_barrier_info(VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_PIPELINE_STAGE_2_NONE,
 		VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
 		VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, rasterImage.image, rasterImage.mipLevels) };
 
+	imageMemoryBarriers.emplace_back(rastertoTransferDst);
+
 	VkImageMemoryBarrier2 scToTransferDst{ init::create_image_barrier_info(VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0,
 		VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, m_swapchain.images[imageIndex], 1) };
+	imageMemoryBarriers.emplace_back(scToTransferDst);
 
-	// batch this to avoid unnecessary driver overhead
-	VkImageMemoryBarrier2 imageBarriers[]{ rastertoTransferDst, scToTransferDst };
+	// transition frame shadow cube map layouts to color attachment output
+	for (auto& cubeShadowMap : frame.cubeShadowMaps) {
+		VkImageMemoryBarrier2 cubeMapToColorAttachment{ init::create_image_barrier_info(VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_NONE, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, 
+			VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, cubeShadowMap.colorImage.image, 1) };
+		imageMemoryBarriers.emplace_back(cubeMapToColorAttachment);
+	}
 
 	// transition swapchain image to VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
 	VkDependencyInfo dependencyInfo{ .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
 	dependencyInfo.pNext = nullptr;
-	dependencyInfo.imageMemoryBarrierCount = 2;
-	dependencyInfo.pImageMemoryBarriers = imageBarriers;
+	dependencyInfo.imageMemoryBarrierCount = static_cast<uint32_t>(imageMemoryBarriers.size());
+	dependencyInfo.pImageMemoryBarriers = imageMemoryBarriers.data();
 
 	// image memory barrier
 	vkCmdPipelineBarrier2(frame.cmdBuffer, &dependencyInfo);
-
-	// will be used to compute the viewport transformation (NDC to screen space)
-	VkViewport viewport{};
-	viewport.x = 0;
-	viewport.y = 0;
-	viewport.width = static_cast<float>(m_swapchain.imageExtent.width);
-	viewport.height = static_cast<float>(m_swapchain.imageExtent.height);
-	viewport.minDepth = 0.0f;
-	viewport.maxDepth = 1.0f;
-
-	VkRect2D scissor{};
-	scissor.offset.x = 0;
-	scissor.offset.y = 0;
-	scissor.extent = m_swapchain.imageExtent;
-
-	vkCmdSetViewport(frame.cmdBuffer, 0, 1, &viewport);
-	vkCmdSetScissor(frame.cmdBuffer, 0, 1, &scissor);
 
 	VkDescriptorSet descSets[]{ m_globalDescSet, frame.descriptorSet };
 	vkCmdBindDescriptorSets(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_dummyPipelineLayout, 0, std::size(descSets), descSets, 0, nullptr);
 	m_pushConstants.perspectiveProjection = m_perspProj;
 
-	m_perspProj = utils::orthographicProj(glm::radians(73.0f),
+	m_perspProj = utils::orthographicProj(glm::radians(90.0f),
 		static_cast<float>(m_windowExtent.width) / m_windowExtent.height, 1000.0f, 0.1f) * utils::perspective(1000.0f, 0.1f);
 
 	// update light view
@@ -962,12 +997,68 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 	// does not have the property 'VK_MEMORY_PROPERTY_HOST_COHERENT_BIT', we should make all host writes visible before
 	// the below draw calls using a pipeline barrier.
 
+	vkCmdBindIndexBuffer(frame.cmdBuffer, m_indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+
+	// will be used to compute the viewport transformation (NDC to screen space)
+	VkViewport viewport{};
+	viewport.x = 0;
+	viewport.y = 0;
+	viewport.width = static_cast<float>(SHADOW_CUBE_EXTENT.width);
+	viewport.height = static_cast<float>(SHADOW_CUBE_EXTENT.height);
+	viewport.minDepth = 0.0f;
+	viewport.maxDepth = 1.0f;
+
+	VkRect2D scissor{};
+	scissor.offset.x = 0;
+	scissor.offset.y = 0;
+	scissor.extent = SHADOW_CUBE_EXTENT;
+
+	vkCmdSetViewport(frame.cmdBuffer, 0, 1, &viewport);
+	vkCmdSetScissor(frame.cmdBuffer, 0, 1, &scissor);
+
 	VkClearValue colorDepthClearValue{};
 	colorDepthClearValue.color = { {0.0f, 0.0f, 0.0f, 0.0f} };
 	colorDepthClearValue.depthStencil = { {0.0f} };
-	// specify the attachments to be used during the rendering pass
-	VkRenderingAttachmentInfo colorAttachment{ init::create_rendering_attachment_info(rasterImage.imageView, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, &colorDepthClearValue) };
-	VkRenderingAttachmentInfo depthAttachment{ init::create_rendering_attachment_info(depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, &colorDepthClearValue) };
+
+
+	uint32_t viewMask{ 0b111111 };
+
+	VkRenderingInfo cubeShadowRenderingInfo{ .sType = VK_STRUCTURE_TYPE_RENDERING_INFO };
+	cubeShadowRenderingInfo.pNext = nullptr;
+	cubeShadowRenderingInfo.renderArea.extent = SHADOW_CUBE_EXTENT;
+	cubeShadowRenderingInfo.renderArea.offset = { 0,0 };
+	cubeShadowRenderingInfo.layerCount = 1;
+	cubeShadowRenderingInfo.viewMask = viewMask;
+	cubeShadowRenderingInfo.colorAttachmentCount = 1;
+
+	vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_cubeShadowPipeline);
+
+	for (uint32_t j{ 0 }; j < m_lights.size(); ++j) {
+		VkRenderingAttachmentInfo cubeColorAttachment{ init::create_rendering_attachment_info(frame.cubeShadowMaps[j].colorImage.imageView, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, &colorDepthClearValue)};
+		VkRenderingAttachmentInfo cubeDepthAttachment{ init::create_rendering_attachment_info(frame.cubeShadowMaps[j].depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, &colorDepthClearValue) };
+
+		cubeShadowRenderingInfo.pColorAttachments = &cubeColorAttachment;
+		cubeShadowRenderingInfo.pDepthAttachment = &cubeDepthAttachment;
+
+		vkCmdBeginRendering(frame.cmdBuffer, &cubeShadowRenderingInfo);
+		m_pushConstants.lightId = j;
+
+		for (std::uint32_t i{ 0 }; i < m_meshDrawData.size() - m_lights.size(); ++i) {
+			m_pushConstants.drawId = i;
+			vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
+			vkCmdDrawIndexed(frame.cmdBuffer, m_meshDrawData[i].indicesCount, 1, m_meshDrawData[i].indicesOffset, static_cast<int32_t>(m_meshDrawData[i].vertexOffset), 0);
+		}
+		vkCmdEndRendering(frame.cmdBuffer);
+	}
+
+
+	// will be used to compute the viewport transformation (NDC to screen space)
+	viewport.width = static_cast<float>(m_swapchain.imageExtent.width);
+	viewport.height = static_cast<float>(m_swapchain.imageExtent.height);
+	scissor.extent = m_swapchain.imageExtent;
+
+	vkCmdSetViewport(frame.cmdBuffer, 0, 1, &viewport);
+	vkCmdSetScissor(frame.cmdBuffer, 0, 1, &scissor);
 
 	VkRenderingInfo renderingInfo{ .sType = VK_STRUCTURE_TYPE_RENDERING_INFO };
 	renderingInfo.pNext = nullptr;
@@ -977,8 +1068,6 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 	renderingInfo.viewMask = 0; //we're not using multiview
 	renderingInfo.colorAttachmentCount = 0;
 	renderingInfo.pColorAttachments = nullptr;
-	
-	vkCmdBindIndexBuffer(frame.cmdBuffer, m_indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
 	if (m_enableShadows) {
 		vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_shadowPipeline);
@@ -990,7 +1079,7 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 			vkCmdBeginRendering(frame.cmdBuffer, &renderingInfo);
 
 			m_pushConstants.lightId = j;
-			;
+			
 			for (std::uint32_t i{ 0 }; i < m_meshDrawData.size() - m_lights.size(); ++i) {
 				m_pushConstants.drawId = i;
 				vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
@@ -1001,6 +1090,9 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 		}
 	}
 
+	// specify the attachments for second pass
+	VkRenderingAttachmentInfo colorAttachment{ init::create_rendering_attachment_info(rasterImage.imageView, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, &colorDepthClearValue) };
+	VkRenderingAttachmentInfo depthAttachment{ init::create_rendering_attachment_info(depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, &colorDepthClearValue) };
 	renderingInfo.colorAttachmentCount = 1;
 	renderingInfo.pColorAttachments = &colorAttachment;
 	renderingInfo.pDepthAttachment = &depthAttachment;
@@ -1013,7 +1105,6 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 
 	// begin a render pass
 	vkCmdBeginRendering(frame.cmdBuffer, &renderingInfo);
-
 	for (std::uint32_t i{0}; i < m_meshDrawData.size(); ++i) {
 		m_pushConstants.drawId = i;
 		vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
@@ -1155,6 +1246,7 @@ void Kleicha::cleanup() const {
 	vkDestroyPipeline(m_device.device, m_lightShadowPipeline, nullptr);
 	vkDestroyPipeline(m_device.device, m_lightPipeline, nullptr);
 	vkDestroyPipeline(m_device.device, m_shadowPipeline, nullptr);
+	vkDestroyPipeline(m_device.device, m_cubeShadowPipeline, nullptr);
 	vkDestroyPipelineLayout(m_device.device, m_dummyPipelineLayout, nullptr);
 
 	for (const auto& renderedSemaphore : m_renderedSemaphores) {

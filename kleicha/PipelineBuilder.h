@@ -26,11 +26,22 @@ public:
 	PipelineBuilder& set_color_attachment_format(VkFormat format);
 	PipelineBuilder& set_depth_attachment_format(VkFormat format);
 
-	PipelineBuilder& disable_color_output() {
-		m_color_output_disabled = true;
 
+	PipelineBuilder& enable_color_output() {
+		m_color_output_disabled = false;
 		return *this;
 	}
+
+	PipelineBuilder& disable_color_output() {
+		m_color_output_disabled = true;
+		return *this;
+	}
+
+	PipelineBuilder& set_view_mask(uint32_t viewMask) {
+		m_renderingInfo.viewMask = viewMask;
+		return *this;
+	}
+
 private:
 	std::vector<VkPipelineShaderStageCreateInfo>	m_shaderInfos{};
 	VkPipelineVertexInputStateCreateInfo			m_vertInputInfo{};

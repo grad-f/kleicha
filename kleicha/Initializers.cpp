@@ -29,7 +29,7 @@ namespace init {
 		imageBarrier.image = image;
 		imageBarrier.subresourceRange.aspectMask = (newLayout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
 		imageBarrier.subresourceRange.baseArrayLayer = 0;
-		imageBarrier.subresourceRange.layerCount = 1;
+		imageBarrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
 		imageBarrier.subresourceRange.baseMipLevel = 0;
 		imageBarrier.subresourceRange.levelCount = mipLevels;
 
@@ -50,6 +50,10 @@ namespace init {
 		imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 		imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
+		// cubemap
+		if (layerCount == 6)
+			imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
+
 		return imageInfo;
 	}
 
@@ -68,7 +72,7 @@ namespace init {
 		VkImageViewCreateInfo imageViewInfo{ .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
 		imageViewInfo.pNext = nullptr;
 		imageViewInfo.image = image;
-		imageViewInfo.viewType = (layerCount > 1) ? VK_IMAGE_VIEW_TYPE_2D_ARRAY : VK_IMAGE_VIEW_TYPE_2D;
+		imageViewInfo.viewType = (layerCount > 1) ? VK_IMAGE_VIEW_TYPE_CUBE : VK_IMAGE_VIEW_TYPE_2D;
 		imageViewInfo.format = format;
 		// allows us to remap image pixel components (changes how the image viewer interprets the image)
 		// VK_COMPONENT_SWIZZLE_IDENTITY effectively means don't remap.

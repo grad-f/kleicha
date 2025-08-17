@@ -64,6 +64,11 @@ namespace vkt {
 		uint32_t mipLevels{ 1 };
 	};
 
+	struct CubeImage {
+		Image colorImage{};
+		Image depthImage{};
+	};
+
 	struct Buffer {
 		VkBuffer buffer{};
 		VmaAllocation allocation{};
@@ -220,6 +225,7 @@ namespace vkt {
 		vkt::Buffer lightBuffer{};
 
 		std::vector<vkt::Image> shadowMaps{};
+		std::vector<vkt::CubeImage> cubeShadowMaps{};
 	};
 
 	// chained and encapsulated device features struct

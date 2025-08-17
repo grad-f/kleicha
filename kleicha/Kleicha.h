@@ -15,6 +15,7 @@ constexpr uint32_t MAX_FRAMES_IN_FLIGHT{ 2 };
 constexpr VkFormat INTERMEDIATE_IMAGE_FORMAT{ VK_FORMAT_R16G16B16A16_SFLOAT };
 constexpr VkFormat DEPTH_IMAGE_FORMAT{ VK_FORMAT_D32_SFLOAT };
 constexpr VkExtent2D INIT_WINDOW_EXTENT{ .width = 1600, .height = 900 };
+constexpr VkExtent2D SHADOW_CUBE_EXTENT{ .width = 1024, .height = 1024 };
 
 class Kleicha {
 public:
@@ -39,6 +40,7 @@ private:
 	VkPipeline m_lightPipeline{};
 	VkPipeline m_lightShadowPipeline{};
 	VkPipeline m_shadowPipeline{};
+	VkPipeline m_cubeShadowPipeline;
 
 	bool m_enableShadows{ true };
 
