@@ -1,5 +1,6 @@
 #version 450
 #extension GL_EXT_debug_printf : enable
+#extension GL_EXT_multiview : enable
 
 struct Vertex {
 	vec3 position;
@@ -43,6 +44,7 @@ struct Light {
 	vec3 mPos;
 	vec3 mvPos;
 	mat4 viewProj;
+	mat4 cubeViewProjs[6];
 };
 
 layout(binding = 0, set = 0) readonly buffer Vertices {
@@ -76,11 +78,14 @@ layout(push_constant) uniform constants {
 	uint lightId;
 }pc;
 
+layout(location = 0) out vec4 outVertWorld;
+
 void main() {
 	DrawData dd = draws[pc.drawId];
 
 	// we choose to perform out lighting computations in camera-space.
-	gl_Position = lights[pc.lightId].viewProj * transforms[dd.transformIndex].model * vec4(vertices[gl_VertexIndex].position, 1.0f);
+	gl_Position = lights[pc.lightId].cubeViewProjs[gl_ViewIndex] * transforms[dd.transformIndex].model * vec4(vertices[gl_VertexIndex].position, 1.0f);
+	outVertWorld = transforms[dd.transformIndex].model * vec4(vertices[gl_VertexIndex].position, 1.0f);
 
 	//debugPrintfEXT("%f | %f | %f\n", lights[0].mvPos.x, lights[0].mvPos.y, lights[0].mvPos.z);
 }

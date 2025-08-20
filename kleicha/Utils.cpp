@@ -141,6 +141,27 @@ namespace utils {
         vkUpdateDescriptorSets(device, 1, &writeDescriptorSetInfo, 0, nullptr);
     }
 
+    void update_set_image_sampler_descriptor(VkDevice device, VkDescriptorSet set, uint32_t binding, VkImageLayout imageSampledLayout, VkSampler sampler, const std::vector<vkt::CubeImage>& images) {
+
+        uint32_t imageCount{ static_cast<uint32_t>(images.size()) };
+
+        std::vector<VkDescriptorImageInfo> imageInfos(imageCount);
+
+        for (std::size_t i{ 0 }; i < imageCount; ++i) {
+            imageInfos[i].sampler = sampler;
+            imageInfos[i].imageView = images[i].colorImage.imageView;
+            imageInfos[i].imageLayout = imageSampledLayout;
+        }
+        VkWriteDescriptorSet writeDescriptorSetInfo{ .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+        writeDescriptorSetInfo.dstSet = set;
+        writeDescriptorSetInfo.dstBinding = binding;
+        writeDescriptorSetInfo.dstArrayElement = 0;
+        writeDescriptorSetInfo.descriptorCount = static_cast<uint32_t>(imageInfos.size());
+        writeDescriptorSetInfo.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        writeDescriptorSetInfo.pImageInfo = imageInfos.data();
+        vkUpdateDescriptorSets(device, 1, &writeDescriptorSetInfo, 0, nullptr);
+    }
+
 
 /*    vkt::IndexedMesh generate_cube_mesh() {
         return {

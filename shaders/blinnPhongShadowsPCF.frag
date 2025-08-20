@@ -30,6 +30,7 @@ struct Light {
 	vec3 mPos;
 	vec3 mvPos;
 	mat4 viewProj;
+	mat4 cubeViewProjs[6];
 };
 
 layout(binding = 2, set = 0) readonly buffer Globals {
@@ -50,7 +51,7 @@ layout(binding = 2, set = 1) readonly buffer Lights {
 
 layout(set = 0, binding = 3) uniform sampler2D texSampler[];
 layout(set = 1, binding = 3) uniform sampler2D shadowSampler[];
-
+layout(set = 1, binding = 4) uniform samplerCube cubeShadowSampler[];
 
 layout (location = 0) in vec4 inColor;
 layout (location = 1) in vec2 inUV;

@@ -18,4 +18,7 @@ C:\VulkanSDK\1.4.313.1\Bin\glslc.exe blinnPhongShadowsPCF.frag -o frag_blinnPhon
 C:\VulkanSDK\1.4.313.1\Bin\glslc.exe omniShadow.vert -o vert_omniShadow.spv -g
 C:\VulkanSDK\1.4.313.1\Bin\glslc.exe omniShadow.frag -o frag_omniShadow.spv -g
 
+C:\VulkanSDK\1.4.313.1\Bin\glslc.exe blinnPhongCubeShadowsPCF.frag -o frag_blinnPhongCubeShadowsPCF.spv -g
+
+
 pause

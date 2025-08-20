@@ -1,6 +1,6 @@
 #version 450
 #extension GL_EXT_nonuniform_qualifier : require
-#extension GL_EXT_debug_printf : enable
+//#extension GL_EXT_debug_printf : enable
 
 struct GlobalData {
 	vec4 ambientLight;
@@ -30,6 +30,7 @@ struct Light {
 	vec3 mPos;
 	vec3 mvPos;
 	mat4 viewProj;
+	mat4 cubeViewProjs[6];
 };
 
 layout(binding = 2, set = 0) readonly buffer Globals {
@@ -49,8 +50,8 @@ layout(binding = 2, set = 1) readonly buffer Lights {
 };
 
 layout(set = 0, binding = 3) uniform sampler2D texSampler[];
-layout(set = 1, binding = 3) uniform samplerCube shadowSampler[];
-
+layout(set = 1, binding = 3) uniform sampler2D shadowSampler[];
+layout(set = 1, binding = 4) uniform samplerCube cubeShadowSampler[];
 
 layout (location = 0) in vec4 inColor;
 layout (location = 1) in vec2 inUV;
@@ -66,6 +67,25 @@ layout(push_constant) uniform constants {
 	uint drawId;
 	uint lightId;
 }pc;
+
+float shadow_factor(uint samplerIndex, vec3 sampleDirection) {
+	
+	// sample depth of closest surface from the light's perspective at the sample direction
+	float lightClosestDepth = texture(cubeShadowSampler[samplerIndex], sampleDirection).r;
+
+	if (length(sampleDirection) < lightClosestDepth + 0.15f) {
+		return 1.0f;
+	}
+	else
+		return 0.5f;
+}
+
+/*float shadowLookup(vec4 shadowPos, float offsetX, float offsetY, uint mapIndex) {
+	// determine whether the pixel fragment at the offset is in shadow (occluded)
+	float notInShadow = textureProj(mapIndex, shadowPos + vec4(offsetX * 0.0005f * (1.0f - shadowPos.w), offsetY * 0.0011f * (1.0f - shadowPos.w), 0.005f, 0.0f));
+
+	return notInShadow;
+}*/
 
 void main() {
 
@@ -103,25 +123,16 @@ void main() {
 		L = normalize(L);
 		H = normalize(L - inVertView);
 
+		// compute direction vector from light to fragment in world space to sample light cube map with
+		vec3 fragmentToLight =  inVertWorld - light.mPos;
 
-		vec3 fragToLight = (inVertWorld - light.mPos);
+		float sFactor = shadow_factor(i, fragmentToLight);
 
-		fragToLight = vec3(fragToLight.xy, -fragToLight.z);
-		
-		float sampledDepth = texture(shadowSampler[i], fragToLight).r;
-
-		sampledDepth *= 1000.0f;
-
-		float dist = length(fragToLight);
-
-		float bias = 0.05f;
-		float notInShadow = (dist - bias < sampledDepth) ? 0.0f : 1.0f;
-
-		if(i == 0)
-			debugPrintfEXT("%f\n", sampledDepth);
+		//if(i == 0)
+			//debugPrintfEXT("%f | %f | %f\n", shadow_coord.x/shadow_coord.w, shadow_coord.y/shadow_coord.w, shadow_coord.z/shadow_coord.w);
 
 		attenuationFactor = 1.0f / (light.attenuationFactors.x + light.attenuationFactors.y * dist + light.attenuationFactors.z * dist * dist);
-
+		
 		cosTheta = dot(N,L);
 
 		// if the draw has a material
@@ -147,12 +158,7 @@ void main() {
 			}
 		}
 
-		//lightContrib += attenuationFactor * ((sFactor * (diffuse + specular)) + ambient);
-		
-		lightContrib += attenuationFactor * ambient;
-
-		if (notInShadow == 1.0f)
-			lightContrib += attenuationFactor * (diffuse + specular);
+		lightContrib += attenuationFactor * ((sFactor * (diffuse + specular)) + ambient);
 	}		
 
 	if (dd.textureIndex > 0)

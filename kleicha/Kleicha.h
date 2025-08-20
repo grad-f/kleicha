@@ -41,8 +41,10 @@ private:
 	VkPipeline m_lightShadowPipeline{};
 	VkPipeline m_shadowPipeline{};
 	VkPipeline m_cubeShadowPipeline;
+	VkPipeline m_lightCubeShadowPipeline{};
 
-	bool m_enableShadows{ true };
+	bool m_enableShadows{ false };
+	bool m_enableCubeShadows{ true };
 
 	VmaAllocator m_allocator{};
 
@@ -74,8 +76,10 @@ private:
 	std::vector<vkt::Material> m_materials{};
 	std::vector<vkt::Light> m_lights{};
 
+	glm::mat4 m_persp{ utils::perspective(1000.0f, 0.1f) };
+
 	glm::mat4 m_perspProj{ utils::orthographicProj(glm::radians(75.0f),
-		static_cast<float>(m_windowExtent.width) / m_windowExtent.height, 1000.0f, 0.1f) * utils::perspective(1000.0f, 0.1f) };
+		static_cast<float>(m_windowExtent.width) / m_windowExtent.height, 1000.0f, 0.1f) * m_persp };
 
 	void init_vulkan();
 	void init_swapchain();

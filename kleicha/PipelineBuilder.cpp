@@ -49,6 +49,16 @@ PipelineBuilder& PipelineBuilder::set_rasterizer_state(VkPolygonMode polygonMode
 	return *this;
 }
 
+PipelineBuilder& PipelineBuilder::set_color_blend_state(VkColorComponentFlags colorComponentFlags, VkBool32 blendEnable)
+{
+	m_colorBlendAttachmentState.colorWriteMask = colorComponentFlags;
+	m_colorBlendAttachmentState.blendEnable = blendEnable;;
+	m_colorBlendInfo.logicOpEnable = VK_FALSE;
+	m_colorBlendInfo.logicOp = VK_LOGIC_OP_COPY;
+
+	return *this;
+}
+
 // TO-DO: We will eventually switch to reverse depth, reflect that here
 PipelineBuilder& PipelineBuilder::set_depth_stencil_state(VkBool32 depthTestEnable) {
 	m_depthStencilInfo.depthTestEnable = depthTestEnable;
@@ -74,6 +84,7 @@ PipelineBuilder& PipelineBuilder::set_depth_attachment_format(VkFormat format) {
 	m_renderingInfo.depthAttachmentFormat = m_depthAttachmentFormat;
 	return *this;
 }
+
 
 VkPipeline PipelineBuilder::build() {
 
@@ -119,13 +130,9 @@ VkPipeline PipelineBuilder::build() {
 
 	pipelineInfo.pDepthStencilState = &m_depthStencilInfo;
 
-	VkPipelineColorBlendAttachmentState colorBlendAttachmentState{};
-	colorBlendAttachmentState.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-	colorBlendAttachmentState.blendEnable = VK_FALSE;
-	m_colorBlendInfo.logicOpEnable = VK_FALSE;
-	m_colorBlendInfo.logicOp = VK_LOGIC_OP_COPY;
+
 	m_colorBlendInfo.attachmentCount = 1;
-	m_colorBlendInfo.pAttachments = &colorBlendAttachmentState;
+	m_colorBlendInfo.pAttachments = &m_colorBlendAttachmentState;
 
 	pipelineInfo.pColorBlendState = &m_colorBlendInfo;
 

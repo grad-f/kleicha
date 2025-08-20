@@ -213,6 +213,7 @@
     <None Include="..\shaders\basic.vert" />
     <None Include="..\shaders\blinnPhong.frag" />
     <None Include="..\shaders\blinnPhong.vert" />
+    <None Include="..\shaders\blinnPhongCubeShadowsPCF.frag" />
     <None Include="..\shaders\blinnPhongShadows.frag" />
     <None Include="..\shaders\blinnPhongShadows.vert" />
     <None Include="..\shaders\blinnPhongShadowsPCF.frag" />

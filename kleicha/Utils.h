@@ -43,6 +43,8 @@ namespace utils {
         VkBuffer buffer, VkDeviceSize offset = 0, VkDeviceSize range = VK_WHOLE_SIZE);
 
     void update_set_image_sampler_descriptor(VkDevice device, VkDescriptorSet set, uint32_t binding, VkImageLayout imageSampledLayout, VkSampler sampler, const std::vector<vkt::Image>& images);
+    void update_set_image_sampler_descriptor(VkDevice device, VkDescriptorSet set, uint32_t binding, VkImageLayout imageSampledLayout, VkSampler sampler, const std::vector<vkt::CubeImage>& images);
+
 
     glm::mat4 lookAt(glm::vec3 eye, glm::vec3 lookat, glm::vec3 up);
     glm::mat4 perspective(float near, float far);

@@ -157,6 +157,7 @@ namespace vkt {
 		alignas(16)glm::vec3 mPos{};
 		alignas(16)glm::vec3 mvPos{};
 		alignas(16)glm::mat4 viewProj{};
+		alignas(16)glm::mat4 cubeViewProjs[6]{};
 	};
 
 	struct Material {
