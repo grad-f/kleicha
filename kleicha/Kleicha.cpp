@@ -181,7 +181,6 @@ void Kleicha::init_graphics_pipelines() {
 	VkShaderModule lightShadowFragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_blinnPhongShadowsPCF.spv") };
 
 	VkShaderModule lightCubeShadowFragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_blinnPhongCubeShadowsPCF.spv") };
-	VkShaderModule lightCubeShadowPCSSFragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_blinnPhongCubeShadowsPCSS.spv") };
 
 	VkShaderModule lightVertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_blinnPhong.spv") };
 	VkShaderModule lightFragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_blinnPhong.spv") };
@@ -205,10 +204,6 @@ void Kleicha::init_graphics_pipelines() {
 	pipelineBuilder.set_shaders(lightShadowVertModule, lightCubeShadowFragModule);
 	m_lightCubeShadowPipeline = pipelineBuilder.build();
 
-	pipelineBuilder.set_shaders(lightShadowVertModule, lightCubeShadowPCSSFragModule);
-	m_lightCubeShadowPCSSPipeline = pipelineBuilder.build();
-
-
 	pipelineBuilder.set_shaders(lightVertModule, lightFragModule);
 	m_lightPipeline = pipelineBuilder.build();
 
@@ -229,7 +224,6 @@ void Kleicha::init_graphics_pipelines() {
 	// we're free to destroy shader modules after pipeline creation
 	vkDestroyShaderModule(m_device.device, lightShadowVertModule, nullptr);
 	vkDestroyShaderModule(m_device.device, lightShadowFragModule, nullptr);
-	vkDestroyShaderModule(m_device.device, lightCubeShadowPCSSFragModule, nullptr);
 	vkDestroyShaderModule(m_device.device, lightCubeShadowFragModule, nullptr);
 	vkDestroyShaderModule(m_device.device, lightVertModule, nullptr);
 	vkDestroyShaderModule(m_device.device, lightFragModule, nullptr);
@@ -872,8 +866,7 @@ void Kleicha::start() {
 		ImGui::NewFrame();
 		
 		ImGui::Checkbox("Shadow Mapping (2D)", &m_enableShadows);
-		ImGui::Checkbox("Shadow Mapping PCF (Cube)", &m_enableCubeShadows);
-		ImGui::Checkbox("Shadow Mapping PCSS (Cube)", &m_enableCubeShadowsPCSS);
+		ImGui::Checkbox("Shadow Mapping (Cube)", &m_enableCubeShadows);
 
 		if (ImGui::CollapsingHeader("Lights")) {
 
@@ -1061,7 +1054,8 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 	VkClearValue colorClearValue{ {{FLT_MAX, 0.0f, 0.0f, 1.0f}} };
 	VkClearValue depthClearValue{ .depthStencil = {0.0f, 0U} };
 
-	if (m_enableCubeShadows || m_enableCubeShadowsPCSS) {
+	if (m_enableCubeShadows) {
+
 		vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_cubeShadowPipeline);
 		for (uint32_t j{ 0 }; j < m_lights.size(); ++j) {
 			VkRenderingAttachmentInfo cubeColorAttachment{ init::create_rendering_attachment_info(frame.cubeShadowMaps[j].colorImage.imageView, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, &colorClearValue) };
@@ -1138,8 +1132,6 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 		vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_lightShadowPipeline);
 	else if (m_enableCubeShadows)
 		vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_lightCubeShadowPipeline);
-	else if(m_enableCubeShadowsPCSS)
-		vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_lightCubeShadowPCSSPipeline);
 	else
 		vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_lightPipeline);
 
@@ -1287,7 +1279,6 @@ void Kleicha::cleanup() const {
 
 	vkDestroyPipeline(m_device.device, m_lightShadowPipeline, nullptr);
 	vkDestroyPipeline(m_device.device, m_lightCubeShadowPipeline, nullptr);
-	vkDestroyPipeline(m_device.device, m_lightCubeShadowPCSSPipeline, nullptr);
 	vkDestroyPipeline(m_device.device, m_lightPipeline, nullptr);
 	vkDestroyPipeline(m_device.device, m_shadowPipeline, nullptr);
 	vkDestroyPipeline(m_device.device, m_cubeShadowPipeline, nullptr);
