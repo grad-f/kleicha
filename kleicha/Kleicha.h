@@ -42,9 +42,11 @@ private:
 	VkPipeline m_shadowPipeline{};
 	VkPipeline m_cubeShadowPipeline;
 	VkPipeline m_lightCubeShadowPipeline{};
+	VkPipeline m_lightCubeShadowPCSSPipeline{};
 
 	bool m_enableShadows{ false };
-	bool m_enableCubeShadows{ true };
+	bool m_enableCubeShadows{ false };
+	bool m_enableCubeShadowsPCSS{ true };
 
 	VmaAllocator m_allocator{};
 
