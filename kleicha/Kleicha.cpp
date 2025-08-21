@@ -559,7 +559,7 @@ void Kleicha::init_lights() {
 		.diffuse = {0.6f, 0.6f, 0.6f, 1.0f},
 		.specular = {1.0f, 1.0f, 1.0f, 1.0f},
 		.attenuationFactors = {1.0f, 0.133f, 0.050f},
-		.mPos = {-7.0f, 6.0f, 3.3f}
+		.mPos = {3.089f, 1.204f, -2.67f}
 	};
 	m_lights.push_back(pointLight);
 

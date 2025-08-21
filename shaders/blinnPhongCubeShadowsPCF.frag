@@ -100,11 +100,12 @@ float computeShadow(uint sCubeMapIndex, vec3 wFragToLight) {
 	
 	// magnitude of pixel frag to light vector
 	float receiverDist = length(wFragToLight);
+	float vReceiverDist = length(inVertView);
 
 	float sFactor = 0.0f;
 	float bias = 0.25f;
 	uint samples = 16;
-	float diskRadius = (1.0f + (receiverDist / 1000.0f)) / 20.0f;
+	float diskRadius = (1.0f + (vReceiverDist / 1000.0f)) / 25.0f;
 
 	for (int i = 0; i < samples; ++i) {
 		float sampledDepth = texture(cubeShadowSampler[sCubeMapIndex], wFragToLight + offsetDirections[i] * diskRadius).r;
@@ -188,7 +189,7 @@ void main() {
 			}
 		}
 
-		lightContrib += attenuationFactor * ((sFactor * (diffuse + specular)	) + ambient);
+		lightContrib += attenuationFactor * ((sFactor * (diffuse + specular)) + ambient);
 	}		
 
 	if (dd.textureIndex > 0)
