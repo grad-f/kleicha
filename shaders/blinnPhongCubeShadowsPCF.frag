@@ -1,6 +1,6 @@
 #version 450
 #extension GL_EXT_nonuniform_qualifier : require
-//#extension GL_EXT_debug_printf : enable
+#extension GL_EXT_debug_printf : enable
 
 struct GlobalData {
 	vec4 ambientLight;
@@ -73,19 +73,49 @@ float shadow_factor(uint samplerIndex, vec3 sampleDirection) {
 	// sample depth of closest surface from the light's perspective at the sample direction
 	float lightClosestDepth = texture(cubeShadowSampler[samplerIndex], sampleDirection).r;
 
-	if (length(sampleDirection) < lightClosestDepth + 0.15f) {
+	if (length(sampleDirection) < lightClosestDepth + 0.05f) {
 		return 1.0f;
 	}
 	else
-		return 0.5f;
+		return 0.0f;
 }
 
-/*float shadowLookup(vec4 shadowPos, float offsetX, float offsetY, uint mapIndex) {
-	// determine whether the pixel fragment at the offset is in shadow (occluded)
-	float notInShadow = textureProj(mapIndex, shadowPos + vec4(offsetX * 0.0005f * (1.0f - shadowPos.w), offsetY * 0.0011f * (1.0f - shadowPos.w), 0.005f, 0.0f));
+vec3 offsetDirections[20] = vec3[]
+(
+   vec3( 1,  1,  1), vec3( 1, -1,  1), vec3(-1, -1,  1), vec3(-1,  1,  1), 
+   vec3( 1,  1, -1), vec3( 1, -1, -1), vec3(-1, -1, -1), vec3(-1,  1, -1),
+   vec3( 1,  1,  0), vec3( 1, -1,  0), vec3(-1, -1,  0), vec3(-1,  1,  0),
+   vec3( 1,  0,  1), vec3(-1,  0,  1), vec3( 1,  0, -1), vec3(-1,  0, -1),
+   vec3( 0,  1,  1), vec3( 0, -1,  1), vec3( 0, -1, -1), vec3( 0,  1, -1)
+); 
 
-	return notInShadow;
-}*/
+// determines whether the pixel fragment is in the shadow
+
+bool inShadow(uint sCubeMapIndex, vec3 wFragToLight, float receiverDist) {
+	return (receiverDist > texture(cubeShadowSampler[sCubeMapIndex], wFragToLight).r + 0.05f) ? true : false;
+}
+
+// approximates the fraction of samples in the vicinity of the pixel fragment that are not in shadow. This is then used to scale diffuse and specular contribution.
+float computeShadow(uint sCubeMapIndex, vec3 wFragToLight) {
+	
+	// magnitude of pixel frag to light vector
+	float receiverDist = length(wFragToLight);
+
+	float sFactor = 0.0f;
+	float bias = 0.25f;
+	uint samples = 16;
+	float diskRadius = (1.0f + (receiverDist / 1000.0f)) / 20.0f;
+
+	for (int i = 0; i < samples; ++i) {
+		float sampledDepth = texture(cubeShadowSampler[sCubeMapIndex], wFragToLight + offsetDirections[i] * diskRadius).r;
+		
+		// determines if pixel fragment not in shadow
+		if (sampledDepth + bias > receiverDist)
+			sFactor += 1.0f;
+	}
+
+	return sFactor /= float(samples);
+}
 
 void main() {
 
@@ -126,7 +156,7 @@ void main() {
 		// compute direction vector from light to fragment in world space to sample light cube map with
 		vec3 fragmentToLight =  inVertWorld - light.mPos;
 
-		float sFactor = shadow_factor(i, fragmentToLight);
+		float sFactor = computeShadow(i, fragmentToLight);
 
 		//if(i == 0)
 			//debugPrintfEXT("%f | %f | %f\n", shadow_coord.x/shadow_coord.w, shadow_coord.y/shadow_coord.w, shadow_coord.z/shadow_coord.w);
@@ -158,7 +188,7 @@ void main() {
 			}
 		}
 
-		lightContrib += attenuationFactor * ((sFactor * (diffuse + specular)) + ambient);
+		lightContrib += attenuationFactor * ((sFactor * (diffuse + specular)	) + ambient);
 	}		
 
 	if (dd.textureIndex > 0)
