@@ -1,6 +1,6 @@
 #version 450
 #extension GL_EXT_nonuniform_qualifier : require
-#extension GL_EXT_debug_printf : enable
+//#extension GL_EXT_debug_printf : enable
 
 struct GlobalData {
 	vec4 ambientLight;
@@ -70,18 +70,6 @@ layout(push_constant) uniform constants {
 	uint lightId;
 }pc;
 
-float shadow_factor(uint samplerIndex, vec3 sampleDirection) {
-	
-	// sample depth of closest surface from the light's perspective at the sample direction
-	float lightClosestDepth = texture(cubeShadowSampler[samplerIndex], sampleDirection).r;
-
-	if (length(sampleDirection) < lightClosestDepth + 0.05f) {
-		return 1.0f;
-	}
-	else
-		return 0.0f;
-}
-
 vec3 offsetDirections[64] = vec3[](
     // Original 20
     vec3( 1,  1,  1), vec3( 1, -1,  1), vec3(-1, -1,  1), vec3(-1,  1,  1), 
@@ -104,33 +92,69 @@ vec3 offsetDirections[64] = vec3[](
     vec3( 2,  2,  2), vec3(-2, -2, -2), vec3( 2, -2,  2), vec3(-2,  2, -2)
 );
 
-// determines whether the pixel fragment is in the shadow
+#define NEAR_PLANE 0.1f
+#define LIGHT_WORLD_SIZE 12.5f
+#define LIGHT_FRUSTUM_WIDTH 3.75f
+#define LIGHT_SIZE_UV (LIGHT_WORLD_SIZE / LIGHT_FRUSTUM_WIDTH)
+#define PCF_SAMPLES 32
+#define BLOCKER_SAMPLES 25
 
-bool inShadow(uint sCubeMapIndex, vec3 wFragToLight, float receiverDist) {
-	return (receiverDist > texture(cubeShadowSampler[sCubeMapIndex], wFragToLight).r + 0.05f) ? true : false;
+void findBlocker(uint sCubeMapIndex, out float avgBlockerDepth, out float numBlockers, vec3 wFragToLight, float receiverDist, float mappedReceiverDist, float lightSize) {
+
+		float searchWidth = lightSize * (mappedReceiverDist - NEAR_PLANE) / mappedReceiverDist;
+
+		float blockerSum = 0.0f;
+		numBlockers = 0;
+
+		// sample cube shadow map and accumulate depths
+		for (int i = 0; i < BLOCKER_SAMPLES; ++i) {
+			float depthSample = texture(cubeShadowSampler[sCubeMapIndex], wFragToLight + offsetDirections[i] * searchWidth).r;
+			
+			// is blocker
+			if (depthSample + 0.15f < receiverDist) {
+				blockerSum += depthSample;
+				numBlockers++;
+			}
+		}
+
+		avgBlockerDepth = (blockerSum * 0.001f) / numBlockers;
+
 }
 
-// approximates the fraction of samples in the vicinity of the pixel fragment that are not in shadow. This is then used to scale diffuse and specular contribution.
-float computeShadow(uint sCubeMapIndex, vec3 wFragToLight) {
+float computeShadow(uint sCubeMapIndex, vec3 wFragToLight, float lightSize) {
 	
 	// magnitude of pixel frag to light vector
 	float receiverDist = length(wFragToLight);
-	float vReceiverDist = length(inVertView);
+	float mappedReceiverDist = receiverDist * 0.001f;
+
+	// determine the average depth of blockers in the vicinity of this pixel fragment
+	float avgBlockerDepth = 0.0f;
+	float numBlockers = 0.0f;
+
+	findBlocker(sCubeMapIndex, avgBlockerDepth, numBlockers, wFragToLight, receiverDist, mappedReceiverDist, lightSize);
+
+	// not in shadow
+	if (numBlockers < 1.0f ) {
+		return 1.0f;	
+	}
+	
+	float penumbraRatio = (mappedReceiverDist - avgBlockerDepth) / avgBlockerDepth;
+	float filterRadius = penumbraRatio * lightSize * NEAR_PLANE / receiverDist;
 
 	float sFactor = 0.0f;
-	float bias = 0.25f;
-	uint samples = 32;
-	float diskRadius = (1.0f + (vReceiverDist / 1000.0f)) / 25.0f;
 
-	for (int i = 0; i < samples; ++i) {
-		float sampledDepth = texture(cubeShadowSampler[sCubeMapIndex], wFragToLight + offsetDirections[i] * diskRadius).r;
+	for (int i = 0; i < PCF_SAMPLES; ++i) {
+		float depthSample = texture(cubeShadowSampler[sCubeMapIndex], wFragToLight + offsetDirections[i] * filterRadius).r;
 		
-		// determines if pixel fragment not in shadow
-		if (sampledDepth + bias > receiverDist)
+		if (depthSample + 0.15f > receiverDist) {
 			sFactor += 1.0f;
+		}
+
 	}
 
-	return sFactor /= float(samples);
+	sFactor /= float(PCF_SAMPLES); 
+
+	return sFactor;
 }
 
 void main() {
@@ -171,8 +195,9 @@ void main() {
 
 		// compute direction vector from light to fragment in world space to sample light cube map with
 		vec3 fragmentToLight =  inVertWorld - light.mPos;
+		float lightSize = light.lightSize / light.frustumWidth;
 
-		float sFactor = computeShadow(i, fragmentToLight);
+		float sFactor = computeShadow(i, fragmentToLight, lightSize);
 
 		//if(i == 0)
 			//debugPrintfEXT("%f | %f | %f\n", shadow_coord.x/shadow_coord.w, shadow_coord.y/shadow_coord.w, shadow_coord.z/shadow_coord.w);
@@ -203,8 +228,7 @@ void main() {
 				specular = light.specular.xyz * pow(max(cosPhi, 0.0f), material.shininess*3.0f);
 			}
 		}
-
-		lightContrib += attenuationFactor * ((sFactor * (diffuse + specular)) + ambient);
+		lightContrib += (sFactor * (attenuationFactor * (diffuse + specular)) + attenuationFactor * ambient);
 	}		
 
 	if (dd.textureIndex > 0)

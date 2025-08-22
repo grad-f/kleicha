@@ -25,7 +25,9 @@ struct Light {
 	vec4 ambient;
 	vec4 diffuse;
 	vec4 specular;
+	float lightSize;
 	vec3 attenuationFactors;
+	float frustumWidth;
 	vec3 mPos;
 	vec3 mvPos;
 	mat4 viewProj;

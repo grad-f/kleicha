@@ -153,7 +153,9 @@ namespace vkt {
 		glm::vec4 ambient{};
 		glm::vec4 diffuse{};
 		glm::vec4 specular{};
+		float lightSize{};
 		alignas(16)glm::vec3 attenuationFactors{};
+		float frustumWidth{};
 		alignas(16)glm::vec3 mPos{};
 		alignas(16)glm::vec3 mvPos{};
 		alignas(16)glm::mat4 viewProj{};
