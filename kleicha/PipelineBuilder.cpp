@@ -130,7 +130,6 @@ VkPipeline PipelineBuilder::build() {
 
 	pipelineInfo.pDepthStencilState = &m_depthStencilInfo;
 
-
 	m_colorBlendInfo.attachmentCount = 1;
 	m_colorBlendInfo.pAttachments = &m_colorBlendAttachmentState;
 

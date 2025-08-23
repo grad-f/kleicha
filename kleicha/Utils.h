@@ -32,8 +32,8 @@ namespace utils {
 
 //    vkt::IndexedMesh generate_cube_mesh();
     vkt::Mesh generate_pyramid_mesh();
-    vkt::Mesh generate_sphere(uint32_t prec);
-    vkt::Mesh generate_torus(uint32_t prec, float inner, float outer);
+    vkt::Mesh generate_sphere(size_t prec);
+    vkt::Mesh generate_torus(size_t prec, float inner, float outer);
     vkt::Mesh load_obj_mesh(const char* filePath, vkt::MeshType meshType);
 
     vkt::Buffer create_buffer(VmaAllocator allocator, VkDeviceSize bufferSize, VkBufferUsageFlags bufferUsage,

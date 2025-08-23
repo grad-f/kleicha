@@ -2,10 +2,10 @@
 #include "Initializers.h"
 #include <unordered_map>
 
-#pragma warning(push, 0)
-#pragma warning(disable : 6054 6262 26495)
+#pragma warning(push)
+#pragma warning(disable : 26495 6262 6054)
 #define TINYOBJLOADER_IMPLEMENTATION
-#include <tiny_obj_loader.h>
+#include "tiny_obj_loader.h"
 #pragma warning(pop)
 
 namespace std {
@@ -226,17 +226,17 @@ namespace utils {
     }
 
     // procedurally generated sphere - prec defines the number of vertices per slice and number of slices
-    vkt::Mesh generate_sphere(uint32_t prec) {
+    vkt::Mesh generate_sphere(size_t prec) {
 
         // + 1 here is the additional aliased horizontal and vertical slice of vertices with different texture coordinates to resolve continuity issues at the edges of the texture
-        uint32_t vertexCount{ (prec + 1) * (prec + 1) };
-        uint32_t triangleCount{ prec * prec * 2 };
+        size_t vertexCount{ (prec + 1) * (prec + 1) };
+        size_t triangleCount{ prec * prec * 2 };
         // pre-allocate
         vkt::Mesh mesh{.meshType = vkt::MeshType::SPHERE};
         mesh.verts.resize(vertexCount);
         mesh.tInd.resize(triangleCount);
-        for (uint32_t i{ 0 }; i <= prec; ++i) { // traverse each slice
-            for (uint32_t j{ 0 }; j <= prec; ++j) {
+        for (size_t i{ 0 }; i <= prec; ++i) { // traverse each slice
+            for (size_t j{ 0 }; j <= prec; ++j) {
                 // compute vertex position -> goes from -1 to 1 in increments defined by prec
                 float y{ cos(glm::radians(180.0f - i * 180.0f / prec)) };
                 // slice radius
@@ -249,8 +249,8 @@ namespace utils {
         }
 
         // compute triangle indices
-        for (uint32_t i{ 0 }; i < prec; ++i) { // traverse each slice
-            for (uint32_t j{ 0 }; j < prec; ++j) {
+        for (size_t i{ 0 }; i < prec; ++i) { // traverse each slice
+            for (size_t j{ 0 }; j < prec; ++j) {
                 mesh.tInd[2 * (i * prec + j)] = { i * (prec + 1) + j, i * (prec + 1) + j + 1, (i + 1) * (prec + 1) + j };
                 mesh.tInd[2 * (i * prec + j) + 1] = { i * (prec + 1) + j + 1, (i + 1) * (prec + 1) + j + 1, (i + 1) * (prec + 1) + j };
             }
@@ -259,16 +259,16 @@ namespace utils {
         return mesh;
     }
 
-    vkt::Mesh generate_torus(uint32_t prec, float inner, float outer) {
-        uint32_t vertexCount{ (prec + 1) * (prec + 1) };
-        uint32_t triangleCount{ prec * prec * 2 };
+    vkt::Mesh generate_torus(size_t prec, float inner, float outer) {
+        size_t vertexCount{ (prec + 1) * (prec + 1) };
+        size_t triangleCount{ prec * prec * 2 };
 
         vkt::Mesh mesh{.meshType = vkt::MeshType::TORUS};
         mesh.verts.resize(vertexCount);
         mesh.tInd.resize(triangleCount);
 
         // compute vertices of first slice of torus
-        for (uint32_t i{ 0 }; i <= prec; ++i) {
+        for (size_t i{ 0 }; i <= prec; ++i) {
             // get ith vertex radian measure
             float vertRadians{ glm::radians(i * 360.0f / prec) };
 
@@ -288,10 +288,10 @@ namespace utils {
         }
 
         // for each of the vertices that make up the initial slice, we rotate them about the y axis
-        for (uint32_t ring{ 1 }; ring < prec + 1; ++ring) {
+        for (std::size_t ring{ 1 }; ring < prec + 1; ++ring) {
             // compute rotation amount
             float ringRadians{ glm::radians(ring * 360.0f / prec) };
-            for (uint32_t vert{ 0 }; vert < prec + 1; ++vert) {
+            for (std::size_t vert{ 0 }; vert < prec + 1; ++vert) {
                 glm::mat4 rMat{ glm::rotate(glm::mat4{1.0f}, ringRadians, glm::vec3{0.0f, 1.0f, 0.0f}) };
                 mesh.verts[ring * (prec + 1) + vert].position = rMat * glm::vec4{ mesh.verts[vert].position, 1.0f };
                 mesh.verts[ring * (prec + 1) + vert].UV = glm::vec2{static_cast<float>(ring * 3.0f) / prec, mesh.verts[vert].UV.t};
@@ -303,8 +303,8 @@ namespace utils {
             }
         }
 
-        for (uint32_t ring{0}; ring < prec; ++ring) {
-            for (uint32_t vert{ 0 }; vert < prec; ++vert) {
+        for (size_t ring{0}; ring < prec; ++ring) {
+            for (size_t vert{ 0 }; vert < prec; ++vert) {
                 mesh.tInd[2 * (ring * prec + vert)] = { ring * (prec + 1) + vert, (ring + 1) * (prec + 1) + vert, (ring * (prec + 1) + vert + 1) };
                 mesh.tInd[2 * (ring * prec + vert) + 1] = { (ring * (prec + 1) + vert + 1), (ring + 1) * (prec + 1) + vert, (ring + 1) * (prec + 1) + vert + 1 };
             }

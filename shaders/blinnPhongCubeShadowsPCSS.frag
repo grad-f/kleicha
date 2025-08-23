@@ -70,7 +70,7 @@ layout(push_constant) uniform constants {
 	uint lightId;
 }pc;
 
-vec3 offsetDirections[64] = vec3[](
+vec3 offsetDirections[128] = vec3[](
     // Original 20
     vec3( 1,  1,  1), vec3( 1, -1,  1), vec3(-1, -1,  1), vec3(-1,  1,  1), 
     vec3( 1,  1, -1), vec3( 1, -1, -1), vec3(-1, -1, -1), vec3(-1,  1, -1),
@@ -89,14 +89,31 @@ vec3 offsetDirections[64] = vec3[](
     vec3( 1,  1, -2), vec3(-1, -1,  2), vec3( 2,  1, -1), vec3(-2, -1,  1),
     vec3( 1, -1,  2), vec3(-1,  1, -2), vec3( 2, -1, -1), vec3(-2,  1,  1),
     vec3( 1, -2, -1), vec3(-1,  2,  1), vec3( 1,  2, -1), vec3(-1, -2,  1),
-    vec3( 2,  2,  2), vec3(-2, -2, -2), vec3( 2, -2,  2), vec3(-2,  2, -2)
+    vec3( 2,  2,  2), vec3(-2, -2, -2), vec3( 2, -2,  2), vec3(-2,  2, -2),
+
+    vec3( 3,  0,  0), vec3(-3,  0,  0), vec3( 0,  3,  0), vec3( 0, -3,  0),
+    vec3( 0,  0,  3), vec3( 0,  0, -3), vec3( 3,  3,  0), vec3(-3, -3,  0),
+    vec3( 3,  0,  3), vec3(-3,  0, -3), vec3( 0,  3,  3), vec3( 0, -3, -3),
+    vec3( 3, -3,  0), vec3(-3,  3,  0), vec3( 3,  0, -3), vec3(-3,  0,  3),
+    vec3( 0,  3, -3), vec3( 0, -3,  3), vec3( 1,  3,  1), vec3(-1, -3, -1),
+    vec3( 3,  1,  1), vec3(-3, -1, -1), vec3( 1,  1,  3), vec3(-1, -1, -3),
+    vec3( 3, -1,  1), vec3(-3,  1, -1), vec3( 1, -3,  1), vec3(-1,  3, -1),
+    vec3( 1,  1, -3), vec3(-1, -1,  3), vec3( 3,  1, -1), vec3(-3, -1,  1),
+    vec3( 1, -1,  3), vec3(-1,  1, -3), vec3( 3, -1, -1), vec3(-3,  1,  1),
+    vec3( 1, -3, -1), vec3(-1,  3,  1), vec3( 1,  3, -1), vec3(-1, -3,  1),
+    vec3( 3,  3,  3), vec3(-3, -3, -3), vec3( 3, -3,  3), vec3(-3,  3, -3),
+    vec3( 2,  3,  1), vec3(-2, -3, -1), vec3( 3,  2,  1), vec3(-3, -2, -1),
+    vec3( 1,  2,  3), vec3(-1, -2, -3), vec3( 3,  1,  2), vec3(-3, -1, -2),
+    vec3( 2, -3,  1), vec3(-2,  3, -1), vec3( 3, -2,  1), vec3(-3,  2, -1),
+    vec3( 1, -2,  3), vec3(-1,  2, -3), vec3( 3, -1,  2), vec3(-3,  1, -2),
+    vec3( 2,  2, -3), vec3(-2, -2,  3), vec3( 3,  2, -2), vec3(-3, -2,  2)
 );
 
 #define NEAR_PLANE 0.1f
 #define LIGHT_WORLD_SIZE 12.5f
 #define LIGHT_FRUSTUM_WIDTH 3.75f
 #define LIGHT_SIZE_UV (LIGHT_WORLD_SIZE / LIGHT_FRUSTUM_WIDTH)
-#define PCF_SAMPLES 32
+#define PCF_SAMPLES 128
 #define BLOCKER_SAMPLES 25
 
 void findBlocker(uint sCubeMapIndex, out float avgBlockerDepth, out float numBlockers, vec3 wFragToLight, float receiverDist, float mappedReceiverDist, float lightSize) {
@@ -111,7 +128,7 @@ void findBlocker(uint sCubeMapIndex, out float avgBlockerDepth, out float numBlo
 			float depthSample = texture(cubeShadowSampler[sCubeMapIndex], wFragToLight + offsetDirections[i] * searchWidth).r;
 			
 			// is blocker
-			if (depthSample + 0.15f < receiverDist) {
+			if (depthSample + 0.05f < receiverDist) {
 				blockerSum += depthSample;
 				numBlockers++;
 			}
@@ -146,7 +163,7 @@ float computeShadow(uint sCubeMapIndex, vec3 wFragToLight, float lightSize) {
 	for (int i = 0; i < PCF_SAMPLES; ++i) {
 		float depthSample = texture(cubeShadowSampler[sCubeMapIndex], wFragToLight + offsetDirections[i] * filterRadius).r;
 		
-		if (depthSample + 0.15f > receiverDist) {
+		if (depthSample + 0.05f > receiverDist) {
 			sFactor += 1.0f;
 		}
 

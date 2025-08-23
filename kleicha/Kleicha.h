@@ -15,7 +15,7 @@ constexpr uint32_t MAX_FRAMES_IN_FLIGHT{ 2 };
 constexpr VkFormat INTERMEDIATE_IMAGE_FORMAT{ VK_FORMAT_R16G16B16A16_SFLOAT };
 constexpr VkFormat DEPTH_IMAGE_FORMAT{ VK_FORMAT_D32_SFLOAT };
 constexpr VkExtent2D INIT_WINDOW_EXTENT{ .width = 1600, .height = 900 };
-constexpr VkExtent2D SHADOW_CUBE_EXTENT{ .width = 2048, .height = 2048 };
+constexpr VkExtent2D SHADOW_CUBE_EXTENT{ .width = 1024, .height = 1024 };
 
 class Kleicha {
 public:
@@ -94,7 +94,7 @@ private:
 	void init_draw_data();
 	void init_lights();
 	void init_materials();
-	void init_image_buffers();
+	void init_image_buffers(bool windowResized = false);
 	void init_dynamic_buffers();
 	void init_samplers();
 	void init_write_descriptor_sets();
