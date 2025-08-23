@@ -61,6 +61,7 @@ layout (location = 2) in flat int inTexID;
 layout (location = 3) in vec3 inNormal;
 layout (location = 4) in vec3 inVertView;
 layout (location = 5) in vec3 inVertWorld;
+layout (location = 6) in flat uint inDrawId;
 
 layout (location = 0) out vec4 outColor;
 
@@ -151,7 +152,7 @@ float computeShadow(uint sCubeMapIndex, vec3 wFragToLight) {
 
 void main() {
 
-	DrawData dd = draws[pc.drawId];
+	DrawData dd = draws[inDrawId];
 	
 	// early return if rendering light
 	if(dd.isLight != 0) {

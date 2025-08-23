@@ -59,5 +59,7 @@ layout(push_constant) uniform constants {
 	uint lightId;
 }pc;
 
+layout (location = 0) in flat uint inDrawId;
+
 void main() {
 }

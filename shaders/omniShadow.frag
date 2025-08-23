@@ -61,6 +61,7 @@ layout(push_constant) uniform constants {
 }pc;
 
 layout (location = 0) in vec4 inFragWorldPos;
+layout (location = 1) in flat uint inDrawId;
 
 void main() {
 	

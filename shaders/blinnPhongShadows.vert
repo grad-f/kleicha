@@ -1,5 +1,7 @@
 #version 450
+#extension GL_ARB_shader_draw_parameters : enable
 #extension GL_EXT_debug_printf : enable
+
 
 struct Vertex {
 	vec3 position;
@@ -79,6 +81,7 @@ layout (location = 2) out flat uint outTexID;
 layout (location = 3) out vec3 outNormal;
 layout (location = 4) out vec3 outVertView;
 layout (location = 5) out vec3 outVertWorld;
+layout (location = 6) out flat uint outDrawId;
 
 layout(push_constant) uniform constants {
 	mat4 perspectiveProj;
@@ -87,7 +90,8 @@ layout(push_constant) uniform constants {
 }pc;
 
 void main() {
-	DrawData dd = draws[pc.drawId];
+	DrawData dd = draws[gl_DrawIDARB];
+	outDrawId = gl_DrawIDARB;
 	outTexID = dd.materialIndex;
 	Vertex vert = vertices[gl_VertexIndex];
 	Transform transform = transforms[dd.transformIndex];

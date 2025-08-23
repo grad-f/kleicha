@@ -92,6 +92,8 @@ void Kleicha::init_vulkan() {
 	std::vector<const char*> deviceExtensions{ VK_KHR_SWAPCHAIN_EXTENSION_NAME };
 	vkt::DeviceFeatures deviceFeatures{};
 	deviceFeatures.VkFeatures.features.samplerAnisotropy = true;
+	deviceFeatures.VkFeatures.features.multiDrawIndirect = true;
+	deviceFeatures.Vk11Features.shaderDrawParameters = true;
 	deviceFeatures.Vk11Features.multiview = true;
 	deviceFeatures.Vk12Features.runtimeDescriptorArray = true;
 	deviceFeatures.Vk12Features.timelineSemaphore = true;
@@ -453,7 +455,7 @@ void Kleicha::init_image_buffers(bool windowResized) {
 			});
 	}
 
-std::vector<vkt::MeshDrawData> Kleicha::load_mesh_data() {
+std::vector<vkt::MeshBufferInfo> Kleicha::load_mesh_data() {
 
 	std::vector<vkt::Mesh> meshes{};
 	meshes.emplace_back(utils::generate_pyramid_mesh());
@@ -464,7 +466,7 @@ std::vector<vkt::MeshDrawData> Kleicha::load_mesh_data() {
 	meshes.emplace_back(utils::load_obj_mesh("../models/dolphin.obj", vkt::MeshType::DOLPHIN));
 	meshes.emplace_back(utils::load_obj_mesh("../models/sponza.obj", vkt::MeshType::PLANE));
 
-	std::vector<vkt::MeshDrawData> meshDrawData(meshes.size());
+	std::vector<vkt::MeshBufferInfo> meshBufferInfos(meshes.size());
 	// create unified vertex and index buffers for upload. meshDrawData will keep track of mesh buffer offsets within the unified buffer.
 	std::vector<vkt::Vertex> unifiedVertices{};
 	std::vector<glm::uvec3> unifiedTriangles{};
@@ -476,10 +478,10 @@ std::vector<vkt::MeshDrawData> Kleicha::load_mesh_data() {
 		std::uint32_t triangleCount{ static_cast<uint32_t>(unifiedTriangles.size()) };
 
 		// store vertex and index buffer mesh start positions
-		meshDrawData[i].meshType = meshes[i].meshType;
-		meshDrawData[i].vertexOffset = vertexCount;
-		meshDrawData[i].indicesOffset = triangleCount * glm::uvec3::length();
-		meshDrawData[i].indicesCount = static_cast<uint32_t>(meshes[i].tInd.size() * glm::uvec3::length());
+		meshBufferInfos[i].meshType = meshes[i].meshType;
+		meshBufferInfos[i].vertexOffset = vertexCount;
+		meshBufferInfos[i].indicesOffset = triangleCount * glm::uvec3::length();
+		meshBufferInfos[i].indicesCount = static_cast<uint32_t>(meshes[i].tInd.size() * glm::uvec3::length());
 
 		// allocate memory for mesh vertex data and insert it
 		unifiedVertices.reserve(vertexCount + meshes[i].verts.size());
@@ -493,16 +495,23 @@ std::vector<vkt::MeshDrawData> Kleicha::load_mesh_data() {
 	m_vertexBuffer = upload_data(unifiedVertices.data(), unifiedVertices.size() * sizeof(vkt::Vertex), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 	m_indexBuffer = upload_data(unifiedTriangles.data(), unifiedTriangles.size() * sizeof(glm::uvec3), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
 
-	return meshDrawData;
+	return meshBufferInfos;
 }
 
-vkt::DrawData Kleicha::create_draw(const std::vector<vkt::MeshDrawData>& canonicalMeshes, vkt::MeshType meshType, vkt::MaterialType materialType, vkt::TextureType textureType, bool isLight) {
+vkt::DrawData Kleicha::create_draw(const std::vector<vkt::MeshBufferInfo>& canonicalMeshes, vkt::MeshType meshType, vkt::MaterialType materialType, vkt::TextureType textureType, bool isLight) {
 	for (const auto& mesh : canonicalMeshes) {
 		if (mesh.meshType == meshType) {
-			m_meshDrawData.push_back(mesh);
 
-			vkt::DrawData drawDatum{ .materialIndex = static_cast<uint32_t>(materialType), .textureIndex = static_cast<uint32_t>(textureType), .transformIndex = static_cast<uint32_t>(m_meshDrawData.size()) - 1, .isLight = isLight };
+			VkDrawIndexedIndirectCommand drawIndirectCommand{};
+			drawIndirectCommand.indexCount = mesh.indicesCount;
+			drawIndirectCommand.instanceCount = 1;
+			drawIndirectCommand.firstIndex = mesh.indicesOffset;
+			drawIndirectCommand.vertexOffset = static_cast<int32_t>(mesh.vertexOffset);
+			drawIndirectCommand.firstInstance = 0;
 
+			m_drawIndirectParams.emplace_back(drawIndirectCommand);
+
+			vkt::DrawData drawDatum{ .materialIndex = static_cast<uint32_t>(materialType), .textureIndex = static_cast<uint32_t>(textureType), .transformIndex = static_cast<uint32_t>(m_drawIndirectParams.size()) - 1, .isLight = isLight };
 			return drawDatum;
 		}
 	}
@@ -513,23 +522,24 @@ vkt::DrawData Kleicha::create_draw(const std::vector<vkt::MeshDrawData>& canonic
 void Kleicha::init_draw_data() {
 
 	// an array where each element is a mesh i have loaded in. it stores the indices/reference data into the unified array on the graphics card
-	std::vector<vkt::MeshDrawData> canonicalMeshes{ load_mesh_data() };
+	std::vector<vkt::MeshBufferInfo> canonicalMeshBufferInfo{ load_mesh_data() };
 
 	std::vector<vkt::DrawData> drawData{};
-	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::TORUS, vkt::MaterialType::SILVER, vkt::TextureType::NONE));
-	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::DOLPHIN, vkt::MaterialType::GOLD, vkt::TextureType::NONE));
-	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::SPHERE, vkt::MaterialType::JADE, vkt::TextureType::NONE));
-	drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::PLANE, vkt::MaterialType::NONE, vkt::TextureType::BRICK));
+	drawData.push_back(create_draw(canonicalMeshBufferInfo, vkt::MeshType::TORUS, vkt::MaterialType::SILVER, vkt::TextureType::NONE));
+	drawData.push_back(create_draw(canonicalMeshBufferInfo, vkt::MeshType::DOLPHIN, vkt::MaterialType::GOLD, vkt::TextureType::NONE));
+	drawData.push_back(create_draw(canonicalMeshBufferInfo, vkt::MeshType::SPHERE, vkt::MaterialType::JADE, vkt::TextureType::NONE));
+	drawData.push_back(create_draw(canonicalMeshBufferInfo, vkt::MeshType::PLANE, vkt::MaterialType::NONE, vkt::TextureType::BRICK));
 	//drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::PLANE, vkt::MaterialType::NONE, vkt::TextureType::BRICK));
 
-	for ([[maybe_unused]]const auto& light : m_lights) {
-		drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::SPHERE, vkt::MaterialType::NONE, vkt::TextureType::NONE, true));
+	for ([[maybe_unused]] const auto& light : m_lights) {
+		drawData.push_back(create_draw(canonicalMeshBufferInfo, vkt::MeshType::SPHERE, vkt::MaterialType::NONE, vkt::TextureType::NONE, true));
 	}
 
+	m_drawParamsBuffer = upload_data(m_drawIndirectParams.data(), m_drawIndirectParams.size() * sizeof(VkDrawIndexedIndirectCommand), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT);
 	m_drawBuffer = upload_data(drawData.data(), drawData.size() * sizeof(vkt::DrawData), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 
-	m_meshTransforms.resize(m_meshDrawData.size());
-	
+	m_meshTransforms.resize(m_drawIndirectParams.size());
+
 	vkt::GlobalData globalData{};
 	globalData.ambientLight = glm::vec4{ 0.22f, 0.22f, 0.22f, 1.0f };
 	globalData.bias = glm::mat4{
@@ -544,10 +554,10 @@ void Kleicha::init_draw_data() {
 }
 
 void Kleicha::init_dynamic_buffers() {
-	
+
 	// allocate per frame buffers such as transform buffer
 	for (auto& frame : m_frames) {
-		frame.transformBuffer = utils::create_buffer(m_allocator, sizeof(vkt::Transform) * m_meshDrawData.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+		frame.transformBuffer = utils::create_buffer(m_allocator, sizeof(vkt::Transform) * m_drawIndirectParams.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
 			VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
 
 		frame.lightBuffer = utils::create_buffer(m_allocator, sizeof(vkt::Light) * m_lights.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
@@ -620,13 +630,13 @@ vkt::Buffer Kleicha::upload_data(void* data, VkDeviceSize bufferSize, VkBufferUs
 		vkCmdCopyBuffer(cmdBuffer, stageBuffer.buffer, deviceBuffer.buffer, 1, &bufferCopy);
 		});
 
-	 /* {
-		glm::vec3* pLocations{ reinterpret_cast<glm::vec3*>(stageBuffer.allocation->GetMappedData()) };
+	/* {
+	   glm::vec3* pLocations{ reinterpret_cast<glm::vec3*>(stageBuffer.allocation->GetMappedData()) };
 
-		for (std::size_t i{ 0 }; i < bufferSize/3; ++i) {
-			fmt::println("{0} | {1} | {2}", pLocations[i].x, pLocations[i].y, pLocations[i].z);
-		}
-	}*/
+	   for (std::size_t i{ 0 }; i < bufferSize/3; ++i) {
+		   fmt::println("{0} | {1} | {2}", pLocations[i].x, pLocations[i].y, pLocations[i].z);
+	   }
+   }*/
 	vmaDestroyBuffer(m_allocator, stageBuffer.buffer, stageBuffer.allocation);
 
 	return deviceBuffer;
@@ -686,7 +696,7 @@ vkt::Image Kleicha::upload_texture_image(const char* filePath) {
 	VK_CHECK(vkCreateImageView(m_device.device, &imageViewInfo, nullptr, &textureImage.imageView));
 
 	// allocate host visible mapped memory
-	vkt::Buffer stagingBuffer{ utils::create_buffer(m_allocator, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, 
+	vkt::Buffer stagingBuffer{ utils::create_buffer(m_allocator, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT) };
 	memcpy(stagingBuffer.allocationInfo.pMappedData, textureData, bufferSize);
 
@@ -695,7 +705,7 @@ vkt::Image Kleicha::upload_texture_image(const char* filePath) {
 
 	// transition texture image and issue copy from staging
 	immediate_submit([&](VkCommandBuffer cmdBuffer) {
-		utils::image_memory_barrier(cmdBuffer, VK_PIPELINE_STAGE_2_NONE_KHR, VK_ACCESS_2_NONE, 
+		utils::image_memory_barrier(cmdBuffer, VK_PIPELINE_STAGE_2_NONE_KHR, VK_ACCESS_2_NONE,
 			VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, textureImage.image, textureImage.mipLevels);
 
 		VkBufferImageCopy imageCopy{};
@@ -706,7 +716,7 @@ vkt::Image Kleicha::upload_texture_image(const char* filePath) {
 		imageCopy.imageSubresource.mipLevel = 0;
 		imageCopy.imageSubresource.layerCount = 1;
 		imageCopy.imageSubresource.baseArrayLayer = 0;
-		imageCopy.imageOffset = { .x=0,.y=0,.z=0 };
+		imageCopy.imageOffset = { .x = 0,.y = 0,.z = 0 };
 		imageCopy.imageExtent = { .width = textureExtent.width, .height = textureExtent.height, .depth = 1 };
 		vkCmdCopyBufferToImage(cmdBuffer, stagingBuffer.buffer, textureImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageCopy);
 
@@ -863,9 +873,9 @@ void Kleicha::start() {
 		m_lastFrame = currentTime;
 
 		ImGui_ImplVulkan_NewFrame();
-		ImGui_ImplGlfw_NewFrame(); 
+		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
-		
+
 		ImGui::Checkbox("Shadow Mapping (2D) PCF", &m_enableShadows);
 		ImGui::Checkbox("Shadow Mapping (Cube) PCF", &m_enableCubeShadows);
 		ImGui::Checkbox("Shadow Mapping (Cube) PCSS", &m_enableCubeShadowsPCSS);
@@ -886,13 +896,13 @@ void Kleicha::start() {
 				ImGui::PopID();
 			}
 		}
-		
+
 
 		if (ImGui::CollapsingHeader("Materials")) {
 
 			for (std::size_t i{ 1 }; i < m_materials.size(); ++i) {
 				ImGui::PushID(static_cast<int>(i));
-				ImGui::Text("Material %d", i-1);
+				ImGui::Text("Material %d", i - 1);
 				ImGui::SliderFloat3("Material Ambient", &m_materials[i].ambient.r, 0.0f, 1.0f);
 				ImGui::SliderFloat3("Material Diffuse", &m_materials[i].diffuse.r, 0.0f, 1.0f);
 				ImGui::SliderFloat3("Material Specular", &m_materials[i].specular.r, 0.0f, 1.0f);
@@ -928,9 +938,9 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 		.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
 		.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
 	};
+
 	// implicitly resets command buffer and places it in recording state
 	VK_CHECK(vkBeginCommandBuffer(frame.cmdBuffer, &cmdBufferBeginInfo));
-
 
 	std::vector<VkImageMemoryBarrier2> imageMemoryBarriers{};
 
@@ -947,7 +957,7 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 
 	// transition frame shadow cube map layouts to color attachment output
 	for (auto& cubeShadowMap : frame.cubeShadowMaps) {
-		VkImageMemoryBarrier2 cubeMapToColorAttachment{ init::create_image_barrier_info(VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_NONE, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, 
+		VkImageMemoryBarrier2 cubeMapToColorAttachment{ init::create_image_barrier_info(VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_NONE, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
 			VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, cubeShadowMap.colorImage.image, 1) };
 		imageMemoryBarriers.emplace_back(cubeMapToColorAttachment);
 	}
@@ -977,7 +987,7 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 
 		light.cubeViewProjs[1] = shadowCubePerspProj * glm::lookAt(light.mPos, light.mPos + glm::vec3{ 1.0f, 0.0f, 0.0f }, glm::vec3{ 0.0f, 1.0f, 0.0f });	// +X
 		light.cubeViewProjs[0] = shadowCubePerspProj * glm::lookAt(light.mPos, light.mPos + glm::vec3{ -1.0f, 0.0f, 0.0f }, glm::vec3{ 0.0f, 1.0f, 0.0f }); // -X
-		
+
 		light.cubeViewProjs[2] = shadowCubePerspProj * glm::lookAt(light.mPos, light.mPos + glm::vec3{ 0.0f, -1.0f, 0.0f }, glm::vec3{ 0.0f, 0.0f, -1.0f });  // +Y
 		light.cubeViewProjs[3] = shadowCubePerspProj * glm::lookAt(light.mPos, light.mPos + glm::vec3{ 0.0f, 1.0f, 0.0f }, glm::vec3{ 0.0f, 0.0f, 1.0f });	  // -Y
 
@@ -987,7 +997,7 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 
 	// render pass
 	glm::mat4 view{ m_camera.getViewMatrix() };
-	// TODO: Only update if there was an updated to a buffer
+	// TODO: Only update if there was an update to a buffer
 	m_meshTransforms[0].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ -3.0f, 0.35f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, currentTime, glm::vec3{ 1.0f, .27f, .5f }) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 0.5f, 0.5f, 0.5f });
 	m_meshTransforms[0].modelView = view * m_meshTransforms[0].model;
 	m_meshTransforms[0].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[0].modelView));
@@ -996,7 +1006,7 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 	m_meshTransforms[1].modelView = view * m_meshTransforms[1].model;
 	m_meshTransforms[1].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[1].modelView));
 
-	m_meshTransforms[2].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 3.0f, 0.0f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, currentTime, glm::vec3{0.0f, 1.0f, 0.0f}) /*glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 2.0f, 2.0f, 2.0f })*/;
+	m_meshTransforms[2].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 3.0f, 0.0f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, currentTime, glm::vec3{ 0.0f, 1.0f, 0.0f }) /*glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 2.0f, 2.0f, 2.0f })*/;
 	m_meshTransforms[2].modelView = view * m_meshTransforms[2].model;
 	m_meshTransforms[2].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[2].modelView));
 
@@ -1020,7 +1030,7 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 	}
 
 	// update per frame buffers
-	memcpy(frame.transformBuffer.allocation->GetMappedData(), m_meshTransforms.data(), sizeof(vkt::Transform) * m_meshDrawData.size());
+	memcpy(frame.transformBuffer.allocation->GetMappedData(), m_meshTransforms.data(), sizeof(vkt::Transform) * m_drawIndirectParams.size());
 	memcpy(frame.materialBuffer.allocation->GetMappedData(), m_materials.data(), sizeof(vkt::Material) * m_materials.size());
 	memcpy(frame.lightBuffer.allocation->GetMappedData(), m_lights.data(), sizeof(vkt::Light) * m_lights.size());
 
@@ -1072,11 +1082,9 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 			vkCmdBeginRendering(frame.cmdBuffer, &cubeShadowRenderingInfo);
 			m_pushConstants.lightId = j;
 
-			for (std::uint32_t i{ 0 }; i < m_meshDrawData.size() - m_lights.size(); ++i) {
-				m_pushConstants.drawId = i;
-				vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
-				vkCmdDrawIndexed(frame.cmdBuffer, m_meshDrawData[i].indicesCount, 1, m_meshDrawData[i].indicesOffset, static_cast<int32_t>(m_meshDrawData[i].vertexOffset), 0);
-			}
+			vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
+			vkCmdDrawIndexedIndirect(frame.cmdBuffer, m_drawParamsBuffer.buffer, 0, static_cast<uint32_t>(m_drawIndirectParams.size()), sizeof(VkDrawIndexedIndirectCommand));
+
 			vkCmdEndRendering(frame.cmdBuffer);
 			// transition shadow cube map
 			utils::image_memory_barrier(frame.cmdBuffer, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
@@ -1084,7 +1092,7 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 		}
 	}
 
-	colorClearValue= {{0.0f, 0.0f, 0.0f, 1.0f}};
+	colorClearValue = { {0.0f, 0.0f, 0.0f, 1.0f} };
 
 	m_pushConstants.perspectiveProjection = m_perspProj;
 
@@ -1116,11 +1124,8 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 
 			m_pushConstants.lightId = j;
 			
-			for (std::uint32_t i{ 0 }; i < m_meshDrawData.size() - m_lights.size(); ++i) {
-				m_pushConstants.drawId = i;
-				vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
-				vkCmdDrawIndexed(frame.cmdBuffer, m_meshDrawData[i].indicesCount, 1, m_meshDrawData[i].indicesOffset, static_cast<int32_t>(m_meshDrawData[i].vertexOffset), 0);
-			}
+			vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
+			vkCmdDrawIndexedIndirect(frame.cmdBuffer, m_drawParamsBuffer.buffer, 0, static_cast<uint32_t>(m_drawIndirectParams.size()), sizeof(VkDrawIndexedIndirectCommand));
 
 			vkCmdEndRendering(frame.cmdBuffer);
 		}
@@ -1146,11 +1151,8 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 	// begin a render pass
 	vkCmdBeginRendering(frame.cmdBuffer, &renderingInfo);
 
-	for (std::uint32_t i{0}; i < m_meshDrawData.size(); ++i) {
-		m_pushConstants.drawId = i;
-		vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
-		vkCmdDrawIndexed(frame.cmdBuffer, m_meshDrawData[i].indicesCount, 1, m_meshDrawData[i].indicesOffset, static_cast<int32_t>(m_meshDrawData[i].vertexOffset), 0);
-	}
+	vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
+	vkCmdDrawIndexedIndirect(frame.cmdBuffer, m_drawParamsBuffer.buffer, 0, static_cast<uint32_t>(m_drawIndirectParams.size()), sizeof(VkDrawIndexedIndirectCommand));
 
 	vkCmdEndRendering(frame.cmdBuffer);
 
@@ -1260,6 +1262,7 @@ void Kleicha::cleanup() const {
 		vmaDestroyImage(m_allocator, texture.image, texture.allocation);
 	}
 
+	vmaDestroyBuffer(m_allocator, m_drawParamsBuffer.buffer, m_drawParamsBuffer.allocation);
 	vmaDestroyBuffer(m_allocator, m_vertexBuffer.buffer, m_vertexBuffer.allocation);
 	vmaDestroyBuffer(m_allocator, m_indexBuffer.buffer, m_indexBuffer.allocation);
 	vmaDestroyBuffer(m_allocator, m_globalsBuffer.buffer, m_globalsBuffer.allocation);

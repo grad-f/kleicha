@@ -120,7 +120,7 @@ namespace vkt {
 		uint32_t isLight;
 	};
 
-	struct MeshDrawData {
+	struct MeshBufferInfo {
 		vkt::MeshType meshType{};
 		uint32_t indicesCount{};
 		// an offset in the index buffer in which this meshes index data begins

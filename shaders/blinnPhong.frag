@@ -60,6 +60,7 @@ layout (location = 1) in vec2 inUV;
 layout (location = 2) in flat int inTexID;
 layout (location = 3) in vec3 inNormal;
 layout (location = 4) in vec3 inVertView;
+layout (location = 5) in flat uint inDrawId;
 
 layout (location = 0) out vec4 outColor;
 
@@ -71,7 +72,7 @@ layout(push_constant) uniform constants {
 
 void main() {
 
-	DrawData dd = draws[pc.drawId];
+	DrawData dd = draws[inDrawId];
 	
 	// early return if rendering light
 	if(dd.isLight != 0) {

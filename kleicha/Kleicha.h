@@ -69,11 +69,12 @@ private:
 
 	vkt::Buffer m_vertexBuffer{};
 	vkt::Buffer m_indexBuffer{};
+	vkt::Buffer m_drawParamsBuffer{};
 	// this buffer specifies indicies and offsets to the other buffers available in the shader
 	vkt::Buffer m_drawBuffer{};
 	vkt::Buffer m_globalsBuffer{};
 
-	std::vector<vkt::MeshDrawData> m_meshDrawData{};
+	std::vector<VkDrawIndexedIndirectCommand> m_drawIndirectParams{};
 	std::vector<vkt::Transform> m_meshTransforms{};
 	std::vector<vkt::Material> m_materials{};
 	std::vector<vkt::Light> m_lights{};
@@ -98,9 +99,9 @@ private:
 	void init_dynamic_buffers();
 	void init_samplers();
 	void init_write_descriptor_sets();
-	
-	vkt::DrawData create_draw(const std::vector<vkt::MeshDrawData>& canonicalMeshes, vkt::MeshType meshType, vkt::MaterialType materialType, vkt::TextureType textureType, bool isLight = false);
-	std::vector<vkt::MeshDrawData> load_mesh_data();
+
+	vkt::DrawData create_draw(const std::vector<vkt::MeshBufferInfo>& canonicalMeshes, vkt::MeshType meshType, vkt::MaterialType materialType, vkt::TextureType textureType, bool isLight = false);
+	std::vector<vkt::MeshBufferInfo> load_mesh_data();
 
 	vkt::PushConstants m_pushConstants{};
 	std::stack<glm::mat4> m_mStack{};

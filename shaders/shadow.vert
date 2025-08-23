@@ -1,5 +1,7 @@
 #version 450
 #extension GL_EXT_debug_printf : enable
+#extension GL_ARB_shader_draw_parameters : enable
+
 
 struct Vertex {
 	vec3 position;
@@ -78,8 +80,12 @@ layout(push_constant) uniform constants {
 	uint lightId;
 }pc;
 
+layout (location = 0) out flat uint outDrawId;
+
+
 void main() {
-	DrawData dd = draws[pc.drawId];
+	DrawData dd = draws[gl_DrawIDARB];
+	outDrawId = gl_DrawIDARB;
 
 	// we choose to perform out lighting computations in camera-space.
 	gl_Position = lights[pc.lightId].viewProj * transforms[dd.transformIndex].model * vec4(vertices[gl_VertexIndex].position, 1.0f);
