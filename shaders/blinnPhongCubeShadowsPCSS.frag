@@ -115,7 +115,7 @@ vec3 offsetDirections[128] = vec3[](
 #define LIGHT_WORLD_SIZE 12.5f
 #define LIGHT_FRUSTUM_WIDTH 3.75f
 #define LIGHT_SIZE_UV (LIGHT_WORLD_SIZE / LIGHT_FRUSTUM_WIDTH)
-#define PCF_SAMPLES 128
+#define PCF_SAMPLES 64
 #define BLOCKER_SAMPLES 25
 
 void findBlocker(uint sCubeMapIndex, out float avgBlockerDepth, out float numBlockers, vec3 wFragToLight, float receiverDist, float mappedReceiverDist, float lightSize) {
@@ -128,9 +128,13 @@ void findBlocker(uint sCubeMapIndex, out float avgBlockerDepth, out float numBlo
 		// sample cube shadow map and accumulate depths
 		for (int i = 0; i < BLOCKER_SAMPLES; ++i) {
 			float depthSample = texture(cubeShadowSampler[sCubeMapIndex], wFragToLight + offsetDirections[i] * searchWidth).r;
-			
-			// is blocker
-			if (depthSample + 0.05f < receiverDist) {
+
+			// is blocker. we also check that the depth sample isn't geometry far away in the background that will skew the average blocker depth
+			if (depthSample + 0.1f < receiverDist) {
+
+			/*if(sCubeMapIndex == 0)
+				debugPrintfEXT("%f\n", depthSample);*/
+
 				blockerSum += depthSample;
 				numBlockers++;
 			}
@@ -165,7 +169,7 @@ float computeShadow(uint sCubeMapIndex, vec3 wFragToLight, float lightSize) {
 	for (int i = 0; i < PCF_SAMPLES; ++i) {
 		float depthSample = texture(cubeShadowSampler[sCubeMapIndex], wFragToLight + offsetDirections[i] * filterRadius).r;
 		
-		if (depthSample + 0.05f > receiverDist) {
+		if (depthSample + 0.1f > receiverDist) {
 			sFactor += 1.0f;
 		}
 

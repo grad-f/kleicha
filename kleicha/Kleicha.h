@@ -100,6 +100,10 @@ private:
 	void init_samplers();
 	void init_write_descriptor_sets();
 
+	void update_dynamic_buffers(const vkt::Frame& frame, float currentTime, const glm::mat4& shadowCubePerspProj);
+	void shadow_cube_pass(const vkt::Frame& frame);
+	void shadow_2D_pass(const vkt::Frame& frame);
+
 	vkt::DrawData create_draw(const std::vector<vkt::MeshBufferInfo>& canonicalMeshes, vkt::MeshType meshType, vkt::MaterialType materialType, vkt::TextureType textureType, bool isLight = false);
 	std::vector<vkt::MeshBufferInfo> load_mesh_data();
 

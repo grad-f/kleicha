@@ -413,4 +413,23 @@ namespace utils {
 
         return orthographicProj(-right, right, -top, top, near, far);
     }
+
+    void set_viewport_scissor(const vkt::Frame& frame, VkExtent2D extent) {
+        VkViewport viewport{};
+        viewport.x = 0;
+        viewport.y = 0;
+        viewport.y = 0;
+        viewport.width = static_cast<float>(extent.width);
+        viewport.height = static_cast<float>(extent.height);
+        viewport.minDepth = 0.0f;
+        viewport.maxDepth = 1.0f;
+
+        VkRect2D scissor{};
+        scissor.offset.x = 0;
+        scissor.offset.y = 0;
+        scissor.extent = extent;
+
+        vkCmdSetViewport(frame.cmdBuffer, 0, 1, &viewport);
+        vkCmdSetScissor(frame.cmdBuffer, 0, 1, &scissor);
+    }
 }

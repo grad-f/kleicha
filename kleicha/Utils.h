@@ -50,5 +50,7 @@ namespace utils {
     glm::mat4 perspective(float near, float far);
     glm::mat4 orthographicProj(float left, float right, float bottom, float top, float near, float far);
     glm::mat4 orthographicProj(float vFov, float aspectRatio, float near, float far);
+
+    void set_viewport_scissor(const vkt::Frame& frame, VkExtent2D extent);
 }
 #endif // !UTILS_H

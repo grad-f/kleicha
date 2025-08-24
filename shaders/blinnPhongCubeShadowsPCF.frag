@@ -136,8 +136,8 @@ float computeShadow(uint sCubeMapIndex, vec3 wFragToLight) {
 
 	float sFactor = 0.0f;
 	float bias = 0.25f;
-	uint samples = 128;
-	float diskRadius = (1.0f + (vReceiverDist / 1000.0f)) / 25.0f;
+	uint samples = 64;
+	float diskRadius = (1.0f + (vReceiverDist *0.001f)) / 25.0f;
 
 	for (int i = 0; i < samples; ++i) {
 		float sampledDepth = texture(cubeShadowSampler[sCubeMapIndex], wFragToLight + offsetDirections[i] * diskRadius).r;

@@ -528,7 +528,7 @@ void Kleicha::init_draw_data() {
 	drawData.push_back(create_draw(canonicalMeshBufferInfo, vkt::MeshType::TORUS, vkt::MaterialType::SILVER, vkt::TextureType::NONE));
 	drawData.push_back(create_draw(canonicalMeshBufferInfo, vkt::MeshType::DOLPHIN, vkt::MaterialType::GOLD, vkt::TextureType::NONE));
 	drawData.push_back(create_draw(canonicalMeshBufferInfo, vkt::MeshType::SPHERE, vkt::MaterialType::JADE, vkt::TextureType::NONE));
-	drawData.push_back(create_draw(canonicalMeshBufferInfo, vkt::MeshType::PLANE, vkt::MaterialType::NONE, vkt::TextureType::BRICK));
+	drawData.push_back(create_draw(canonicalMeshBufferInfo, vkt::MeshType::PLANE, vkt::MaterialType::NONE, vkt::TextureType::CONCRETE));
 	//drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::PLANE, vkt::MaterialType::NONE, vkt::TextureType::BRICK));
 
 	for ([[maybe_unused]] const auto& light : m_lights) {
@@ -582,8 +582,8 @@ void Kleicha::init_lights() {
 	};
 	m_lights.push_back(pointLight);
 
-	pointLight.mPos = { -4.5f, 6.0f, -3.0f };
-	m_lights.push_back(pointLight);
+	//pointLight.mPos = { -4.5f, 6.0f, -3.0f };
+	//m_lights.push_back(pointLight);
 
 	/*pointLight.mPos = {-6.0f, 1.5f, -5.0f};
 	m_lights.push_back(pointLight);*/
@@ -646,7 +646,7 @@ void Kleicha::init_samplers() {
 	VkSamplerCreateInfo textureSamplerInfo{ init::create_sampler_info(m_device, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_TRUE, 16.0f) };
 	VK_CHECK(vkCreateSampler(m_device.device, &textureSamplerInfo, nullptr, &m_textureSampler));
 
-	VkSamplerCreateInfo shadowSamplerInfo{ init::create_sampler_info(m_device, VK_FILTER_NEAREST, VK_FILTER_NEAREST, VK_SAMPLER_MIPMAP_MODE_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE) };
+	VkSamplerCreateInfo shadowSamplerInfo{ init::create_sampler_info(m_device, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_MIPMAP_MODE_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE) };
 	VK_CHECK(vkCreateSampler(m_device.device, &shadowSamplerInfo, nullptr, &m_shadowSampler));
 }
 
@@ -864,6 +864,136 @@ void Kleicha::recreate_swapchain() {
 	}
 }
 
+void Kleicha::update_dynamic_buffers(const vkt::Frame& frame, float currentTime, const glm::mat4& shadowCubePerspProj) {
+
+	// update light views
+	for (auto& light : m_lights) {
+		light.viewProj = m_perspProj * utils::lookAt(light.mPos, glm::vec3{ 0.0f, 0.0f, 0.0f }, WORLD_UP);
+
+		light.cubeViewProjs[1] = shadowCubePerspProj * glm::lookAt(light.mPos, light.mPos + glm::vec3{ 1.0f, 0.0f, 0.0f }, glm::vec3{ 0.0f, 1.0f, 0.0f });	// +X
+		light.cubeViewProjs[0] = shadowCubePerspProj * glm::lookAt(light.mPos, light.mPos + glm::vec3{ -1.0f, 0.0f, 0.0f }, glm::vec3{ 0.0f, 1.0f, 0.0f }); // -X
+
+		light.cubeViewProjs[2] = shadowCubePerspProj * glm::lookAt(light.mPos, light.mPos + glm::vec3{ 0.0f, -1.0f, 0.0f }, glm::vec3{ 0.0f, 0.0f, -1.0f });  // +Y
+		light.cubeViewProjs[3] = shadowCubePerspProj * glm::lookAt(light.mPos, light.mPos + glm::vec3{ 0.0f, 1.0f, 0.0f }, glm::vec3{ 0.0f, 0.0f, 1.0f });	  // -Y
+
+		light.cubeViewProjs[5] = shadowCubePerspProj * glm::lookAt(light.mPos, light.mPos + glm::vec3{ 0.0f, 0.0f, 1.0f }, glm::vec3{ 0.0f, 1.0f, 0.0f });	  // -Z
+		light.cubeViewProjs[4] = shadowCubePerspProj * glm::lookAt(light.mPos, light.mPos + glm::vec3{ 0.0f, 0.0f, -1.0f }, glm::vec3{ 0.0f, 1.0f, 0.0f });	  // +Z
+	}
+
+	// update mesh transforms
+	glm::mat4 view{ m_camera.getViewMatrix() };
+	// TODO: Only update if there was an update to a buffer
+	m_meshTransforms[0].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ -3.0f, 0.35f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, currentTime, glm::vec3{ 1.0f, .27f, .5f }) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 0.5f, 0.5f, 0.5f });
+	m_meshTransforms[0].modelView = view * m_meshTransforms[0].model;
+	m_meshTransforms[0].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[0].modelView));
+
+	m_meshTransforms[1].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, 0.0f, -3.0f }) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 2.0f, 2.0f, 2.0f }) /* glm::rotate(glm::mat4{ 1.0f }, currentTime * 0.2f, glm::vec3{ 1.0f, 0.0f, 0.0f })*/;
+	m_meshTransforms[1].modelView = view * m_meshTransforms[1].model;
+	m_meshTransforms[1].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[1].modelView));
+
+	m_meshTransforms[2].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 3.0f, 0.0f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, 0.0f, glm::vec3{ 0.0f, 1.0f, 0.0f }) /*glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 2.0f, 2.0f, 2.0f })*/;
+	m_meshTransforms[2].modelView = view * m_meshTransforms[2].model;
+	m_meshTransforms[2].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[2].modelView));
+
+	m_meshTransforms[3].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, -0.9f, -3.0f }) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ .01f, .01f, .01f });
+	m_meshTransforms[3].modelView = view * m_meshTransforms[3].model;
+	m_meshTransforms[3].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[3].modelView));
+
+	/*m_meshTransforms[4].model = glm::translate(glm::mat4{1.0f}, glm::vec3{0.0f, -1.9f, -3.0f}) * glm::scale(glm::mat4{1.0f}, glm::vec3{5.0f, 5.0f, 5.0f});
+	m_meshTransforms[4].modelView = view * m_meshTransforms[4].model;
+	m_meshTransforms[4].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[4].modelView));*/
+
+	// This is somewhat okay but not very robust as it depends on the light meshes being added last. This may be fine, it may not... We'll see and provide an alternative solution if needed.
+	std::size_t lightMeshIndStart{ m_meshTransforms.size() - m_lights.size() };
+	for (std::size_t i{ lightMeshIndStart }; i < m_meshTransforms.size(); ++i) {
+
+		// compute light position in camera coordinate frame
+		m_lights[i - lightMeshIndStart].mvPos = view * glm::vec4{ m_lights[i - lightMeshIndStart].mPos, 1.0f };
+
+		m_meshTransforms[i].modelView = view * glm::translate(glm::mat4{ 1.0f }, m_lights[i - lightMeshIndStart].mPos) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 0.1f, 0.1f, 0.1f });
+		m_meshTransforms[i].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[i].modelView));
+	}
+
+	// update per frame buffers
+	memcpy(frame.transformBuffer.allocation->GetMappedData(), m_meshTransforms.data(), sizeof(vkt::Transform) * m_drawIndirectParams.size());
+	memcpy(frame.materialBuffer.allocation->GetMappedData(), m_materials.data(), sizeof(vkt::Material) * m_materials.size());
+	memcpy(frame.lightBuffer.allocation->GetMappedData(), m_lights.data(), sizeof(vkt::Light) * m_lights.size());
+
+	//TODO: On our graphice device, all host-visible device memory is cache coherent. However, this is not guaranteed on other devices. On devices where this memory
+	// does not have the property 'VK_MEMORY_PROPERTY_HOST_COHERENT_BIT', we should make all host writes visible before
+	// the below draw calls using a pipeline barrier.
+}
+
+void Kleicha::shadow_cube_pass(const vkt::Frame& frame) {
+
+	utils::set_viewport_scissor(frame, SHADOW_CUBE_EXTENT);
+
+	VkClearValue colorClearValue{ {{FLT_MAX, 0.0f, 0.0f, 1.0f}} };
+	VkClearValue depthClearValue{ .depthStencil = {0.0f, 0U} };
+
+	VkRenderingInfo cubeShadowRenderingInfo{ .sType = VK_STRUCTURE_TYPE_RENDERING_INFO };
+	cubeShadowRenderingInfo.pNext = nullptr;
+	cubeShadowRenderingInfo.renderArea.extent = SHADOW_CUBE_EXTENT;
+	cubeShadowRenderingInfo.renderArea.offset = { 0,0 };
+	cubeShadowRenderingInfo.layerCount = 1;
+	cubeShadowRenderingInfo.viewMask = 0b111111; // each bit of this bitfield specifies which views are active during rendering. our cubemap requires 6 views thus we enable views 0 through to 5.
+	cubeShadowRenderingInfo.colorAttachmentCount = 1;
+
+	vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_cubeShadowPipeline);
+	for (uint32_t j{ 0 }; j < m_lights.size(); ++j) {
+		VkRenderingAttachmentInfo cubeColorAttachment{ init::create_rendering_attachment_info(frame.cubeShadowMaps[j].colorImage.imageView, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, &colorClearValue) };
+		VkRenderingAttachmentInfo cubeDepthAttachment{ init::create_rendering_attachment_info(frame.cubeShadowMaps[j].depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, &depthClearValue) };
+
+		cubeShadowRenderingInfo.pColorAttachments = &cubeColorAttachment;
+		cubeShadowRenderingInfo.pDepthAttachment = &cubeDepthAttachment;
+
+		vkCmdBeginRendering(frame.cmdBuffer, &cubeShadowRenderingInfo);
+		m_pushConstants.lightId = j;
+
+		vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
+		vkCmdDrawIndexedIndirect(frame.cmdBuffer, m_drawParamsBuffer.buffer, 0, static_cast<uint32_t>(m_drawIndirectParams.size()), sizeof(VkDrawIndexedIndirectCommand));
+
+		vkCmdEndRendering(frame.cmdBuffer);
+		// transition shadow cube map
+		utils::image_memory_barrier(frame.cmdBuffer, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+			VK_ACCESS_2_SHADER_SAMPLED_READ_BIT, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, frame.cubeShadowMaps[j].colorImage.image, 1);
+	}
+}
+
+void Kleicha::shadow_2D_pass(const vkt::Frame& frame) {
+
+	VkClearValue colorClearValue{ {{0.0f, 0.0f, 0.0f, 1.0f}} };
+	VkClearValue depthClearValue{ .depthStencil = {0.0f, 0U} };
+	utils::set_viewport_scissor(frame, m_swapchain.imageExtent);
+
+	VkRenderingInfo renderingInfo{ .sType = VK_STRUCTURE_TYPE_RENDERING_INFO };
+	renderingInfo.pNext = nullptr;
+	renderingInfo.renderArea.extent = m_swapchain.imageExtent;
+	renderingInfo.renderArea.offset = { 0,0 };
+	renderingInfo.layerCount = 1;
+	renderingInfo.viewMask = 0; //we're not using multiview
+	renderingInfo.colorAttachmentCount = 0;
+	renderingInfo.pColorAttachments = nullptr;
+
+	m_pushConstants.perspectiveProjection = m_perspProj;
+
+	vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_shadowPipeline);
+
+	// shadow passes
+	for (uint32_t j{ 0 }; j < m_lights.size(); ++j) {
+		VkRenderingAttachmentInfo shadowDepthAttachment{ init::create_rendering_attachment_info(frame.shadowMaps[j].imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, &depthClearValue, VK_TRUE) };
+		renderingInfo.pDepthAttachment = &shadowDepthAttachment;
+		vkCmdBeginRendering(frame.cmdBuffer, &renderingInfo);
+
+		m_pushConstants.lightId = j;
+
+		vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
+		vkCmdDrawIndexedIndirect(frame.cmdBuffer, m_drawParamsBuffer.buffer, 0, static_cast<uint32_t>(m_drawIndirectParams.size()), sizeof(VkDrawIndexedIndirectCommand));
+
+		vkCmdEndRendering(frame.cmdBuffer);
+	}
+}
+
 void Kleicha::start() {
 
 	while (!glfwWindowShouldClose(m_window)) {
@@ -943,12 +1073,10 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 	VK_CHECK(vkBeginCommandBuffer(frame.cmdBuffer, &cmdBufferBeginInfo));
 
 	std::vector<VkImageMemoryBarrier2> imageMemoryBarriers{};
-
 	// forms a dependency chain with vkAcquireNextImageKHR signal semaphore. when semaphores are signaled, all pending writes are made available. i dont need to do this manually here
 	VkImageMemoryBarrier2 rastertoTransferDst{ init::create_image_barrier_info(VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_PIPELINE_STAGE_2_NONE,
 		VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
 		VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, rasterImage.image, rasterImage.mipLevels) };
-
 	imageMemoryBarriers.emplace_back(rastertoTransferDst);
 
 	VkImageMemoryBarrier2 scToTransferDst{ init::create_image_barrier_info(VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0,
@@ -977,132 +1105,30 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 	m_perspProj = utils::orthographicProj(glm::radians(90.0f),
 		static_cast<float>(m_windowExtent.width) / m_windowExtent.height, 1000.0f, 0.1f) * m_persp;
 
-	// compute cube shadow pass perspective proj
+	// cube shadow pass perspective proj
 	glm::mat4 shadowCubePerspProj{ utils::orthographicProj(glm::radians(90.0f), static_cast<float>(SHADOW_CUBE_EXTENT.width) / SHADOW_CUBE_EXTENT.height, 1000.0f, 0.1f) * m_persp };
 	m_pushConstants.perspectiveProjection = shadowCubePerspProj;
-
-	// update light views
-	for (auto& light : m_lights) {
-		light.viewProj = m_perspProj * utils::lookAt(light.mPos, glm::vec3{ 0.0f, 0.0f, 0.0f }, WORLD_UP);
-
-		light.cubeViewProjs[1] = shadowCubePerspProj * glm::lookAt(light.mPos, light.mPos + glm::vec3{ 1.0f, 0.0f, 0.0f }, glm::vec3{ 0.0f, 1.0f, 0.0f });	// +X
-		light.cubeViewProjs[0] = shadowCubePerspProj * glm::lookAt(light.mPos, light.mPos + glm::vec3{ -1.0f, 0.0f, 0.0f }, glm::vec3{ 0.0f, 1.0f, 0.0f }); // -X
-
-		light.cubeViewProjs[2] = shadowCubePerspProj * glm::lookAt(light.mPos, light.mPos + glm::vec3{ 0.0f, -1.0f, 0.0f }, glm::vec3{ 0.0f, 0.0f, -1.0f });  // +Y
-		light.cubeViewProjs[3] = shadowCubePerspProj * glm::lookAt(light.mPos, light.mPos + glm::vec3{ 0.0f, 1.0f, 0.0f }, glm::vec3{ 0.0f, 0.0f, 1.0f });	  // -Y
-
-		light.cubeViewProjs[5] = shadowCubePerspProj * glm::lookAt(light.mPos, light.mPos + glm::vec3{ 0.0f, 0.0f, 1.0f }, glm::vec3{ 0.0f, 1.0f, 0.0f });	  // -Z
-		light.cubeViewProjs[4] = shadowCubePerspProj * glm::lookAt(light.mPos, light.mPos + glm::vec3{ 0.0f, 0.0f, -1.0f }, glm::vec3{ 0.0f, 1.0f, 0.0f });	  // +Z
-	}
-
-	// render pass
-	glm::mat4 view{ m_camera.getViewMatrix() };
-	// TODO: Only update if there was an update to a buffer
-	m_meshTransforms[0].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ -3.0f, 0.35f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, currentTime, glm::vec3{ 1.0f, .27f, .5f }) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 0.5f, 0.5f, 0.5f });
-	m_meshTransforms[0].modelView = view * m_meshTransforms[0].model;
-	m_meshTransforms[0].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[0].modelView));
-
-	m_meshTransforms[1].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, 0.0f, -3.0f }) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 2.0f, 2.0f, 2.0f }) /* glm::rotate(glm::mat4{ 1.0f }, currentTime * 0.2f, glm::vec3{ 1.0f, 0.0f, 0.0f })*/;
-	m_meshTransforms[1].modelView = view * m_meshTransforms[1].model;
-	m_meshTransforms[1].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[1].modelView));
-
-	m_meshTransforms[2].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 3.0f, 0.0f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, currentTime, glm::vec3{ 0.0f, 1.0f, 0.0f }) /*glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 2.0f, 2.0f, 2.0f })*/;
-	m_meshTransforms[2].modelView = view * m_meshTransforms[2].model;
-	m_meshTransforms[2].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[2].modelView));
-
-	m_meshTransforms[3].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, -0.9f, -3.0f }) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ .01f, .01f, .01f });
-	m_meshTransforms[3].modelView = view * m_meshTransforms[3].model;
-	m_meshTransforms[3].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[3].modelView));
-
-	/*m_meshTransforms[4].model = glm::translate(glm::mat4{1.0f}, glm::vec3{0.0f, -1.9f, -3.0f}) * glm::scale(glm::mat4{1.0f}, glm::vec3{5.0f, 5.0f, 5.0f});
-	m_meshTransforms[4].modelView = view * m_meshTransforms[4].model;
-	m_meshTransforms[4].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[4].modelView));*/
-
-	// This is somewhat okay but not very robust as it depends on the light meshes being added last. This may be fine, it may not... We'll see and provide an alternative solution if needed.
-	std::size_t lightMeshIndStart{ m_meshTransforms.size() - m_lights.size() };
-	for (std::size_t i{ lightMeshIndStart }; i < m_meshTransforms.size(); ++i) {
-
-		// compute light position in camera coordinate frame
-		m_lights[i - lightMeshIndStart].mvPos = view * glm::vec4{ m_lights[i - lightMeshIndStart].mPos, 1.0f };
-
-		m_meshTransforms[i].modelView = view * glm::translate(glm::mat4{ 1.0f }, m_lights[i - lightMeshIndStart].mPos) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 0.1f, 0.1f, 0.1f });
-		m_meshTransforms[i].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[i].modelView));
-	}
-
-	// update per frame buffers
-	memcpy(frame.transformBuffer.allocation->GetMappedData(), m_meshTransforms.data(), sizeof(vkt::Transform) * m_drawIndirectParams.size());
-	memcpy(frame.materialBuffer.allocation->GetMappedData(), m_materials.data(), sizeof(vkt::Material) * m_materials.size());
-	memcpy(frame.lightBuffer.allocation->GetMappedData(), m_lights.data(), sizeof(vkt::Light) * m_lights.size());
-
-	//TODO: On our graphice device, all host-visible device memory is cache coherent. However, this is not guaranteed on other devices. On devices where this memory
-	// does not have the property 'VK_MEMORY_PROPERTY_HOST_COHERENT_BIT', we should make all host writes visible before
-	// the below draw calls using a pipeline barrier.
+	update_dynamic_buffers(frame, currentTime, shadowCubePerspProj);
 
 	vkCmdBindIndexBuffer(frame.cmdBuffer, m_indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
 	// will be used to compute the viewport transformation (NDC to screen space)
-	VkViewport viewport{};
-	viewport.x = 0;
-	viewport.y = 0;
-	viewport.width = static_cast<float>(SHADOW_CUBE_EXTENT.width);
-	viewport.height = static_cast<float>(SHADOW_CUBE_EXTENT.height);
-	viewport.minDepth = 0.0f;
-	viewport.maxDepth = 1.0f;
-
-	VkRect2D scissor{};
-	scissor.offset.x = 0;
-	scissor.offset.y = 0;
-	scissor.extent = SHADOW_CUBE_EXTENT;
-
-	vkCmdSetViewport(frame.cmdBuffer, 0, 1, &viewport);
-	vkCmdSetScissor(frame.cmdBuffer, 0, 1, &scissor);
-
-	uint32_t viewMask{ 0b111111 };
-	VkRenderingInfo cubeShadowRenderingInfo{ .sType = VK_STRUCTURE_TYPE_RENDERING_INFO };
-	cubeShadowRenderingInfo.pNext = nullptr;
-	cubeShadowRenderingInfo.renderArea.extent = SHADOW_CUBE_EXTENT;
-	cubeShadowRenderingInfo.renderArea.offset = { 0,0 };
-	cubeShadowRenderingInfo.layerCount = 1;
-	cubeShadowRenderingInfo.viewMask = viewMask;
-	cubeShadowRenderingInfo.colorAttachmentCount = 1;
-
-	VkClearValue colorClearValue{ {{FLT_MAX, 0.0f, 0.0f, 1.0f}} };
-	VkClearValue depthClearValue{ .depthStencil = {0.0f, 0U} };
-
 	if (m_enableCubeShadows || m_enableCubeShadowsPCSS) {
+		shadow_cube_pass(frame);
+	}	
 
-		vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_cubeShadowPipeline);
-		for (uint32_t j{ 0 }; j < m_lights.size(); ++j) {
-			VkRenderingAttachmentInfo cubeColorAttachment{ init::create_rendering_attachment_info(frame.cubeShadowMaps[j].colorImage.imageView, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, &colorClearValue) };
-			VkRenderingAttachmentInfo cubeDepthAttachment{ init::create_rendering_attachment_info(frame.cubeShadowMaps[j].depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, &depthClearValue) };
-
-			cubeShadowRenderingInfo.pColorAttachments = &cubeColorAttachment;
-			cubeShadowRenderingInfo.pDepthAttachment = &cubeDepthAttachment;
-
-			vkCmdBeginRendering(frame.cmdBuffer, &cubeShadowRenderingInfo);
-			m_pushConstants.lightId = j;
-
-			vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
-			vkCmdDrawIndexedIndirect(frame.cmdBuffer, m_drawParamsBuffer.buffer, 0, static_cast<uint32_t>(m_drawIndirectParams.size()), sizeof(VkDrawIndexedIndirectCommand));
-
-			vkCmdEndRendering(frame.cmdBuffer);
-			// transition shadow cube map
-			utils::image_memory_barrier(frame.cmdBuffer, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
-				VK_ACCESS_2_SHADER_SAMPLED_READ_BIT, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, frame.cubeShadowMaps[j].colorImage.image, 1);
-		}
+	if (m_enableShadows) {
+		shadow_2D_pass(frame);
 	}
 
-	colorClearValue = { {0.0f, 0.0f, 0.0f, 1.0f} };
-
+	VkClearValue colorClearValue{ {{0.0f, 0.0f, 0.0f, 1.0f}} };
+	VkClearValue depthClearValue{ .depthStencil = {0.0f, 0U} };
+	utils::set_viewport_scissor(frame, m_swapchain.imageExtent);
 	m_pushConstants.perspectiveProjection = m_perspProj;
-
-	// will be used to compute the viewport transformation (NDC to screen space)
-	viewport.width = static_cast<float>(m_swapchain.imageExtent.width);
-	viewport.height = static_cast<float>(m_swapchain.imageExtent.height);
-	scissor.extent = m_swapchain.imageExtent;
-
-	vkCmdSetViewport(frame.cmdBuffer, 0, 1, &viewport);
-	vkCmdSetScissor(frame.cmdBuffer, 0, 1, &scissor);
+	/*		main pass		*/
+	// specify the attachments for second pass
+	VkRenderingAttachmentInfo colorAttachment{ init::create_rendering_attachment_info(rasterImage.imageView, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, &colorClearValue) };
+	VkRenderingAttachmentInfo depthAttachment{ init::create_rendering_attachment_info(depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, &depthClearValue) };
 
 	VkRenderingInfo renderingInfo{ .sType = VK_STRUCTURE_TYPE_RENDERING_INFO };
 	renderingInfo.pNext = nullptr;
@@ -1110,30 +1136,6 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 	renderingInfo.renderArea.offset = { 0,0 };
 	renderingInfo.layerCount = 1;
 	renderingInfo.viewMask = 0; //we're not using multiview
-	renderingInfo.colorAttachmentCount = 0;
-	renderingInfo.pColorAttachments = nullptr;
-
-	if (m_enableShadows) {
-		vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_shadowPipeline);
-
-		// shadow passes
-		for (uint32_t j{ 0 }; j < m_lights.size(); ++j) {
-			VkRenderingAttachmentInfo shadowDepthAttachment{ init::create_rendering_attachment_info(frame.shadowMaps[j].imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, &depthClearValue, VK_TRUE) };
-			renderingInfo.pDepthAttachment = &shadowDepthAttachment;
-			vkCmdBeginRendering(frame.cmdBuffer, &renderingInfo);
-
-			m_pushConstants.lightId = j;
-			
-			vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
-			vkCmdDrawIndexedIndirect(frame.cmdBuffer, m_drawParamsBuffer.buffer, 0, static_cast<uint32_t>(m_drawIndirectParams.size()), sizeof(VkDrawIndexedIndirectCommand));
-
-			vkCmdEndRendering(frame.cmdBuffer);
-		}
-	}
-
-	// specify the attachments for second pass
-	VkRenderingAttachmentInfo colorAttachment{ init::create_rendering_attachment_info(rasterImage.imageView, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, &colorClearValue) };
-	VkRenderingAttachmentInfo depthAttachment{ init::create_rendering_attachment_info(depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, &depthClearValue) };
 	renderingInfo.colorAttachmentCount = 1;
 	renderingInfo.pColorAttachments = &colorAttachment;
 	renderingInfo.pDepthAttachment = &depthAttachment;
@@ -1148,12 +1150,9 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 		vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_lightPipeline);
 
 
-	// begin a render pass
 	vkCmdBeginRendering(frame.cmdBuffer, &renderingInfo);
-
 	vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
 	vkCmdDrawIndexedIndirect(frame.cmdBuffer, m_drawParamsBuffer.buffer, 0, static_cast<uint32_t>(m_drawIndirectParams.size()), sizeof(VkDrawIndexedIndirectCommand));
-
 	vkCmdEndRendering(frame.cmdBuffer);
 
 	// transition image to transfer src
