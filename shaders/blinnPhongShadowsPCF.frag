@@ -86,7 +86,7 @@ float textureProj(uint samplerIndex, vec4 shadowCoord) {
 
 float shadowLookup(vec4 shadowPos, float offsetX, float offsetY, uint mapIndex) {
 	// determine whether the pixel fragment at the offset is in shadow (occluded)
-	float notInShadow = textureProj(mapIndex, shadowPos + vec4(offsetX * 0.0005f * (1.0f - shadowPos.w), offsetY * 0.0011f * (1.0f - shadowPos.w), 0.005f, 0.0f));
+	float notInShadow = textureProj(mapIndex, shadowPos + vec4(offsetX * 0.00125f * (1.0f - shadowPos.w), offsetY * 0.00222f * (1.0f - shadowPos.w), 0.005f, 0.0f));
 
 	return notInShadow;
 }
