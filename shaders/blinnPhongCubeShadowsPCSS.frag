@@ -51,6 +51,7 @@ layout(binding = 2, set = 1) readonly buffer Lights {
 	Light lights[];
 };
 
+layout(set = 0, binding = 3) uniform samplerCube texCubeSampler[];
 layout(set = 0, binding = 3) uniform sampler2D texSampler[];
 layout(set = 1, binding = 3) uniform sampler2D shadowSampler[];
 layout(set = 1, binding = 4) uniform samplerCube cubeShadowSampler[];
@@ -73,14 +74,14 @@ layout(push_constant) uniform constants {
 }pc;
 
 vec3 offsetDirections[128] = vec3[](
-    // Original 20
+
     vec3( 1,  1,  1), vec3( 1, -1,  1), vec3(-1, -1,  1), vec3(-1,  1,  1), 
     vec3( 1,  1, -1), vec3( 1, -1, -1), vec3(-1, -1, -1), vec3(-1,  1, -1),
     vec3( 1,  1,  0), vec3( 1, -1,  0), vec3(-1, -1,  0), vec3(-1,  1,  0),
     vec3( 1,  0,  1), vec3(-1,  0,  1), vec3( 1,  0, -1), vec3(-1,  0, -1),
     vec3( 0,  1,  1), vec3( 0, -1,  1), vec3( 0, -1, -1), vec3( 0,  1, -1),
 
-    // Additional 44 samples
+
     vec3( 2,  0,  0), vec3(-2,  0,  0), vec3( 0,  2,  0), vec3( 0, -2,  0),
     vec3( 0,  0,  2), vec3( 0,  0, -2), vec3( 2,  2,  0), vec3(-2, -2,  0),
     vec3( 2,  0,  2), vec3(-2,  0, -2), vec3( 0,  2,  2), vec3( 0, -2, -2),

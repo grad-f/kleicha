@@ -103,6 +103,7 @@ namespace vkt {
 		EARTH,
 		CONCRETE,
 		SHUTTLE,
+		SKYBOX_POLE
 	};
 
 	enum class MaterialType {

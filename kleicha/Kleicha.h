@@ -4,7 +4,6 @@
 #include <GLFW/glfw3.h>
 
 #include <functional>
-#include <stack>
 
 #include "vulkan/vulkan.h"
 #include "Types.h"
@@ -108,9 +107,10 @@ private:
 	std::vector<vkt::MeshBufferInfo> load_mesh_data();
 
 	vkt::PushConstants m_pushConstants{};
-	std::stack<glm::mat4> m_mStack{};
 
+	// potentially move these to utils?
 	vkt::Image upload_texture_image(const char* filePath);
+	vkt::Image upload_texture_image(const char** filePaths);
 	vkt::Buffer upload_data(void* data, VkDeviceSize bufferSize, VkBufferUsageFlags bufferUsage, VkBool32 bdaUsage = VK_FALSE);
 
 	void draw(float currentTime);

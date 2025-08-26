@@ -591,17 +591,20 @@ void Kleicha::init_lights() {
 }
 
 void Kleicha::init_materials() {
-	m_textures.push_back(upload_texture_image("../textures/empty.jpg"));		//0
-	m_textures.push_back(upload_texture_image("../textures/brick.png"));		//0
-	m_textures.push_back(upload_texture_image("../textures/earth.jpg"));		//1
-	m_textures.push_back(upload_texture_image("../textures/concrete.png"));		//2
-	m_textures.push_back(upload_texture_image("../textures/shuttle.jpg"));		//3
+	m_textures.emplace_back(upload_texture_image("../textures/empty.jpg"));		//0
+	m_textures.emplace_back(upload_texture_image("../textures/brick.png"));		//1
+	m_textures.emplace_back(upload_texture_image("../textures/earth.jpg"));		//2
+	m_textures.emplace_back(upload_texture_image("../textures/concrete.png"));		//3
+	m_textures.emplace_back(upload_texture_image("../textures/shuttle.jpg"));		//4
 
-	m_materials.push_back(vkt::Material::none());
-	m_materials.push_back(vkt::Material::gold());
-	m_materials.push_back(vkt::Material::jade());
-	m_materials.push_back(vkt::Material::pearl());
-	m_materials.push_back(vkt::Material::silver());
+	const char* faces[6]{"../textures/skybox/right.jpg", "../textures/skybox/left.jpg", "../textures/skybox/top.jpg", "../textures/skybox/bottom.jpg", "../textures/skybox/front.jpg", "../textures/skybox/back.jpg" };
+	m_textures.emplace_back(upload_texture_image(faces));
+
+	m_materials.emplace_back(vkt::Material::none());
+	m_materials.emplace_back(vkt::Material::gold());
+	m_materials.emplace_back(vkt::Material::jade());
+	m_materials.emplace_back(vkt::Material::pearl());
+	m_materials.emplace_back(vkt::Material::silver());
 }
 
 vkt::Buffer Kleicha::upload_data(void* data, VkDeviceSize bufferSize, VkBufferUsageFlags bufferUsage, VkBool32 bdaUsage) {
@@ -669,6 +672,70 @@ void Kleicha::init_write_descriptor_sets() {
 
 }
 
+// for uploading texture cube maps
+vkt::Image Kleicha::upload_texture_image(const char** filePaths) {
+
+	stbi_set_flip_vertically_on_load(true);
+	
+	int width, height;
+	stbi_uc* faces[6]{};
+	for (std::size_t i{ 0 }; i < 6; ++i) {
+		faces[i] = stbi_load(filePaths[i], &width, &height, nullptr, STBI_rgb_alpha);
+		if (!faces[i])
+		{
+			stbi_image_free(faces[i]);
+			throw std::runtime_error{ "[Kleicha] Failed to load cube texture image" + std::string{ stbi_failure_reason() } };
+		}
+		fmt::println("Loaded Texture: {}", filePaths[i]);
+	}
+
+	VkExtent2D textureExtent{ static_cast<uint32_t>(width), static_cast<uint32_t>(height) };
+	[[maybe_unused]]VkDeviceSize bufferSize{ static_cast<VkDeviceSize>(width * height * 4 * 6) };
+
+	VmaAllocationCreateInfo allocationInfo{};
+	allocationInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+	allocationInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+	vkt::Image textureImage{};
+	textureImage.mipLevels = 1;
+	VkImageCreateInfo textureImageInfo{ init::create_image_info(VK_FORMAT_R8G8B8A8_SRGB, textureExtent, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, textureImage.mipLevels, 6) };
+	VK_CHECK(vmaCreateImage(m_allocator, &textureImageInfo, &allocationInfo, &textureImage.image, &textureImage.allocation, &textureImage.allocationInfo));
+	VkImageViewCreateInfo imageViewInfo{ init::create_image_view_info(textureImage.image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, textureImage.mipLevels, 6) };
+	VK_CHECK(vkCreateImageView(m_device.device, &imageViewInfo, nullptr, &textureImage.imageView));
+
+	vkt::Buffer stagingBuffer{ utils::create_buffer(m_allocator, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT) };
+
+	// unify cube texture faces into staging buffer
+	for (std::size_t i{ 0 }; i < 6; ++i) {
+		memcpy(reinterpret_cast<char*>(stagingBuffer.allocationInfo.pMappedData) + static_cast<std::size_t>(width * height) * 4 * i, faces[i], static_cast<std::size_t>(width * height) * 4);
+		stbi_image_free(faces[i]);
+	}
+
+	// transition texture image and issue copy from staging
+	immediate_submit([&](VkCommandBuffer cmdBuffer) {
+		utils::image_memory_barrier(cmdBuffer, VK_PIPELINE_STAGE_2_NONE_KHR, VK_ACCESS_2_NONE,
+			VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, textureImage.image, textureImage.mipLevels);
+
+		VkBufferImageCopy imageCopy{};
+		imageCopy.bufferOffset = 0;
+		imageCopy.bufferRowLength = 0;
+		imageCopy.bufferImageHeight = 0;
+		imageCopy.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		imageCopy.imageSubresource.mipLevel = 0;
+		imageCopy.imageSubresource.layerCount = 6;
+		imageCopy.imageSubresource.baseArrayLayer = 0;
+		imageCopy.imageOffset = { .x = 0,.y = 0,.z = 0 };
+		imageCopy.imageExtent = { .width = textureExtent.width, .height = textureExtent.height, .depth = 1 };
+		vkCmdCopyBufferToImage(cmdBuffer, stagingBuffer.buffer, textureImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageCopy);
+
+		});
+
+	vmaDestroyBuffer(m_allocator, stagingBuffer.buffer, stagingBuffer.allocation);
+
+	return textureImage;
+}
+
 vkt::Image Kleicha::upload_texture_image(const char* filePath) {
 
 	stbi_set_flip_vertically_on_load(true);
@@ -678,6 +745,9 @@ vkt::Image Kleicha::upload_texture_image(const char* filePath) {
 	if (!textureData) {
 		throw std::runtime_error{ "[Kleicha] Failed to load texture image: " + std::string{ stbi_failure_reason() } };
 	}
+
+	fmt::println("Loaded Texture: {}", filePath);
+
 
 	VkExtent2D textureExtent{ static_cast<uint32_t>(width), static_cast<uint32_t>(height) };
 	VkDeviceSize bufferSize{ static_cast<VkDeviceSize>(width * height * 4) };
@@ -767,9 +837,9 @@ vkt::Image Kleicha::upload_texture_image(const char* filePath) {
 			vkCmdPipelineBarrier2(cmdBuffer, &dependencyInfo);
 
 			if (srcMipWidth > 1)
-				srcMipWidth /= 2;
+				srcMipWidth = srcMipWidth >> 1;
 			if (srcMipHeight > 1)
-				srcMipHeight /= 2;
+				srcMipHeight = srcMipWidth >> 1;
 		}
 
 		});

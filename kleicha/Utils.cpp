@@ -363,6 +363,8 @@ namespace utils {
             }
         }
 
+        fmt::println("Loaded Model: {}", filePath);
+
         return mesh;
     }
 
