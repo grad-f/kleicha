@@ -163,8 +163,9 @@ namespace utils {
     }
 
 
-/*    vkt::IndexedMesh generate_cube_mesh() {
+    vkt::Mesh generate_cube_mesh() {
         return {
+            .meshType = vkt::MeshType::CUBE,
             .tInd { //triangles
                 // top
                 {6, 2, 7},
@@ -197,7 +198,7 @@ namespace utils {
             {	{1.0f, 1.0f, -1.0f}  },		//7
         }
         };
-    }*/
+    }
 
     vkt::Mesh generate_pyramid_mesh() {
         return {

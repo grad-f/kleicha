@@ -461,10 +461,12 @@ std::vector<vkt::MeshBufferInfo> Kleicha::load_mesh_data() {
 	meshes.emplace_back(utils::generate_pyramid_mesh());
 	meshes.emplace_back(utils::generate_sphere(48));
 	meshes.emplace_back(utils::generate_torus(48, 1.2f, 0.45f));
+	meshes.emplace_back(utils::generate_cube_mesh());
 	meshes.emplace_back(utils::load_obj_mesh("../models/shuttle.obj", vkt::MeshType::SHUTTLE));
 	meshes.emplace_back(utils::load_obj_mesh("../models/icosphere.obj", vkt::MeshType::ICOSPHERE));
 	meshes.emplace_back(utils::load_obj_mesh("../models/dolphin.obj", vkt::MeshType::DOLPHIN));
-	meshes.emplace_back(utils::load_obj_mesh("../models/sponza.obj", vkt::MeshType::PLANE));
+	meshes.emplace_back(utils::load_obj_mesh("../models/grid.obj", vkt::MeshType::PLANE));
+	meshes.emplace_back(utils::load_obj_mesh("../models/sponza.obj", vkt::MeshType::SPONZA));
 
 	std::vector<vkt::MeshBufferInfo> meshBufferInfos(meshes.size());
 	// create unified vertex and index buffers for upload. meshDrawData will keep track of mesh buffer offsets within the unified buffer.
@@ -528,7 +530,7 @@ void Kleicha::init_draw_data() {
 	drawData.push_back(create_draw(canonicalMeshBufferInfo, vkt::MeshType::TORUS, vkt::MaterialType::SILVER, vkt::TextureType::NONE));
 	drawData.push_back(create_draw(canonicalMeshBufferInfo, vkt::MeshType::DOLPHIN, vkt::MaterialType::GOLD, vkt::TextureType::NONE));
 	drawData.push_back(create_draw(canonicalMeshBufferInfo, vkt::MeshType::SPHERE, vkt::MaterialType::JADE, vkt::TextureType::NONE));
-	drawData.push_back(create_draw(canonicalMeshBufferInfo, vkt::MeshType::PLANE, vkt::MaterialType::NONE, vkt::TextureType::CONCRETE));
+	drawData.push_back(create_draw(canonicalMeshBufferInfo, vkt::MeshType::SPONZA, vkt::MaterialType::NONE, vkt::TextureType::BRICK));
 	//drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::PLANE, vkt::MaterialType::NONE, vkt::TextureType::BRICK));
 
 	for ([[maybe_unused]] const auto& light : m_lights) {
@@ -965,6 +967,7 @@ void Kleicha::update_dynamic_buffers(const vkt::Frame& frame, float currentTime,
 	m_meshTransforms[2].modelView = view * m_meshTransforms[2].model;
 	m_meshTransforms[2].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[2].modelView));
 
+	//m_meshTransforms[3].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, -0.9f, -3.0f }) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 1.0f, 1.0f, 1.0f });
 	m_meshTransforms[3].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, -0.9f, -3.0f }) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ .01f, .01f, .01f });
 	m_meshTransforms[3].modelView = view * m_meshTransforms[3].model;
 	m_meshTransforms[3].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[3].modelView));
@@ -1022,7 +1025,7 @@ void Kleicha::shadow_cube_pass(const vkt::Frame& frame) {
 		m_pushConstants.lightId = j;
 
 		vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
-		vkCmdDrawIndexedIndirect(frame.cmdBuffer, m_drawParamsBuffer.buffer, 0, static_cast<uint32_t>(m_drawIndirectParams.size()), sizeof(VkDrawIndexedIndirectCommand));
+		vkCmdDrawIndexedIndirect(frame.cmdBuffer, m_drawParamsBuffer.buffer, 0, static_cast<uint32_t>(m_drawIndirectParams.size() - m_lights.size()), sizeof(VkDrawIndexedIndirectCommand));
 
 		vkCmdEndRendering(frame.cmdBuffer);
 		// transition shadow cube map
@@ -1059,7 +1062,7 @@ void Kleicha::shadow_2D_pass(const vkt::Frame& frame) {
 		m_pushConstants.lightId = j;
 
 		vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
-		vkCmdDrawIndexedIndirect(frame.cmdBuffer, m_drawParamsBuffer.buffer, 0, static_cast<uint32_t>(m_drawIndirectParams.size()), sizeof(VkDrawIndexedIndirectCommand));
+		vkCmdDrawIndexedIndirect(frame.cmdBuffer, m_drawParamsBuffer.buffer, 0, static_cast<uint32_t>(m_drawIndirectParams.size() - m_lights.size()), sizeof(VkDrawIndexedIndirectCommand));
 
 		vkCmdEndRendering(frame.cmdBuffer);
 	}

@@ -95,6 +95,8 @@ namespace vkt {
 		ICOSPHERE,
 		DOLPHIN,
 		PLANE,
+		CUBE,
+		SPONZA,
 	};
 
 	enum class TextureType {

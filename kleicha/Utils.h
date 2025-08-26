@@ -30,7 +30,7 @@ namespace utils {
     void blit_image(VkCommandBuffer cmdBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkImage dstImage, VkImageLayout dstImageLayout,
         VkExtent2D srcExtent, VkExtent2D dstExtent, uint32_t srcMipLevel, uint32_t dstMipLevel);
 
-//    vkt::IndexedMesh generate_cube_mesh();
+    vkt::Mesh generate_cube_mesh();
     vkt::Mesh generate_pyramid_mesh();
     vkt::Mesh generate_sphere(size_t prec);
     vkt::Mesh generate_torus(size_t prec, float inner, float outer);
