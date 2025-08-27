@@ -48,7 +48,6 @@ struct Light {
 	vec3 mvPos;
 	mat4 viewProj;
 	mat4 cubeViewProjs[6];
-	uint transformIndex;
 };
 
 layout(binding = 0, set = 0) readonly buffer Vertices {

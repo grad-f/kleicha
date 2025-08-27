@@ -163,7 +163,6 @@ namespace vkt {
 		alignas(16)glm::vec3 mvPos{};
 		alignas(16)glm::mat4 viewProj{};
 		alignas(16)glm::mat4 cubeViewProjs[6]{};
-		uint32_t transformIndex;
 	};
 
 	struct Material {
