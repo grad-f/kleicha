@@ -511,9 +511,12 @@ vkt::DrawData Kleicha::create_draw(const std::vector<vkt::MeshBufferInfo>& canon
 			drawIndirectCommand.vertexOffset = static_cast<int32_t>(mesh.vertexOffset);
 			drawIndirectCommand.firstInstance = 0;
 
-			m_drawIndirectParams.emplace_back(drawIndirectCommand);
+			if (!isLight)
+				m_shadowPassDrawParams.emplace_back(drawIndirectCommand);
 
-			vkt::DrawData drawDatum{ .materialIndex = static_cast<uint32_t>(materialType), .textureIndex = static_cast<uint32_t>(textureType), .transformIndex = static_cast<uint32_t>(m_drawIndirectParams.size()) - 1, .isLight = isLight };
+			m_mainPassDrawParams.emplace_back(drawIndirectCommand);
+
+			vkt::DrawData drawDatum{ .materialIndex = static_cast<uint32_t>(materialType), .textureIndex = static_cast<uint32_t>(textureType), .transformIndex = static_cast<uint32_t>(m_mainPassDrawParams.size()) - 1, .isLight = isLight };
 			return drawDatum;
 		}
 	}
@@ -531,16 +534,20 @@ void Kleicha::init_draw_data() {
 	drawData.push_back(create_draw(canonicalMeshBufferInfo, vkt::MeshType::DOLPHIN, vkt::MaterialType::GOLD, vkt::TextureType::NONE));
 	drawData.push_back(create_draw(canonicalMeshBufferInfo, vkt::MeshType::SPHERE, vkt::MaterialType::JADE, vkt::TextureType::NONE));
 	drawData.push_back(create_draw(canonicalMeshBufferInfo, vkt::MeshType::SPONZA, vkt::MaterialType::NONE, vkt::TextureType::BRICK));
-	//drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::PLANE, vkt::MaterialType::NONE, vkt::TextureType::BRICK));
+	drawData.push_back(create_draw(canonicalMeshBufferInfo, vkt::MeshType::PLANE, vkt::MaterialType::NONE, vkt::TextureType::BRICK));
 
-	for ([[maybe_unused]] const auto& light : m_lights) {
+	for ([[maybe_unused]] auto& light : m_lights) {
 		drawData.push_back(create_draw(canonicalMeshBufferInfo, vkt::MeshType::SPHERE, vkt::MaterialType::NONE, vkt::TextureType::NONE, true));
+		light.transformIndex = static_cast<uint32_t>(m_mainPassDrawParams.size() - 1);
 	}
 
-	m_drawParamsBuffer = upload_data(m_drawIndirectParams.data(), m_drawIndirectParams.size() * sizeof(VkDrawIndexedIndirectCommand), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT);
+	drawData.push_back(create_draw(canonicalMeshBufferInfo, vkt::MeshType::CUBE, vkt::MaterialType::NONE, vkt::TextureType::BRICK));
+
+	m_mainPassDrawBuffer = upload_data(m_mainPassDrawParams.data(), m_mainPassDrawParams.size() * sizeof(VkDrawIndexedIndirectCommand), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT);
+	m_shadowPassDrawBuffer = upload_data(m_shadowPassDrawParams.data(), m_shadowPassDrawParams.size() * sizeof(VkDrawIndexedIndirectCommand), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT);
 	m_drawBuffer = upload_data(drawData.data(), drawData.size() * sizeof(vkt::DrawData), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 
-	m_meshTransforms.resize(m_drawIndirectParams.size());
+	m_meshTransforms.resize(m_mainPassDrawParams.size());
 
 	vkt::GlobalData globalData{};
 	globalData.ambientLight = glm::vec4{ 0.22f, 0.22f, 0.22f, 1.0f };
@@ -559,7 +566,7 @@ void Kleicha::init_dynamic_buffers() {
 
 	// allocate per frame buffers such as transform buffer
 	for (auto& frame : m_frames) {
-		frame.transformBuffer = utils::create_buffer(m_allocator, sizeof(vkt::Transform) * m_drawIndirectParams.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+		frame.transformBuffer = utils::create_buffer(m_allocator, sizeof(vkt::Transform) * m_mainPassDrawParams.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
 			VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
 
 		frame.lightBuffer = utils::create_buffer(m_allocator, sizeof(vkt::Light) * m_lights.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
@@ -584,11 +591,11 @@ void Kleicha::init_lights() {
 	};
 	m_lights.push_back(pointLight);
 
-	//pointLight.mPos = { -4.5f, 6.0f, -3.0f };
-	//m_lights.push_back(pointLight);
+	pointLight.mPos = { -4.5f, 6.0f, -3.0f };
+	m_lights.push_back(pointLight);
 
-	/*pointLight.mPos = {-6.0f, 1.5f, -5.0f};
-	m_lights.push_back(pointLight);*/
+	//pointLight.mPos = {-6.0f, 1.5f, -5.0f};
+	//m_lights.push_back(pointLight);
 
 }
 
@@ -599,7 +606,7 @@ void Kleicha::init_materials() {
 	m_textures.emplace_back(upload_texture_image("../textures/concrete.png"));		//3
 	m_textures.emplace_back(upload_texture_image("../textures/shuttle.jpg"));		//4
 
-	const char* faces[6]{"../textures/skybox/right.jpg", "../textures/skybox/left.jpg", "../textures/skybox/top.jpg", "../textures/skybox/bottom.jpg", "../textures/skybox/front.jpg", "../textures/skybox/back.jpg" };
+	const char* faces[6]{ "../textures/skybox/right.jpg", "../textures/skybox/left.jpg", "../textures/skybox/top.jpg", "../textures/skybox/bottom.jpg", "../textures/skybox/front.jpg", "../textures/skybox/back.jpg" };
 	m_textures.emplace_back(upload_texture_image(faces));
 
 	m_materials.emplace_back(vkt::Material::none());
@@ -678,7 +685,7 @@ void Kleicha::init_write_descriptor_sets() {
 vkt::Image Kleicha::upload_texture_image(const char** filePaths) {
 
 	stbi_set_flip_vertically_on_load(true);
-	
+
 	int width, height;
 	stbi_uc* faces[6]{};
 	for (std::size_t i{ 0 }; i < 6; ++i) {
@@ -692,7 +699,7 @@ vkt::Image Kleicha::upload_texture_image(const char** filePaths) {
 	}
 
 	VkExtent2D textureExtent{ static_cast<uint32_t>(width), static_cast<uint32_t>(height) };
-	[[maybe_unused]]VkDeviceSize bufferSize{ static_cast<VkDeviceSize>(width * height * 4 * 6) };
+	[[maybe_unused]] VkDeviceSize bufferSize{ static_cast<VkDeviceSize>(width * height * 4 * 6) };
 
 	VmaAllocationCreateInfo allocationInfo{};
 	allocationInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
@@ -976,19 +983,20 @@ void Kleicha::update_dynamic_buffers(const vkt::Frame& frame, float currentTime,
 	m_meshTransforms[4].modelView = view * m_meshTransforms[4].model;
 	m_meshTransforms[4].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[4].modelView));*/
 
-	// This is somewhat okay but not very robust as it depends on the light meshes being added last. This may be fine, it may not... We'll see and provide an alternative solution if needed.
-	std::size_t lightMeshIndStart{ m_meshTransforms.size() - m_lights.size() };
-	for (std::size_t i{ lightMeshIndStart }; i < m_meshTransforms.size(); ++i) {
+	std::size_t index{ m_meshTransforms.size() - 1 };
+	m_meshTransforms[index].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, -.9f, -3.0f }) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 1.0f, 1.0f, 1.0f });
+	m_meshTransforms[index].modelView = view * m_meshTransforms[index].model;
+	m_meshTransforms[index].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[index].modelView));
 
-		// compute light position in camera coordinate frame
-		m_lights[i - lightMeshIndStart].mvPos = view * glm::vec4{ m_lights[i - lightMeshIndStart].mPos, 1.0f };
-
-		m_meshTransforms[i].modelView = view * glm::translate(glm::mat4{ 1.0f }, m_lights[i - lightMeshIndStart].mPos) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 0.1f, 0.1f, 0.1f });
-		m_meshTransforms[i].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[i].modelView));
+	// update light mesh transforms per the lights updated position
+	for (auto& light : m_lights) {
+		light.mvPos = view * glm::vec4{ light.mPos, 1.0f };
+		m_meshTransforms[light.transformIndex].modelView = view * glm::translate(glm::mat4{ 1.0f }, light.mPos) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 0.1f, 0.1f, 0.1f });
+		m_meshTransforms[light.transformIndex].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[light.transformIndex].modelView));
 	}
 
 	// update per frame buffers
-	memcpy(frame.transformBuffer.allocation->GetMappedData(), m_meshTransforms.data(), sizeof(vkt::Transform) * m_drawIndirectParams.size());
+	memcpy(frame.transformBuffer.allocation->GetMappedData(), m_meshTransforms.data(), sizeof(vkt::Transform) * m_mainPassDrawParams.size());
 	memcpy(frame.materialBuffer.allocation->GetMappedData(), m_materials.data(), sizeof(vkt::Material) * m_materials.size());
 	memcpy(frame.lightBuffer.allocation->GetMappedData(), m_lights.data(), sizeof(vkt::Light) * m_lights.size());
 
@@ -1025,7 +1033,7 @@ void Kleicha::shadow_cube_pass(const vkt::Frame& frame) {
 		m_pushConstants.lightId = j;
 
 		vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
-		vkCmdDrawIndexedIndirect(frame.cmdBuffer, m_drawParamsBuffer.buffer, 0, static_cast<uint32_t>(m_drawIndirectParams.size() - m_lights.size()), sizeof(VkDrawIndexedIndirectCommand));
+		vkCmdDrawIndexedIndirect(frame.cmdBuffer, m_shadowPassDrawBuffer.buffer, 0, static_cast<uint32_t>(m_shadowPassDrawParams.size()), sizeof(VkDrawIndexedIndirectCommand));
 
 		vkCmdEndRendering(frame.cmdBuffer);
 		// transition shadow cube map
@@ -1062,7 +1070,7 @@ void Kleicha::shadow_2D_pass(const vkt::Frame& frame) {
 		m_pushConstants.lightId = j;
 
 		vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
-		vkCmdDrawIndexedIndirect(frame.cmdBuffer, m_drawParamsBuffer.buffer, 0, static_cast<uint32_t>(m_drawIndirectParams.size() - m_lights.size()), sizeof(VkDrawIndexedIndirectCommand));
+		vkCmdDrawIndexedIndirect(frame.cmdBuffer, m_shadowPassDrawBuffer.buffer, 0, static_cast<uint32_t>(m_shadowPassDrawParams.size()), sizeof(VkDrawIndexedIndirectCommand));
 
 		vkCmdEndRendering(frame.cmdBuffer);
 	}
@@ -1189,7 +1197,7 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 	// will be used to compute the viewport transformation (NDC to screen space)
 	if (m_enableCubeShadows || m_enableCubeShadowsPCSS) {
 		shadow_cube_pass(frame);
-	}	
+	}
 
 	if (m_enableShadows) {
 		shadow_2D_pass(frame);
@@ -1226,12 +1234,12 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 
 	vkCmdBeginRendering(frame.cmdBuffer, &renderingInfo);
 	vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
-	vkCmdDrawIndexedIndirect(frame.cmdBuffer, m_drawParamsBuffer.buffer, 0, static_cast<uint32_t>(m_drawIndirectParams.size()), sizeof(VkDrawIndexedIndirectCommand));
+	vkCmdDrawIndexedIndirect(frame.cmdBuffer, m_mainPassDrawBuffer.buffer, 0, static_cast<uint32_t>(m_mainPassDrawParams.size()), sizeof(VkDrawIndexedIndirectCommand));
 	vkCmdEndRendering(frame.cmdBuffer);
 
 	// transition image to transfer src
-	utils::image_memory_barrier(frame.cmdBuffer, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, 
-		VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_READ_BIT, 
+	utils::image_memory_barrier(frame.cmdBuffer, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+		VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_READ_BIT,
 		VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, rasterImage.image, rasterImage.mipLevels);
 
 	// blit from intermediate raster image to swapchain image
@@ -1246,14 +1254,14 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 		VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_NONE, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, m_swapchain.images[imageIndex], 1);
 
 	VK_CHECK(vkEndCommandBuffer(frame.cmdBuffer));
-	
+
 	VkSemaphoreSubmitInfo acquiredSemSubmitInfo{ .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO };
 	acquiredSemSubmitInfo.pNext = nullptr;
 	acquiredSemSubmitInfo.semaphore = frame.acquiredSemaphore;
 	// forms a dependency chain with the image memory barrier at the beginning of the batch to ensure the image transition happens before vkCmdClearColorImage
 	acquiredSemSubmitInfo.stageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
 	acquiredSemSubmitInfo.deviceIndex = 0;
-	
+
 	VkSemaphoreSubmitInfo renderedSemSubmitInfo{ .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO };
 	renderedSemSubmitInfo.pNext = nullptr;
 	renderedSemSubmitInfo.semaphore = m_renderedSemaphores[imageIndex];
@@ -1261,7 +1269,7 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 	renderedSemSubmitInfo.deviceIndex = 0;
 
 	VkCommandBufferSubmitInfo cmdBufferSubmitInfo{ .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO };
-	cmdBufferSubmitInfo.commandBuffer = frame.cmdBuffer; 
+	cmdBufferSubmitInfo.commandBuffer = frame.cmdBuffer;
 	cmdBufferSubmitInfo.deviceMask = 0;
 
 	VkSubmitInfo2 submitInfo{ .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2 };
@@ -1327,7 +1335,6 @@ void Kleicha::process_inputs() {
 void Kleicha::cleanup() const {
 
 	vmaDestroyBuffer(m_allocator, m_drawBuffer.buffer, m_drawBuffer.allocation);
-
 	vkDestroySampler(m_device.device, m_textureSampler, nullptr);
 	vkDestroySampler(m_device.device, m_shadowSampler, nullptr);
 	for (const auto& texture : m_textures) {
@@ -1335,7 +1342,8 @@ void Kleicha::cleanup() const {
 		vmaDestroyImage(m_allocator, texture.image, texture.allocation);
 	}
 
-	vmaDestroyBuffer(m_allocator, m_drawParamsBuffer.buffer, m_drawParamsBuffer.allocation);
+	vmaDestroyBuffer(m_allocator, m_mainPassDrawBuffer.buffer, m_mainPassDrawBuffer.allocation);
+	vmaDestroyBuffer(m_allocator, m_shadowPassDrawBuffer.buffer, m_shadowPassDrawBuffer.allocation);
 	vmaDestroyBuffer(m_allocator, m_vertexBuffer.buffer, m_vertexBuffer.allocation);
 	vmaDestroyBuffer(m_allocator, m_indexBuffer.buffer, m_indexBuffer.allocation);
 	vmaDestroyBuffer(m_allocator, m_globalsBuffer.buffer, m_globalsBuffer.allocation);

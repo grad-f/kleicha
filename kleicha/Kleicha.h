@@ -68,12 +68,17 @@ private:
 
 	vkt::Buffer m_vertexBuffer{};
 	vkt::Buffer m_indexBuffer{};
-	vkt::Buffer m_drawParamsBuffer{};
+
 	// this buffer specifies indicies and offsets to the other buffers available in the shader
 	vkt::Buffer m_drawBuffer{};
 	vkt::Buffer m_globalsBuffer{};
 
-	std::vector<VkDrawIndexedIndirectCommand> m_drawIndirectParams{};
+	// draw indirect params and buffers
+	std::vector<VkDrawIndexedIndirectCommand> m_shadowPassDrawParams{};
+	std::vector<VkDrawIndexedIndirectCommand> m_mainPassDrawParams{};
+	vkt::Buffer m_shadowPassDrawBuffer{};
+	vkt::Buffer m_mainPassDrawBuffer{};
+
 	std::vector<vkt::Transform> m_meshTransforms{};
 	std::vector<vkt::Material> m_materials{};
 	std::vector<vkt::Light> m_lights{};
