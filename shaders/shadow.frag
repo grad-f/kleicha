@@ -11,7 +11,6 @@ struct DrawData {
 	uint materialIndex;
 	uint textureIndex;
 	uint transformIndex;
-	uint isLight;
 };
 
 struct Material {

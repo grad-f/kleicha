@@ -12,7 +12,6 @@ struct DrawData {
 	uint materialIndex;
 	uint textureIndex;
 	uint transformIndex;
-	uint isLight;
 };
 
 struct Material {
@@ -183,13 +182,7 @@ float computeShadow(uint sCubeMapIndex, vec3 wFragToLight, float lightSize) {
 
 void main() {
 
-	DrawData dd = draws[inDrawId];
-	
-	// early return if rendering light
-	if(dd.isLight != 0) {
-		outColor = inColor;
-		return;
-	}
+	DrawData dd = draws[pc.drawId];
 
 	vec3 N = normalize(inNormal);
 	vec3 V = normalize(-inVertView);

@@ -56,7 +56,7 @@ private:
 	VkDescriptorSet m_globalDescSet{};
 	// per frame descriptor resources
 	VkDescriptorSetLayout m_frameDescSetLayout{};
-
+	
 	vkt::Frame m_frames[MAX_FRAMES_IN_FLIGHT]{};
 	vkt::Image rasterImage{};
 	vkt::Image depthImage{};
@@ -68,12 +68,18 @@ private:
 
 	vkt::Buffer m_vertexBuffer{};
 	vkt::Buffer m_indexBuffer{};
-	vkt::Buffer m_drawParamsBuffer{};
+	//vkt::Buffer m_drawParamsBuffer{};
 	// this buffer specifies indicies and offsets to the other buffers available in the shader
 	vkt::Buffer m_drawBuffer{};
 	vkt::Buffer m_globalsBuffer{};
 
-	std::vector<VkDrawIndexedIndirectCommand> m_drawIndirectParams{};
+
+	// each of these sets of draw data will be drawn with a different pipeline, provides flexibility.
+	std::vector<vkt::HostDrawData> m_mainDrawData{};
+	std::vector<vkt::HostDrawData> m_lightDrawData{};
+	vkt::HostDrawData m_skyboxDrawData{};
+
+	//std::vector<VkDrawIndexedIndirectCommand> m_drawIndirectParams{};
 	std::vector<vkt::Transform> m_meshTransforms{};
 	std::vector<vkt::Material> m_materials{};
 	std::vector<vkt::Light> m_lights{};
@@ -103,8 +109,8 @@ private:
 	void shadow_cube_pass(const vkt::Frame& frame);
 	void shadow_2D_pass(const vkt::Frame& frame);
 
-	vkt::DrawData create_draw(const std::vector<vkt::MeshBufferInfo>& canonicalMeshes, vkt::MeshType meshType, vkt::MaterialType materialType, vkt::TextureType textureType, bool isLight = false);
-	std::vector<vkt::MeshBufferInfo> load_mesh_data();
+	std::vector<vkt::DrawData> create_draw_data(const std::vector<vkt::GPUMesh>& canonicalMeshes, const std::vector<vkt::DrawRequest>& drawRequests);
+	std::vector<vkt::GPUMesh> load_mesh_data();
 
 	vkt::PushConstants m_pushConstants{};
 
@@ -128,6 +134,8 @@ private:
 	void set_window_extent(VkExtent2D extent) {
 		m_windowExtent = extent;
 	}
+
+	uint32_t m_totalDraws{0};
 
 	float m_deltaTime{};
 	float m_lastFrame{};

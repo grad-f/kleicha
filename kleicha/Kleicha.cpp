@@ -455,7 +455,7 @@ void Kleicha::init_image_buffers(bool windowResized) {
 			});
 	}
 
-std::vector<vkt::MeshBufferInfo> Kleicha::load_mesh_data() {
+std::vector<vkt::GPUMesh> Kleicha::load_mesh_data() {
 
 	std::vector<vkt::Mesh> meshes{};
 	meshes.emplace_back(utils::generate_pyramid_mesh());
@@ -468,7 +468,7 @@ std::vector<vkt::MeshBufferInfo> Kleicha::load_mesh_data() {
 	meshes.emplace_back(utils::load_obj_mesh("../models/grid.obj", vkt::MeshType::PLANE));
 	meshes.emplace_back(utils::load_obj_mesh("../models/sponza.obj", vkt::MeshType::SPONZA));
 
-	std::vector<vkt::MeshBufferInfo> meshBufferInfos(meshes.size());
+	std::vector<vkt::GPUMesh> GPUMeshes(meshes.size());
 	// create unified vertex and index buffers for upload. meshDrawData will keep track of mesh buffer offsets within the unified buffer.
 	std::vector<vkt::Vertex> unifiedVertices{};
 	std::vector<glm::uvec3> unifiedTriangles{};
@@ -476,14 +476,14 @@ std::vector<vkt::MeshBufferInfo> Kleicha::load_mesh_data() {
 	for (std::size_t i{ 0 }; i < meshes.size(); ++i) {
 
 		// store the current vertex and triangle counts
-		std::uint32_t vertexCount{ static_cast<uint32_t>(unifiedVertices.size()) };
-		std::uint32_t triangleCount{ static_cast<uint32_t>(unifiedTriangles.size()) };
+		int32_t vertexCount{ static_cast<int32_t>(unifiedVertices.size()) };
+		uint32_t triangleCount{ static_cast<uint32_t>(unifiedTriangles.size()) };
 
 		// store vertex and index buffer mesh start positions
-		meshBufferInfos[i].meshType = meshes[i].meshType;
-		meshBufferInfos[i].vertexOffset = vertexCount;
-		meshBufferInfos[i].indicesOffset = triangleCount * glm::uvec3::length();
-		meshBufferInfos[i].indicesCount = static_cast<uint32_t>(meshes[i].tInd.size() * glm::uvec3::length());
+		GPUMeshes[i].meshType = meshes[i].meshType;
+		GPUMeshes[i].vertexOffset = vertexCount;
+		GPUMeshes[i].indicesOffset = triangleCount * glm::uvec3::length();
+		GPUMeshes[i].indicesCount = static_cast<uint32_t>(meshes[i].tInd.size() * glm::uvec3::length());
 
 		// allocate memory for mesh vertex data and insert it
 		unifiedVertices.reserve(vertexCount + meshes[i].verts.size());
@@ -497,50 +497,75 @@ std::vector<vkt::MeshBufferInfo> Kleicha::load_mesh_data() {
 	m_vertexBuffer = upload_data(unifiedVertices.data(), unifiedVertices.size() * sizeof(vkt::Vertex), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 	m_indexBuffer = upload_data(unifiedTriangles.data(), unifiedTriangles.size() * sizeof(glm::uvec3), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
 
-	return meshBufferInfos;
+	return GPUMeshes;
 }
 
-vkt::DrawData Kleicha::create_draw(const std::vector<vkt::MeshBufferInfo>& canonicalMeshes, vkt::MeshType meshType, vkt::MaterialType materialType, vkt::TextureType textureType, bool isLight) {
-	for (const auto& mesh : canonicalMeshes) {
-		if (mesh.meshType == meshType) {
+std::vector<vkt::DrawData> Kleicha::create_draw_data(const std::vector<vkt::GPUMesh>& canonicalMeshes, const std::vector<vkt::DrawRequest>& drawRequests) {
+	
+	std::vector<vkt::DrawData> drawData{};
 
-			VkDrawIndexedIndirectCommand drawIndirectCommand{};
-			drawIndirectCommand.indexCount = mesh.indicesCount;
-			drawIndirectCommand.instanceCount = 1;
-			drawIndirectCommand.firstIndex = mesh.indicesOffset;
-			drawIndirectCommand.vertexOffset = static_cast<int32_t>(mesh.vertexOffset);
-			drawIndirectCommand.firstInstance = 0;
+	for (const auto& drawRequest : drawRequests) {
+		bool meshFound{ false };
+		for (const auto& mesh : canonicalMeshes) {
+			if (mesh.meshType == drawRequest.meshType) { 
 
-			m_drawIndirectParams.emplace_back(drawIndirectCommand);
+				meshFound = true;
 
-			vkt::DrawData drawDatum{ .materialIndex = static_cast<uint32_t>(materialType), .textureIndex = static_cast<uint32_t>(textureType), .transformIndex = static_cast<uint32_t>(m_drawIndirectParams.size()) - 1, .isLight = isLight };
-			return drawDatum;
+				// this is the draw data that will reside on the GPU and available through our shaders
+				vkt::DrawData drawDatum{ .materialIndex = static_cast<uint32_t>(drawRequest.materialType), .textureIndex = static_cast<uint32_t>(drawRequest.textureType), .transformIndex = static_cast<uint32_t>(drawData.size())};
+
+				// host draw data helps us manage our draws on the host
+				vkt::HostDrawData draw{};
+				draw.drawId = static_cast<uint32_t>(drawData.size());
+				draw.indicesCount = mesh.indicesCount;
+				draw.indicesOffset = mesh.indicesOffset;
+				draw.vertexOffset = mesh.vertexOffset;
+
+				if (drawRequest.isLight)
+					m_lightDrawData.emplace_back(draw);
+				else if (drawRequest.isSkybox)
+					m_skyboxDrawData = draw;
+				else
+					m_mainDrawData.emplace_back(draw);
+
+				drawData.push_back(drawDatum);
+				++m_totalDraws;
+			}
 		}
+
+		if (!meshFound)
+			throw std::runtime_error{ "[Kleicha] Requested mesh type was not found in the canonical meshes" };
 	}
 
-	throw std::runtime_error{ "[Kleicha] Requested mesh type was not found in the canonical meshes" };
+	return drawData;
 }
 
 void Kleicha::init_draw_data() {
 
-	// an array where each element is a mesh i have loaded in. it stores the indices/reference data into the unified array on the graphics card
-	std::vector<vkt::MeshBufferInfo> canonicalMeshBufferInfo{ load_mesh_data() };
+	using namespace vkt;
 
-	std::vector<vkt::DrawData> drawData{};
-	drawData.push_back(create_draw(canonicalMeshBufferInfo, vkt::MeshType::TORUS, vkt::MaterialType::SILVER, vkt::TextureType::NONE));
-	drawData.push_back(create_draw(canonicalMeshBufferInfo, vkt::MeshType::DOLPHIN, vkt::MaterialType::GOLD, vkt::TextureType::NONE));
-	drawData.push_back(create_draw(canonicalMeshBufferInfo, vkt::MeshType::SPHERE, vkt::MaterialType::JADE, vkt::TextureType::NONE));
-	drawData.push_back(create_draw(canonicalMeshBufferInfo, vkt::MeshType::SPONZA, vkt::MaterialType::NONE, vkt::TextureType::BRICK));
-	//drawData.push_back(create_draw(canonicalMeshes, vkt::MeshType::PLANE, vkt::MaterialType::NONE, vkt::TextureType::BRICK));
+	// an array where each element is a mesh i have loaded in. it stores the indices/reference data into the unified array on the graphics card
+	std::vector<vkt::GPUMesh> canonicalMeshBufferInfo{ load_mesh_data() };
+
+	std::vector<vkt::DrawRequest> drawRequests{									// is light		is skybox
+		{vkt::MeshType::TORUS,		vkt::MaterialType::SILVER,	vkt::TextureType::NONE,		false,		false	},
+		{vkt::MeshType::DOLPHIN,	vkt::MaterialType::GOLD,	vkt::TextureType::NONE,		false,		false	},
+		{vkt::MeshType::SPHERE,		vkt::MaterialType::JADE,	vkt::TextureType::NONE,		false,		false	},
+		{vkt::MeshType::SPONZA,		vkt::MaterialType::NONE,	vkt::TextureType::BRICK,	false,		false	},
+	};
 
 	for ([[maybe_unused]] const auto& light : m_lights) {
-		drawData.push_back(create_draw(canonicalMeshBufferInfo, vkt::MeshType::SPHERE, vkt::MaterialType::NONE, vkt::TextureType::NONE, true));
+		drawRequests.push_back({ vkt::MeshType::SPHERE, vkt::MaterialType::NONE, vkt::TextureType::NONE, true, false });
 	}
 
-	m_drawParamsBuffer = upload_data(m_drawIndirectParams.data(), m_drawIndirectParams.size() * sizeof(VkDrawIndexedIndirectCommand), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT);
+	//drawRequests.push_back({ vkt::MeshType::CUBE, vkt::MaterialType::NONE, vkt::TextureType::NONE, false, true });
+
+	std::vector<vkt::DrawData> drawData{create_draw_data(canonicalMeshBufferInfo, drawRequests)};
+
+	//m_drawParamsBuffer = upload_data(m_drawIndirectParams.data(), m_drawIndirectParams.size() * sizeof(VkDrawIndexedIndirectCommand), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT);
 	m_drawBuffer = upload_data(drawData.data(), drawData.size() * sizeof(vkt::DrawData), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 
-	m_meshTransforms.resize(m_drawIndirectParams.size());
+	m_meshTransforms.resize(drawData.size());
 
 	vkt::GlobalData globalData{};
 	globalData.ambientLight = glm::vec4{ 0.22f, 0.22f, 0.22f, 1.0f };
@@ -559,7 +584,7 @@ void Kleicha::init_dynamic_buffers() {
 
 	// allocate per frame buffers such as transform buffer
 	for (auto& frame : m_frames) {
-		frame.transformBuffer = utils::create_buffer(m_allocator, sizeof(vkt::Transform) * m_drawIndirectParams.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+		frame.transformBuffer = utils::create_buffer(m_allocator, sizeof(vkt::Transform) * m_totalDraws, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
 			VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
 
 		frame.lightBuffer = utils::create_buffer(m_allocator, sizeof(vkt::Light) * m_lights.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
@@ -584,8 +609,8 @@ void Kleicha::init_lights() {
 	};
 	m_lights.push_back(pointLight);
 
-	//pointLight.mPos = { -4.5f, 6.0f, -3.0f };
-	//m_lights.push_back(pointLight);
+	pointLight.mPos = { -4.5f, 6.0f, -3.0f };
+	m_lights.push_back(pointLight);
 
 	/*pointLight.mPos = {-6.0f, 1.5f, -5.0f};
 	m_lights.push_back(pointLight);*/
@@ -988,7 +1013,7 @@ void Kleicha::update_dynamic_buffers(const vkt::Frame& frame, float currentTime,
 	}
 
 	// update per frame buffers
-	memcpy(frame.transformBuffer.allocation->GetMappedData(), m_meshTransforms.data(), sizeof(vkt::Transform) * m_drawIndirectParams.size());
+	memcpy(frame.transformBuffer.allocation->GetMappedData(), m_meshTransforms.data(), sizeof(vkt::Transform) * m_totalDraws);
 	memcpy(frame.materialBuffer.allocation->GetMappedData(), m_materials.data(), sizeof(vkt::Material) * m_materials.size());
 	memcpy(frame.lightBuffer.allocation->GetMappedData(), m_lights.data(), sizeof(vkt::Light) * m_lights.size());
 
@@ -1021,11 +1046,15 @@ void Kleicha::shadow_cube_pass(const vkt::Frame& frame) {
 		cubeShadowRenderingInfo.pColorAttachments = &cubeColorAttachment;
 		cubeShadowRenderingInfo.pDepthAttachment = &cubeDepthAttachment;
 
-		vkCmdBeginRendering(frame.cmdBuffer, &cubeShadowRenderingInfo);
 		m_pushConstants.lightId = j;
 
-		vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
-		vkCmdDrawIndexedIndirect(frame.cmdBuffer, m_drawParamsBuffer.buffer, 0, static_cast<uint32_t>(m_drawIndirectParams.size() - m_lights.size()), sizeof(VkDrawIndexedIndirectCommand));
+		vkCmdBeginRendering(frame.cmdBuffer, &cubeShadowRenderingInfo);
+
+		for (const auto& draw : m_mainDrawData) {
+			m_pushConstants.drawId = draw.drawId;
+			vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
+			vkCmdDrawIndexed(frame.cmdBuffer, draw.indicesCount, 1, draw.indicesOffset, draw.vertexOffset, 0);
+		}
 
 		vkCmdEndRendering(frame.cmdBuffer);
 		// transition shadow cube map
@@ -1057,12 +1086,16 @@ void Kleicha::shadow_2D_pass(const vkt::Frame& frame) {
 	for (uint32_t j{ 0 }; j < m_lights.size(); ++j) {
 		VkRenderingAttachmentInfo shadowDepthAttachment{ init::create_rendering_attachment_info(frame.shadowMaps[j].imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, &depthClearValue, VK_TRUE) };
 		renderingInfo.pDepthAttachment = &shadowDepthAttachment;
+		
 		vkCmdBeginRendering(frame.cmdBuffer, &renderingInfo);
 
 		m_pushConstants.lightId = j;
 
-		vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
-		vkCmdDrawIndexedIndirect(frame.cmdBuffer, m_drawParamsBuffer.buffer, 0, static_cast<uint32_t>(m_drawIndirectParams.size() - m_lights.size()), sizeof(VkDrawIndexedIndirectCommand));
+		for (const auto& draw : m_mainDrawData) {
+			m_pushConstants.drawId = draw.drawId;
+			vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
+			vkCmdDrawIndexed(frame.cmdBuffer, draw.indicesCount, 1, draw.indicesOffset, draw.vertexOffset, 0);
+		}
 
 		vkCmdEndRendering(frame.cmdBuffer);
 	}
@@ -1223,10 +1256,21 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 	else
 		vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_lightPipeline);
 
-
 	vkCmdBeginRendering(frame.cmdBuffer, &renderingInfo);
 	vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
-	vkCmdDrawIndexedIndirect(frame.cmdBuffer, m_drawParamsBuffer.buffer, 0, static_cast<uint32_t>(m_drawIndirectParams.size()), sizeof(VkDrawIndexedIndirectCommand));
+	
+	for (const auto& draw : m_mainDrawData) {
+		m_pushConstants.drawId = draw.drawId;
+		vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
+		vkCmdDrawIndexed(frame.cmdBuffer, draw.indicesCount, 1, draw.indicesOffset, draw.vertexOffset, 0);
+	}
+
+	for (const auto& draw : m_lightDrawData) {
+		m_pushConstants.drawId = draw.drawId;
+		vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
+		vkCmdDrawIndexed(frame.cmdBuffer, draw.indicesCount, 1, draw.indicesOffset, draw.vertexOffset, 0);
+	}
+
 	vkCmdEndRendering(frame.cmdBuffer);
 
 	// transition image to transfer src
@@ -1335,7 +1379,6 @@ void Kleicha::cleanup() const {
 		vmaDestroyImage(m_allocator, texture.image, texture.allocation);
 	}
 
-	vmaDestroyBuffer(m_allocator, m_drawParamsBuffer.buffer, m_drawParamsBuffer.allocation);
 	vmaDestroyBuffer(m_allocator, m_vertexBuffer.buffer, m_vertexBuffer.allocation);
 	vmaDestroyBuffer(m_allocator, m_indexBuffer.buffer, m_indexBuffer.allocation);
 	vmaDestroyBuffer(m_allocator, m_globalsBuffer.buffer, m_globalsBuffer.allocation);

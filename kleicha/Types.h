@@ -99,6 +99,14 @@ namespace vkt {
 		SPONZA,
 	};
 
+	enum class MaterialType {
+		NONE,
+		GOLD,
+		JADE,
+		PEARL,
+		SILVER,
+	};
+
 	enum class TextureType {
 		NONE,
 		BRICK,
@@ -108,28 +116,37 @@ namespace vkt {
 		SKYBOX_POLE
 	};
 
-	enum class MaterialType {
-		NONE,
-		GOLD,
-		JADE,
-		PEARL,
-		SILVER,
+
+
+	struct DrawRequest {
+		vkt::MeshType meshType{};
+		vkt::MaterialType materialType{};
+		vkt::TextureType textureType{};
+		uint32_t isLight{};
+		uint32_t isSkybox{};
 	};
 
 	struct DrawData {
 		uint32_t materialIndex{};
 		uint32_t textureIndex{};
 		uint32_t transformIndex{};
-		uint32_t isLight;
 	};
 
-	struct MeshBufferInfo {
+	struct HostDrawData {
+		uint32_t drawId{};
+		uint32_t indicesCount{};
+		uint32_t indicesOffset{};
+		int32_t vertexOffset{};
+	};
+
+	// this will be used to build the host draw data.
+	struct GPUMesh {
 		vkt::MeshType meshType{};
 		uint32_t indicesCount{};
 		// an offset in the index buffer in which this meshes index data begins
 		uint32_t indicesOffset{};
 		// an offset in the vertex buffer in which this meshes vertex data begins
-		uint32_t vertexOffset{};
+		int32_t vertexOffset{};
 	};
 
 	struct Mesh {

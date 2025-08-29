@@ -15,7 +15,6 @@ struct DrawData {
 	uint materialIndex;
 	uint textureIndex;
 	uint transformIndex;
-	uint isLight;
 };
 
 struct GlobalData {
@@ -85,8 +84,7 @@ layout(location = 0) out vec4 outVertWorld;
 layout (location = 1) out flat uint outDrawId;
 
 void main() {
-	DrawData dd = draws[gl_DrawIDARB];
-	outDrawId = gl_DrawIDARB;
+	DrawData dd = draws[pc.drawId];
 
 	// we choose to perform out lighting computations in camera-space.
 	gl_Position = lights[pc.lightId].cubeViewProjs[gl_ViewIndex] * transforms[dd.transformIndex].model * vec4(vertices[gl_VertexIndex].position, 1.0f);

@@ -14,7 +14,6 @@ struct DrawData {
 	uint materialIndex;
 	uint textureIndex;
 	uint transformIndex;
-	uint isLight;
 };
 
 struct GlobalData {
@@ -89,19 +88,10 @@ layout(push_constant) uniform constants {
 }pc;
 
 void main() {
-	DrawData dd = draws[gl_DrawIDARB];
-	outDrawId = gl_DrawIDARB;
+	DrawData dd = draws[pc.drawId];
 	outTexID = dd.materialIndex;
 	Vertex vert = vertices[gl_VertexIndex];
 	Transform transform = transforms[dd.transformIndex];
-
-	// if mesh light draw
-	if (dd.isLight > 0) {
-		gl_Position = pc.perspectiveProj * transform.modelView * vec4(vert.position, 1.0f);
-		outUV = vert.UV;
-		outVertColor = vec4(1.0f, 1.0f, 1.0f, 1.0f);
-		return;
-	}
 
 	// we choose to perform out lighting computations in camera-space.
 

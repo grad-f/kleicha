@@ -84,8 +84,7 @@ layout (location = 0) out flat uint outDrawId;
 
 
 void main() {
-	DrawData dd = draws[gl_DrawIDARB];
-	outDrawId = gl_DrawIDARB;
+	DrawData dd = draws[pc.drawId];
 
 	// we choose to perform out lighting computations in camera-space.
 	gl_Position = lights[pc.lightId].viewProj * transforms[dd.transformIndex].model * vec4(vertices[gl_VertexIndex].position, 1.0f);
