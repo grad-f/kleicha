@@ -1,6 +1,6 @@
 #version 450
-#extension GL_EXT_debug_printf : enable
 #extension GL_ARB_shader_draw_parameters : enable
+#extension GL_EXT_debug_printf : enable
 
 
 struct Vertex {
@@ -29,13 +29,6 @@ struct Transform {
 		mat4 modelViewInvTr;
 };
 
-struct Material {
-	vec4 ambient;
-	vec4 diffuse;
-	vec4 specular;
-	float shininess;
-};
-
 struct Light {
 	vec4 ambient;
 	vec4 diffuse;
@@ -48,6 +41,7 @@ struct Light {
 	mat4 viewProj;
 	mat4 cubeViewProjs[6];
 };
+
 layout(binding = 0, set = 0) readonly buffer Vertices {
 	Vertex vertices[];
 };
@@ -65,10 +59,6 @@ layout(binding = 0, set = 1) readonly buffer Transforms {
 	Transform transforms[];
 };
 
-layout(binding = 1, set = 1) readonly buffer Materials {
-	Material materials[];
-};
-
 layout(binding = 2, set = 1) readonly buffer Lights {
 	Light lights[];
 };
@@ -79,14 +69,15 @@ layout(push_constant) uniform constants {
 	uint lightId;
 }pc;
 
-layout (location = 0) out flat uint outDrawId;
-
+layout (location = 0) out vec4 outVertColor;
 
 void main() {
 	DrawData dd = draws[pc.drawId];
+	Vertex vert = vertices[gl_VertexIndex];
+	Transform transform = transforms[dd.transformIndex];
 
-	// we choose to perform out lighting computations in camera-space.
-	gl_Position = lights[pc.lightId].viewProj * transforms[dd.transformIndex].model * vec4(vertices[gl_VertexIndex].position, 1.0f);
+	outVertColor = lights[pc.lightId].diffuse;
 
-	//debugPrintfEXT("%f | %f | %f\n", lights[0].mvPos.x, lights[0].mvPos.y, lights[0].mvPos.z);
+	gl_Position = pc.perspectiveProj * transform.modelView * vec4(vert.position, 1.0f);
+
 }

@@ -59,11 +59,10 @@ PipelineBuilder& PipelineBuilder::set_color_blend_state(VkColorComponentFlags co
 	return *this;
 }
 
-// TO-DO: We will eventually switch to reverse depth, reflect that here
-PipelineBuilder& PipelineBuilder::set_depth_stencil_state(VkBool32 depthTestEnable) {
+PipelineBuilder& PipelineBuilder::set_depth_stencil_state(VkBool32 depthTestEnable, VkCompareOp depthCompareOp) {
 	m_depthStencilInfo.depthTestEnable = depthTestEnable;
 	m_depthStencilInfo.depthWriteEnable = VK_TRUE;
-	m_depthStencilInfo.depthCompareOp = VK_COMPARE_OP_GREATER_OR_EQUAL;
+	m_depthStencilInfo.depthCompareOp = depthCompareOp;
 	// sample depth should fall between [0,1] NDC, if it doesn't it shouldn't be reflected in the fragment's coverage mask.
 	m_depthStencilInfo.depthBoundsTestEnable = VK_TRUE;
 	m_depthStencilInfo.stencilTestEnable = VK_FALSE;

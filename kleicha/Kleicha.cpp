@@ -191,6 +191,12 @@ void Kleicha::init_graphics_pipelines() {
 	VkShaderModule cubeShadowVertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_omniShadow.spv") };
 	VkShaderModule cubeShadowFragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_omniShadow.spv") };
 
+	VkShaderModule lightDrawsVertModule{utils::create_shader_module(m_device.device, "../shaders/vert_lightDraws.spv")};
+	VkShaderModule lightDrawsFragModule{utils::create_shader_module(m_device.device, "../shaders/frag_lightDraws.spv")};
+
+	VkShaderModule skyboxVertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_skybox.spv") };
+	VkShaderModule skyboxFragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_skybox.spv") };
+
 	PipelineBuilder pipelineBuilder{ m_device.device };
 	pipelineBuilder.pipelineLayout = m_dummyPipelineLayout;
 	pipelineBuilder.set_shaders(lightShadowVertModule, lightShadowFragModule);								//ccw winding
@@ -208,11 +214,18 @@ void Kleicha::init_graphics_pipelines() {
 	pipelineBuilder.set_shaders(lightShadowVertModule, lightCubeShadowPCSSFragModule);
 	m_lightCubeShadowPCSSPipeline = pipelineBuilder.build();
 
-
 	pipelineBuilder.set_shaders(lightVertModule, lightFragModule);
 	m_lightPipeline = pipelineBuilder.build();
 
-	pipelineBuilder.set_rasterizer_state(VK_POLYGON_MODE_FILL, VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE, -1.25f, -1.75f);
+	pipelineBuilder.set_shaders(lightDrawsVertModule, lightDrawsFragModule);
+	m_lightDrawsPipeline = pipelineBuilder.build();
+
+
+	pipelineBuilder.set_rasterizer_state(VK_POLYGON_MODE_FILL, VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+	pipelineBuilder.set_shaders(skyboxVertModule, skyboxFragModule);
+	m_skyboxPipeline = pipelineBuilder.build();
+
+	pipelineBuilder.set_rasterizer_state(VK_POLYGON_MODE_FILL, VK_CULL_MODE_FRONT_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE, -1.25f, -1.75f);
 	pipelineBuilder.set_shaders(shadowVertModule, shadowFragModule);
 	pipelineBuilder.disable_color_output();
 	m_shadowPipeline = pipelineBuilder.build();
@@ -236,6 +249,10 @@ void Kleicha::init_graphics_pipelines() {
 	vkDestroyShaderModule(m_device.device, shadowFragModule, nullptr);
 	vkDestroyShaderModule(m_device.device, cubeShadowVertModule, nullptr);
 	vkDestroyShaderModule(m_device.device, cubeShadowFragModule, nullptr);
+	vkDestroyShaderModule(m_device.device, lightDrawsVertModule, nullptr);
+	vkDestroyShaderModule(m_device.device, lightDrawsFragModule, nullptr);
+	vkDestroyShaderModule(m_device.device, skyboxVertModule, nullptr);
+	vkDestroyShaderModule(m_device.device, skyboxFragModule, nullptr);
 }
 
 void Kleicha::init_descriptors() {
@@ -517,6 +534,7 @@ std::vector<vkt::DrawData> Kleicha::create_draw_data(const std::vector<vkt::GPUM
 				// host draw data helps us manage our draws on the host
 				vkt::HostDrawData draw{};
 				draw.drawId = static_cast<uint32_t>(drawData.size());
+				draw.transformIndex = drawDatum.transformIndex;
 				draw.indicesCount = mesh.indicesCount;
 				draw.indicesOffset = mesh.indicesOffset;
 				draw.vertexOffset = mesh.vertexOffset;
@@ -547,18 +565,18 @@ void Kleicha::init_draw_data() {
 	// an array where each element is a mesh i have loaded in. it stores the indices/reference data into the unified array on the graphics card
 	std::vector<vkt::GPUMesh> canonicalMeshBufferInfo{ load_mesh_data() };
 
-	std::vector<vkt::DrawRequest> drawRequests{									// is light		is skybox
-		{vkt::MeshType::TORUS,		vkt::MaterialType::SILVER,	vkt::TextureType::NONE,		false,		false	},
-		{vkt::MeshType::DOLPHIN,	vkt::MaterialType::GOLD,	vkt::TextureType::NONE,		false,		false	},
-		{vkt::MeshType::SPHERE,		vkt::MaterialType::JADE,	vkt::TextureType::NONE,		false,		false	},
-		{vkt::MeshType::SPONZA,		vkt::MaterialType::NONE,	vkt::TextureType::BRICK,	false,		false	},
+	std::vector<vkt::DrawRequest> drawRequests{									//        is light	  is skybox
+		{vkt::MeshType::SHUTTLE,	vkt::MaterialType::NONE,	vkt::TextureType::SHUTTLE,		false,		false	},
+		{vkt::MeshType::DOLPHIN,	vkt::MaterialType::GOLD,	vkt::TextureType::NONE,			false,		false	},
+		{vkt::MeshType::SPHERE,		vkt::MaterialType::JADE,	vkt::TextureType::NONE,			false,		false	},
+		{vkt::MeshType::SPONZA,		vkt::MaterialType::NONE,	vkt::TextureType::BRICK,		false,		false	},
 	};
 
 	for ([[maybe_unused]] const auto& light : m_lights) {
 		drawRequests.push_back({ vkt::MeshType::SPHERE, vkt::MaterialType::NONE, vkt::TextureType::NONE, true, false });
 	}
 
-	//drawRequests.push_back({ vkt::MeshType::CUBE, vkt::MaterialType::NONE, vkt::TextureType::NONE, false, true });
+	drawRequests.push_back({ vkt::MeshType::CUBE, vkt::MaterialType::NONE, vkt::TextureType::SKYBOX_POLE, false, true });
 
 	std::vector<vkt::DrawData> drawData{create_draw_data(canonicalMeshBufferInfo, drawRequests)};
 
@@ -609,8 +627,8 @@ void Kleicha::init_lights() {
 	};
 	m_lights.push_back(pointLight);
 
-	pointLight.mPos = { -4.5f, 6.0f, -3.0f };
-	m_lights.push_back(pointLight);
+	//pointLight.mPos = { -4.5f, 6.0f, -3.0f };
+	//m_lights.push_back(pointLight);
 
 	/*pointLight.mPos = {-6.0f, 1.5f, -5.0f};
 	m_lights.push_back(pointLight);*/
@@ -624,7 +642,7 @@ void Kleicha::init_materials() {
 	m_textures.emplace_back(upload_texture_image("../textures/concrete.png"));		//3
 	m_textures.emplace_back(upload_texture_image("../textures/shuttle.jpg"));		//4
 
-	const char* faces[6]{"../textures/skybox/right.jpg", "../textures/skybox/left.jpg", "../textures/skybox/top.jpg", "../textures/skybox/bottom.jpg", "../textures/skybox/front.jpg", "../textures/skybox/back.jpg" };
+	const char* faces[6]{"../textures/skybox/night/right.png", "../textures/skybox/night/left.png", "../textures/skybox/night/bottom.png", "../textures/skybox/night/top.png" , "../textures/skybox/night/front.png", "../textures/skybox/night/back.png" };
 	m_textures.emplace_back(upload_texture_image(faces));
 
 	m_materials.emplace_back(vkt::Material::none());
@@ -676,6 +694,7 @@ void Kleicha::init_samplers() {
 	VkSamplerCreateInfo textureSamplerInfo{ init::create_sampler_info(m_device, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_TRUE, 16.0f) };
 	VK_CHECK(vkCreateSampler(m_device.device, &textureSamplerInfo, nullptr, &m_textureSampler));
 
+
 	VkSamplerCreateInfo shadowSamplerInfo{ init::create_sampler_info(m_device, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_MIPMAP_MODE_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE) };
 	VK_CHECK(vkCreateSampler(m_device.device, &shadowSamplerInfo, nullptr, &m_shadowSampler));
 }
@@ -689,6 +708,7 @@ void Kleicha::init_write_descriptor_sets() {
 
 	// per frame descriptor set writes
 	for (auto& frame : m_frames) {
+
 		utils::update_set_buffer_descriptor(m_device.device, frame.descriptorSet, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, frame.transformBuffer.buffer);
 		utils::update_set_buffer_descriptor(m_device.device, frame.descriptorSet, 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, frame.materialBuffer.buffer);
 		utils::update_set_buffer_descriptor(m_device.device, frame.descriptorSet, 2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, frame.lightBuffer.buffer);
@@ -980,7 +1000,7 @@ void Kleicha::update_dynamic_buffers(const vkt::Frame& frame, float currentTime,
 	// update mesh transforms
 	glm::mat4 view{ m_camera.getViewMatrix() };
 	// TODO: Only update if there was an update to a buffer
-	m_meshTransforms[0].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ -3.0f, 0.35f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, currentTime, glm::vec3{ 1.0f, .27f, .5f }) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 0.5f, 0.5f, 0.5f });
+	m_meshTransforms[0].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ -3.0f, 0.35f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, currentTime, glm::vec3{ 1.0f, .27f, .5f }) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 1.5f, 1.5f, 1.5f });
 	m_meshTransforms[0].modelView = view * m_meshTransforms[0].model;
 	m_meshTransforms[0].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[0].modelView));
 
@@ -992,24 +1012,32 @@ void Kleicha::update_dynamic_buffers(const vkt::Frame& frame, float currentTime,
 	m_meshTransforms[2].modelView = view * m_meshTransforms[2].model;
 	m_meshTransforms[2].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[2].modelView));
 
-	//m_meshTransforms[3].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, -0.9f, -3.0f }) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 1.0f, 1.0f, 1.0f });
+	//m_meshTransforms[3].model =
 	m_meshTransforms[3].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, -0.9f, -3.0f }) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ .01f, .01f, .01f });
 	m_meshTransforms[3].modelView = view * m_meshTransforms[3].model;
 	m_meshTransforms[3].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[3].modelView));
+
+	// skybox
+	m_meshTransforms[m_skyboxDrawData.transformIndex].model = glm::mat4{ 1.0f };
+	m_meshTransforms[m_skyboxDrawData.transformIndex].modelView = view * m_meshTransforms[m_skyboxDrawData.transformIndex].model;
+	// remove view translation components as we would like our cube skybox to stay at the origin.
+	m_meshTransforms[m_skyboxDrawData.transformIndex].modelView[3][0] = 0.0f;
+	m_meshTransforms[m_skyboxDrawData.transformIndex].modelView[3][1] = 0.0f;
+	m_meshTransforms[m_skyboxDrawData.transformIndex].modelView[3][2] = 0.0f;
+	m_meshTransforms[m_skyboxDrawData.transformIndex].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[m_skyboxDrawData.transformIndex].modelView));
 
 	/*m_meshTransforms[4].model = glm::translate(glm::mat4{1.0f}, glm::vec3{0.0f, -1.9f, -3.0f}) * glm::scale(glm::mat4{1.0f}, glm::vec3{5.0f, 5.0f, 5.0f});
 	m_meshTransforms[4].modelView = view * m_meshTransforms[4].model;
 	m_meshTransforms[4].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[4].modelView));*/
 
-	// This is somewhat okay but not very robust as it depends on the light meshes being added last. This may be fine, it may not... We'll see and provide an alternative solution if needed.
-	std::size_t lightMeshIndStart{ m_meshTransforms.size() - m_lights.size() };
-	for (std::size_t i{ lightMeshIndStart }; i < m_meshTransforms.size(); ++i) {
 
-		// compute light position in camera coordinate frame
-		m_lights[i - lightMeshIndStart].mvPos = view * glm::vec4{ m_lights[i - lightMeshIndStart].mPos, 1.0f };
 
-		m_meshTransforms[i].modelView = view * glm::translate(glm::mat4{ 1.0f }, m_lights[i - lightMeshIndStart].mPos) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 0.1f, 0.1f, 0.1f });
-		m_meshTransforms[i].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[i].modelView));
+	// This is somewhat okay but not very robust as it depends on the light meshes being added together. This may be fine, it may not... We'll see and provide an alternative solution if needed.
+	for (std::size_t i{ 0 }; i < m_lights.size(); ++i) {
+		m_lights[i].mvPos = view * glm::vec4{ m_lights[i].mPos, 1.0f };
+
+		m_meshTransforms[m_lightDrawData[0].transformIndex + i].modelView = view * glm::translate(glm::mat4{ 1.0f }, m_lights[i].mPos) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 0.1f, 0.1f, 0.1f });
+		m_meshTransforms[m_lightDrawData[0].transformIndex + i].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[m_lightDrawData[0].transformIndex + i].modelView));
 	}
 
 	// update per frame buffers
@@ -1265,11 +1293,23 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 		vkCmdDrawIndexed(frame.cmdBuffer, draw.indicesCount, 1, draw.indicesOffset, draw.vertexOffset, 0);
 	}
 
-	for (const auto& draw : m_lightDrawData) {
-		m_pushConstants.drawId = draw.drawId;
+	vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_lightDrawsPipeline);
+
+	for (std::uint32_t i{ 0 }; i < m_lightDrawData.size(); ++i) {
+		m_pushConstants.drawId = m_lightDrawData[i].drawId;
+		m_pushConstants.lightId = i;
+
 		vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
-		vkCmdDrawIndexed(frame.cmdBuffer, draw.indicesCount, 1, draw.indicesOffset, draw.vertexOffset, 0);
+		vkCmdDrawIndexed(frame.cmdBuffer, m_lightDrawData[i].indicesCount, 1, m_lightDrawData[i].indicesOffset, m_lightDrawData[i].vertexOffset, 0);
 	}
+
+
+	vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_skyboxPipeline);
+
+	// TODO: Create and bind pipeline to draw skybox.
+	m_pushConstants.drawId = m_skyboxDrawData.drawId;
+	vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
+	vkCmdDrawIndexed(frame.cmdBuffer, m_skyboxDrawData.indicesCount, 1, m_skyboxDrawData.indicesOffset, m_skyboxDrawData.vertexOffset, 0);
 
 	vkCmdEndRendering(frame.cmdBuffer);
 
@@ -1418,6 +1458,8 @@ void Kleicha::cleanup() const {
 	vkDestroyPipeline(m_device.device, m_lightPipeline, nullptr);
 	vkDestroyPipeline(m_device.device, m_shadowPipeline, nullptr);
 	vkDestroyPipeline(m_device.device, m_cubeShadowPipeline, nullptr);
+	vkDestroyPipeline(m_device.device, m_lightDrawsPipeline, nullptr);
+	vkDestroyPipeline(m_device.device, m_skyboxPipeline, nullptr);
 	vkDestroyPipelineLayout(m_device.device, m_dummyPipelineLayout, nullptr);
 
 	for (const auto& renderedSemaphore : m_renderedSemaphores) {

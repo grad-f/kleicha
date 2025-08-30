@@ -21,4 +21,10 @@ C:\VulkanSDK\1.4.313.1\Bin\glslc.exe omniShadow.frag -o frag_omniShadow.spv -g
 C:\VulkanSDK\1.4.313.1\Bin\glslc.exe blinnPhongCubeShadowsPCF.frag -o frag_blinnPhongCubeShadowsPCF.spv -g
 
 C:\VulkanSDK\1.4.313.1\Bin\glslc.exe blinnPhongCubeShadowsPCSS.frag -o frag_blinnPhongCubeShadowsPCSS.spv -g
+
+C:\VulkanSDK\1.4.313.1\Bin\glslc.exe lightDraws.vert -o vert_lightDraws.spv -g
+C:\VulkanSDK\1.4.313.1\Bin\glslc.exe lightDraws.frag -o frag_lightDraws.spv -g
+
+C:\VulkanSDK\1.4.313.1\Bin\glslc.exe skybox.vert -o vert_skybox.spv -g
+C:\VulkanSDK\1.4.313.1\Bin\glslc.exe skybox.frag -o frag_skybox.spv -g
 pause

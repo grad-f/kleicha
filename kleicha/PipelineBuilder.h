@@ -25,7 +25,7 @@ public:
 	PipelineBuilder& set_color_blend_state(VkColorComponentFlags colorComponentFlags, VkBool32 blendEnable = false);
 
 
-	PipelineBuilder& set_depth_stencil_state(VkBool32 depthTestEnable);
+	PipelineBuilder& set_depth_stencil_state(VkBool32 depthTestEnable, VkCompareOp depthCompareOp = VK_COMPARE_OP_GREATER_OR_EQUAL);
 	PipelineBuilder& set_color_attachment_format(VkFormat format);
 	PipelineBuilder& set_depth_attachment_format(VkFormat format);
 

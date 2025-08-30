@@ -50,7 +50,7 @@ layout(binding = 2, set = 1) readonly buffer Lights {
 	Light lights[];
 };
 
-layout(set = 0, binding = 3) uniform samplerCube texCubeSampler[];
+//layout(set = 0, binding = 3) uniform samplerCube texCubeSampler[];
 layout(set = 0, binding = 3) uniform sampler2D texSampler[];
 layout(set = 1, binding = 3) uniform sampler2D shadowSampler[];
 layout(set = 1, binding = 4) uniform samplerCube cubeShadowSampler[];

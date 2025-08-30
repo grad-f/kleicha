@@ -256,12 +256,16 @@
     <None Include="..\shaders\cube.frag" />
     <None Include="..\shaders\cube.vert" />
     <None Include="..\shaders\cubeInstanced.vert" />
+    <None Include="..\shaders\lightDraws.frag" />
+    <None Include="..\shaders\lightDraws.vert" />
     <None Include="..\shaders\omniShadow.frag" />
     <None Include="..\shaders\omniShadow.vert" />
     <None Include="..\shaders\pyrTextured.frag" />
     <None Include="..\shaders\pyrTextured.vert" />
     <None Include="..\shaders\shadow.frag" />
     <None Include="..\shaders\shadow.vert" />
+    <None Include="..\shaders\skybox.frag" />
+    <None Include="..\shaders\skybox.vert" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="..\textures\brick.png" />

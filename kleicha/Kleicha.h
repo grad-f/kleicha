@@ -42,6 +42,10 @@ private:
 	VkPipeline m_cubeShadowPipeline;
 	VkPipeline m_lightCubeShadowPCSSPipeline;
 	VkPipeline m_lightCubeShadowPipeline{};
+	VkPipeline m_skyboxPipeline{};
+
+	// draws point light geometry (spheres) with simple shaders.
+	VkPipeline m_lightDrawsPipeline{};
 
 	bool m_enableShadows{ false };
 	bool m_enableCubeShadows{ false };
