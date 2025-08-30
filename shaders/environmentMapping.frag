@@ -1,0 +1,50 @@
+#version 450
+#extension GL_EXT_nonuniform_qualifier : require
+#extension GL_EXT_debug_printf : enable
+
+struct GlobalData {
+	vec4 ambientLight;
+	mat4 bias;
+	uint lightsCount;
+};
+
+struct DrawData {
+	uint materialIndex;
+	uint textureIndex;
+	uint transformIndex;
+};
+
+layout(binding = 2, set = 0) readonly buffer Globals {
+	GlobalData globals;
+};
+
+layout(binding = 1, set = 0) readonly buffer Draws {
+	DrawData draws[];
+};
+
+layout(set = 0, binding = 3) uniform samplerCube texCubeSampler[];
+
+layout (location = 0) in vec3 inNormal;
+layout (location = 1) in vec3 inFragWorld;
+
+layout (location = 0) out vec4 outColor;
+
+layout(push_constant) uniform constants {
+	mat4 perspectiveProj;
+	uint drawId;
+	uint lightId;
+	vec3 viewWorldPos;
+}pc;
+
+void main() {
+
+	DrawData dd = draws[pc.drawId];
+
+	// In world space, get direction vector from camera pos to vertex pos
+	vec3 I = normalize(inFragWorld - pc.viewWorldPos);
+	vec3 R = reflect(I, normalize(inNormal));
+	R = vec3(R.x, -R.y, R.z);
+
+	outColor = vec4(texture(texCubeSampler[5], R).rgb, 1.0f);
+
+}

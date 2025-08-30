@@ -27,4 +27,7 @@ C:\VulkanSDK\1.4.313.1\Bin\glslc.exe lightDraws.frag -o frag_lightDraws.spv -g
 
 C:\VulkanSDK\1.4.313.1\Bin\glslc.exe skybox.vert -o vert_skybox.spv -g
 C:\VulkanSDK\1.4.313.1\Bin\glslc.exe skybox.frag -o frag_skybox.spv -g
+
+C:\VulkanSDK\1.4.313.1\Bin\glslc.exe environmentMapping.vert -o vert_environmentMapping.spv -g
+C:\VulkanSDK\1.4.313.1\Bin\glslc.exe environmentMapping.frag -o frag_environmentMapping.spv -g
 pause

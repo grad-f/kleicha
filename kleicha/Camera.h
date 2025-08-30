@@ -26,8 +26,12 @@ public:
 		lastY = windowExtent.height / 2.0f;
 		computeBasis();
 	};
-	glm::mat4 getViewMatrix() {
+	glm::mat4 getViewMatrix() const {
 		return utils::lookAt(m_pos, m_pos + m_gazeDir, WORLD_UP);
+	}
+
+	glm::vec3 get_world_pos() const {
+		return m_pos;
 	}
 
 	void moveCameraPosition(CameraMoveFlags direction, float deltaTime);

@@ -67,6 +67,7 @@ layout(push_constant) uniform constants {
 	mat4 perspectiveProj;
 	uint drawId;
 	uint lightId;
+	vec3 viewWorldPos;
 }pc;
 
 layout (location = 0) out vec4 outVertColor;

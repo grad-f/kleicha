@@ -17,6 +17,7 @@ namespace vkt {
 		glm::mat4 perspectiveProjection{};
 		uint32_t drawId{};
 		uint32_t lightId{};
+		alignas(16)glm::vec3 viewWorldPos{};
 	};
 
 	struct Instance {
@@ -104,7 +105,7 @@ namespace vkt {
 		GOLD,
 		JADE,
 		PEARL,
-		SILVER,
+		SILVER
 	};
 
 	enum class TextureType {
@@ -122,8 +123,10 @@ namespace vkt {
 		vkt::MeshType meshType{};
 		vkt::MaterialType materialType{};
 		vkt::TextureType textureType{};
-		uint32_t isLight{};
-		uint32_t isSkybox{};
+		bool isLight{ false };
+		bool isSkybox{ false };
+		bool isReflective{ false };
+		bool isRefractive{ false };
 	};
 
 	struct DrawData {

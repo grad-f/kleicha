@@ -70,6 +70,7 @@ layout(push_constant) uniform constants {
 	mat4 perspectiveProj;
 	uint drawId;
 	uint lightId;
+	vec3 viewWorldPos;
 }pc;
 
 vec3 offsetDirections[128] = vec3[](

@@ -256,6 +256,8 @@
     <None Include="..\shaders\cube.frag" />
     <None Include="..\shaders\cube.vert" />
     <None Include="..\shaders\cubeInstanced.vert" />
+    <None Include="..\shaders\environmentMapping.frag" />
+    <None Include="..\shaders\environmentMapping.vert" />
     <None Include="..\shaders\lightDraws.frag" />
     <None Include="..\shaders\lightDraws.vert" />
     <None Include="..\shaders\omniShadow.frag" />
