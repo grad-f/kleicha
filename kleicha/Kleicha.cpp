@@ -489,7 +489,7 @@ std::vector<vkt::GPUMesh> Kleicha::load_mesh_data() {
 	meshes.emplace_back(utils::generate_cube_mesh());
 	meshes.emplace_back(utils::load_obj_mesh("../models/shuttle.obj", vkt::MeshType::SHUTTLE));
 	meshes.emplace_back(utils::load_obj_mesh("../models/icosphere.obj", vkt::MeshType::ICOSPHERE));
-	meshes.emplace_back(utils::load_obj_mesh("../models/dolphin.obj", vkt::MeshType::DOLPHIN));
+	meshes.emplace_back(utils::load_obj_mesh("../models/dolphinHighPoly.obj", vkt::MeshType::DOLPHIN));
 	meshes.emplace_back(utils::load_obj_mesh("../models/grid.obj", vkt::MeshType::PLANE));
 	meshes.emplace_back(utils::load_obj_mesh("../models/sponza.obj", vkt::MeshType::SPONZA));
 
@@ -580,8 +580,8 @@ void Kleicha::init_draw_data() {
 	// main
 	std::vector<DrawRequest> drawRequests{								
 		{	MeshType::SHUTTLE,		MaterialType::NONE,		TextureType::SHUTTLE	},
-		{	MeshType::DOLPHIN,		MaterialType::GOLD,		TextureType::NONE		},
-		{	MeshType::SPHERE,		MaterialType::JADE,		TextureType::NONE		},
+		{	MeshType::DOLPHIN,		MaterialType::NONE,		TextureType::DOLPHIN		},
+		{	MeshType::SPHERE,		MaterialType::GOLD,		TextureType::NONE		},
 		{	MeshType::SPONZA,		MaterialType::NONE,		TextureType::BRICK		},
 	};
 
@@ -594,7 +594,7 @@ void Kleicha::init_draw_data() {
 	}
 
 	// skybox
-	drawRequests.push_back({ MeshType::CUBE, MaterialType::NONE, TextureType::SKYBOX_POLE, false, true });
+	drawRequests.push_back({ MeshType::CUBE, MaterialType::NONE, TextureType::SKYBOX_NIGHT, false, true });
 
 	std::vector<DrawData> drawData{create_draw_data(canonicalMeshBufferInfo, drawRequests)};
 
@@ -659,10 +659,12 @@ void Kleicha::init_materials() {
 	m_textures.emplace_back(upload_texture_image("../textures/earth.jpg"));		//2
 	m_textures.emplace_back(upload_texture_image("../textures/concrete.png"));		//3
 	m_textures.emplace_back(upload_texture_image("../textures/shuttle.jpg"));		//4
+	m_textures.emplace_back(upload_texture_image("../textures/Dolphin_HighPolyUV.png"));
 
-	//const char* faces[6]{"../textures/skybox/night/right.png", "../textures/skybox/night/left.png", "../textures/skybox/night/bottom.png", "../textures/skybox/night/top.png" , "../textures/skybox/night/front.png", "../textures/skybox/night/back.png" };
-	const char* faces[6]{"../textures/skybox/day/right.jpg", "../textures/skybox/day/left.jpg", "../textures/skybox/day/bottom.jpg", "../textures/skybox/day/top.jpg" , "../textures/skybox/day/front.jpg", "../textures/skybox/day/back.jpg" };
-	m_textures.emplace_back(upload_texture_image(faces));
+	const char* nightSkybox[6]{"../textures/skybox/night/right.png", "../textures/skybox/night/left.png", "../textures/skybox/night/bottom.png", "../textures/skybox/night/top.png" , "../textures/skybox/night/front.png", "../textures/skybox/night/back.png" };
+	const char* daySkybox[6]{"../textures/skybox/day/right.jpg", "../textures/skybox/day/left.jpg", "../textures/skybox/day/bottom.jpg", "../textures/skybox/day/top.jpg" , "../textures/skybox/day/front.jpg", "../textures/skybox/day/back.jpg" };
+	m_textures.emplace_back(upload_texture_image(nightSkybox));
+	m_textures.emplace_back(upload_texture_image(daySkybox));
 
 	m_materials.emplace_back(vkt::Material::none());
 	m_materials.emplace_back(vkt::Material::gold());
@@ -887,9 +889,9 @@ vkt::Image Kleicha::upload_texture_image(const char* filePath) {
 
 			VkExtent2D dstMipExtent{ srcMipWidth, srcMipHeight };
 			if (srcMipWidth > 1)
-				dstMipExtent.width /= 2;
+				dstMipExtent.width = dstMipExtent.width >> 1;
 			if (srcMipHeight > 1)
-				dstMipExtent.height /= 2;
+				dstMipExtent.height = dstMipExtent.height >> 1;
 
 			// copy from mip - 1 to mip then transition mip - 1 layout
 			utils::blit_image(cmdBuffer, textureImage.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, textureImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, { srcMipWidth, srcMipHeight }, dstMipExtent, i - 1, i);
@@ -905,7 +907,7 @@ vkt::Image Kleicha::upload_texture_image(const char* filePath) {
 			if (srcMipWidth > 1)
 				srcMipWidth = srcMipWidth >> 1;
 			if (srcMipHeight > 1)
-				srcMipHeight = srcMipWidth >> 1;
+				srcMipHeight = srcMipHeight >> 1;
 		}
 
 		});
@@ -1019,11 +1021,11 @@ void Kleicha::update_dynamic_buffers(const vkt::Frame& frame, float currentTime,
 	// update mesh transforms
 	glm::mat4 view{ m_camera.getViewMatrix() };
 	// TODO: Only update if there was an update to a buffer
-	m_meshTransforms[0].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ -3.0f, 0.35f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, currentTime, glm::vec3{ 1.0f, .27f, .5f }) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 1.5f, 1.5f, 1.5f });
+	m_meshTransforms[0].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ -3.0f, 0.35f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, currentTime, glm::vec3{ 0.0f, 1.0f, 0.0f }) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 1.5f, 1.5f, 1.5f });
 	m_meshTransforms[0].modelView = view * m_meshTransforms[0].model;
 	m_meshTransforms[0].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[0].modelView));
 
-	m_meshTransforms[1].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, 0.0f, -3.0f }) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 2.0f, 2.0f, 2.0f }) /* glm::rotate(glm::mat4{ 1.0f }, currentTime * 0.2f, glm::vec3{ 1.0f, 0.0f, 0.0f })*/;
+	m_meshTransforms[1].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, 0.0f, -3.5f }) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 2.0f, 2.0f, 2.0f }) /* glm::rotate(glm::mat4{ 1.0f }, currentTime * 0.2f, glm::vec3{ 1.0f, 0.0f, 0.0f })*/;
 	m_meshTransforms[1].modelView = view * m_meshTransforms[1].model;
 	m_meshTransforms[1].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[1].modelView));
 

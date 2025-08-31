@@ -114,7 +114,9 @@ namespace vkt {
 		EARTH,
 		CONCRETE,
 		SHUTTLE,
-		SKYBOX_POLE
+		DOLPHIN,
+		SKYBOX_NIGHT,
+		SKYBOX_DAY,
 	};
 
 

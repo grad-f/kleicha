@@ -19,6 +19,6 @@ void main() {
 	vec3 R = reflect(I, normalize(inNormal));
 	R = vec3(R.x, -R.y, R.z);
 
-	outColor = vec4(texture(texCubeSampler[5], R).rgb, 1.0f);
+	outColor = vec4(texture(texCubeSampler[6], R).rgb, 1.0f);
 
 }
