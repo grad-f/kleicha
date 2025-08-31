@@ -1,59 +1,9 @@
 #version 450
 #extension GL_EXT_nonuniform_qualifier : require
 //#extension GL_EXT_debug_printf : enable
+#extension GL_GOOGLE_include_directive: require
 
-struct GlobalData {
-	vec4 ambientLight;
-	mat4 bias;
-	uint lightsCount;
-};
-
-struct DrawData {
-	uint materialIndex;
-	uint textureIndex;
-	uint transformIndex;
-};
-
-struct Material {
-	vec4 ambient;
-	vec4 diffuse;
-	vec4 specular;
-	float shininess;
-};
-
-struct Light {
-	vec4 ambient;
-	vec4 diffuse;
-	vec4 specular;
-	float lightSize;
-	vec3 attenuationFactors;
-	float frustumWidth;
-	vec3 mPos;
-	vec3 mvPos;
-	mat4 viewProj;
-	mat4 cubeViewProjs[6];
-};
-
-layout(binding = 2, set = 0) readonly buffer Globals {
-	GlobalData globals;
-};
-
-layout(binding = 1, set = 0) readonly buffer Draws {
-	DrawData draws[];
-};
-
-layout(binding = 1, set = 1) readonly buffer Materials {
-	Material materials[];
-};
-
-layout(binding = 2, set = 1) readonly buffer Lights {
-	Light lights[];
-};
-
-//layout(set = 0, binding = 3) uniform samplerCube texCubeSampler[];
-layout(set = 0, binding = 3) uniform sampler2D texSampler[];
-layout(set = 1, binding = 3) uniform sampler2D shadowSampler[];
-layout(set = 1, binding = 4) uniform samplerCube cubeShadowSampler[];
+#include "common.h"
 
 layout (location = 0) in vec4 inColor;
 layout (location = 1) in vec2 inUV;
@@ -62,7 +12,6 @@ layout (location = 3) in vec3 inNormal;
 layout (location = 4) in vec3 inVertView;
 layout (location = 5) in vec3 inVertWorld;
 layout (location = 6) in flat uint inDrawId;
-
 
 layout (location = 0) out vec4 outColor;
 

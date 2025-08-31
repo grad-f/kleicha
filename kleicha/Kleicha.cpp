@@ -635,7 +635,7 @@ void Kleicha::init_lights() {
 
 	// create a standard white light 
 	vkt::Light pointLight{
-		.ambient = {0.05f, 0.05f, 0.05f, 1.0f},
+		.ambient = {0.4f, 0.4f, 0.4f, 1.0f},
 		.diffuse = {0.6f, 0.6f, 0.6f, 1.0f},
 		.specular = {1.0f, 1.0f, 1.0f, 1.0f},
 		.lightSize = {9.133f},
@@ -1027,7 +1027,7 @@ void Kleicha::update_dynamic_buffers(const vkt::Frame& frame, float currentTime,
 	m_meshTransforms[1].modelView = view * m_meshTransforms[1].model;
 	m_meshTransforms[1].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[1].modelView));
 
-	m_meshTransforms[2].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 3.0f, 0.0f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, 0.0f, glm::vec3{ 0.0f, 1.0f, 0.0f }) /*glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 2.0f, 2.0f, 2.0f })*/;
+	m_meshTransforms[2].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 3.0f, .5f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, 0.0f, glm::vec3{ 0.0f, 1.0f, 0.0f }) /*glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 2.0f, 2.0f, 2.0f })*/;
 	m_meshTransforms[2].modelView = view * m_meshTransforms[2].model;
 	m_meshTransforms[2].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[2].modelView));
 

@@ -1,28 +1,9 @@
 #version 450
 #extension GL_EXT_nonuniform_qualifier : require
 #extension GL_EXT_debug_printf : enable
+#extension GL_GOOGLE_include_directive: require
 
-struct GlobalData {
-	vec4 ambientLight;
-	mat4 bias;
-	uint lightsCount;
-};
-
-struct DrawData {
-	uint materialIndex;
-	uint textureIndex;
-	uint transformIndex;
-};
-
-layout(binding = 2, set = 0) readonly buffer Globals {
-	GlobalData globals;
-};
-
-layout(binding = 1, set = 0) readonly buffer Draws {
-	DrawData draws[];
-};
-
-layout(set = 0, binding = 3) uniform samplerCube texCubeSampler[];
+#include "common.h"
 
 layout (location = 0) in vec3 inNormal;
 layout (location = 1) in vec3 inFragWorld;

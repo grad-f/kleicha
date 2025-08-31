@@ -1,58 +1,9 @@
 #version 450
 #extension GL_EXT_nonuniform_qualifier : require
 //#extension GL_EXT_debug_printf : enable
+#extension GL_GOOGLE_include_directive: require
 
-struct GlobalData {
-	vec4 ambientLight;
-	mat4 bias;
-	uint lightsCount;
-};
-
-struct DrawData {
-	uint materialIndex;
-	uint textureIndex;
-	uint transformIndex;
-};
-
-struct Material {
-	vec4 ambient;
-	vec4 diffuse;
-	vec4 specular;
-	float shininess;
-};
-
-struct Light {
-	vec4 ambient;
-	vec4 diffuse;
-	vec4 specular;
-	float lightSize;
-	vec3 attenuationFactors;
-	float frustumWidth;
-	vec3 mPos;
-	vec3 mvPos;
-	mat4 viewProj;
-	mat4 cubeViewProjs[6];
-};
-
-layout(binding = 2, set = 0) readonly buffer Globals {
-	GlobalData globals;
-};
-
-layout(binding = 1, set = 0) readonly buffer Draws {
-	DrawData draws[];
-};
-
-layout(binding = 1, set = 1) readonly buffer Materials {
-	Material materials[];
-};
-
-layout(binding = 2, set = 1) readonly buffer Lights {
-	Light lights[];
-};
-
-layout(set = 0, binding = 3) uniform sampler2D texSampler[];
-layout(set = 1, binding = 3) uniform sampler2DShadow shadowSampler[];
-
+#include "common.h"
 
 layout (location = 0) in vec4 inColor;
 layout (location = 1) in vec2 inUV;
@@ -70,6 +21,19 @@ layout(push_constant) uniform constants {
 	uint lightId;
 	vec3 viewWorldPos;
 }pc;
+
+float textureProj(uint samplerIndex, vec4 shadowCoord) {
+	
+	// homogenize shadow coordinates
+	shadowCoord /= shadowCoord.w;
+
+	float closestDepth = texture(shadowSampler[samplerIndex], shadowCoord.xy).r;
+
+	// if shadow map depth is greater than pixel fragment depth, the pixel fragment is in the shadow.
+	float notInShadow = closestDepth > shadowCoord.z ? 0.0f : 1.0f;
+
+	return notInShadow;
+}
 
 void main() {
 
@@ -107,7 +71,7 @@ void main() {
 
 		// textureProj homogenizes shadow_coord and uses the resulting vec3 to compare the depth of this pixel fragment and that of which is stored in the shadow map.
 		// returns 1.0f if pixel fragment's depth is greater (closer in our case) than that of what is stored.
-		float notInShadow = textureProj(shadowSampler[i], shadow_coord);
+		float notInShadow = textureProj(i, shadow_coord);
 
 		//if(i == 0)
 			//debugPrintfEXT("%f | %f | %f\n", shadow_coord.x/shadow_coord.w, shadow_coord.y/shadow_coord.w, shadow_coord.z/shadow_coord.w);
