@@ -15,13 +15,6 @@ layout (location = 6) in flat uint inDrawId;
 
 layout (location = 0) out vec4 outColor;
 
-layout(push_constant) uniform constants {
-	mat4 perspectiveProj;
-	uint drawId;
-	uint lightId;
-	vec3 viewWorldPos;
-}pc;
-
 float textureProj(uint samplerIndex, vec4 shadowCoord) {
 	
 	// homogenize shadow coordinates

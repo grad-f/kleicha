@@ -13,13 +13,6 @@ layout (location = 4) out vec3 outVertView;
 layout (location = 5) out vec3 outVertWorld;
 layout (location = 6) out flat uint outDrawId;
 
-layout(push_constant) uniform constants {
-	mat4 perspectiveProj;
-	uint drawId;
-	uint lightId;
-	vec3 viewWorldPos;
-}pc;
-
 void main() {
 	DrawData dd = draws[pc.drawId];
 	outTexID = dd.materialIndex;

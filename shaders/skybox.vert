@@ -7,13 +7,6 @@
 
 layout (location = 0) out vec3 outSampleDir;
 
-layout(push_constant) uniform constants {
-	mat4 perspectiveProj;
-	uint drawId;
-	uint lightId;
-	vec3 viewWorldPos;
-}pc;
-
 void main() {
 	DrawData dd = draws[pc.drawId];
 	Vertex vert = vertices[gl_VertexIndex];

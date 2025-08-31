@@ -9,13 +9,6 @@ layout (location = 0) in vec3 inSampleDir;
 
 layout (location = 0) out vec4 outColor;
 
-layout(push_constant) uniform constants {
-	mat4 perspectiveProj;
-	uint drawId;
-	uint lightId;
-	vec3 viewWorldPos;
-}pc;
-
 void main() {
 	DrawData dd = draws[pc.drawId];
 

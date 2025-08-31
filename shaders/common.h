@@ -73,3 +73,10 @@ layout(set = 0, binding = 3) uniform sampler2D texSampler[];
 layout(set = 0, binding = 3) uniform samplerCube texCubeSampler[];
 layout(set = 1, binding = 3) uniform sampler2D shadowSampler[];
 layout(set = 1, binding = 4) uniform samplerCube cubeShadowSampler[];
+
+layout(push_constant) uniform constants {
+	mat4 perspectiveProj;
+	uint drawId;
+	uint lightId;
+	vec3 viewWorldPos;
+}pc;
