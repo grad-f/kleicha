@@ -106,7 +106,13 @@ namespace vkt {
 		GOLD,
 		JADE,
 		PEARL,
-		SILVER
+		SILVER,
+
+		// refractive materials
+		WATER,
+		ICE,
+		GLASS,
+		DIAMOND,
 	};
 
 	enum class TextureType {
@@ -199,6 +205,7 @@ namespace vkt {
 		glm::vec4 specular{};
 		// controls specular contribution fall-off
 		float shininess{};
+		float refractiveIndex{ 1.0f };
 
 		// surface material helpers
 		static Material none() {
@@ -243,6 +250,30 @@ namespace vkt {
 				.diffuse = {0.221f, 0.221f, 0.221f, 1.0f},
 				.specular = {0.222f, 0.222f, 0.222f, 1.0f},
 				.shininess = 51.2f
+			};
+		}
+
+		static Material water() {
+			return {
+				.refractiveIndex = 1.33f
+			};
+		}
+
+		static Material ice() {
+			return {
+				.refractiveIndex = 1.309f
+			};
+		}
+
+		static Material glass() {
+			return {
+				.refractiveIndex = 1.52f
+			};
+		}
+
+		static Material diamond() {
+			return {
+				.refractiveIndex = 2.42f
 			};
 		}
 	};

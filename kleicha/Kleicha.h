@@ -44,6 +44,7 @@ private:
 	VkPipeline m_lightCubeShadowPipeline{};
 	VkPipeline m_skyboxPipeline{};
 	VkPipeline m_reflectPipeline{};
+	VkPipeline m_refractPipeline{};
 
 	// draws point light geometry (spheres) with simple shaders.
 	VkPipeline m_lightDrawsPipeline{};
@@ -83,6 +84,7 @@ private:
 	std::vector<vkt::HostDrawData> m_mainDrawData{};
 	std::vector<vkt::HostDrawData> m_lightDrawData{};
 	std::vector<vkt::HostDrawData> m_reflectDrawData{};
+	std::vector<vkt::HostDrawData> m_refractDrawData{};
 	vkt::HostDrawData m_skyboxDrawData{};
 
 	//std::vector<VkDrawIndexedIndirectCommand> m_drawIndirectParams{};

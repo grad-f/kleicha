@@ -199,7 +199,10 @@
     <None Include="..\shaders\environmentMapping.vert">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shaders\environmentMapping.frag">
+    <None Include="..\shaders\environmentMappingRefract.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shaders\environmentMappingReflect.frag">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

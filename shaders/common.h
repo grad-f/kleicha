@@ -31,6 +31,7 @@ struct Material {
 	vec4 diffuse;
 	vec4 specular;
 	float shininess;
+	float refractiveIndex;
 };
 
 struct Light {

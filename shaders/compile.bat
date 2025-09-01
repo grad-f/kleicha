@@ -29,5 +29,7 @@ C:\VulkanSDK\1.4.313.1\Bin\glslc.exe skybox.vert -o vert_skybox.spv -g
 C:\VulkanSDK\1.4.313.1\Bin\glslc.exe skybox.frag -o frag_skybox.spv -g
 
 C:\VulkanSDK\1.4.313.1\Bin\glslc.exe environmentMapping.vert -o vert_environmentMapping.spv -g
-C:\VulkanSDK\1.4.313.1\Bin\glslc.exe environmentMapping.frag -o frag_environmentMapping.spv -g
+C:\VulkanSDK\1.4.313.1\Bin\glslc.exe environmentMappingReflect.frag -o frag_environmentMappingReflect.spv -g
+C:\VulkanSDK\1.4.313.1\Bin\glslc.exe environmentMappingRefract.frag -o frag_environmentMappingRefract.spv -g
+
 pause

@@ -197,8 +197,9 @@ void Kleicha::init_graphics_pipelines() {
 	VkShaderModule skyboxVertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_skybox.spv") };
 	VkShaderModule skyboxFragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_skybox.spv") };
 
-	VkShaderModule reflectVertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_environmentMapping.spv") };
-	VkShaderModule reflectFragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_environmentMapping.spv") };
+	VkShaderModule environmentMapVertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_environmentMapping.spv") };
+	VkShaderModule reflectFragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_environmentMappingReflect.spv") };
+	VkShaderModule refractFragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_environmentMappingRefract.spv") };
 
 	PipelineBuilder pipelineBuilder{ m_device.device };
 	pipelineBuilder.pipelineLayout = m_dummyPipelineLayout;
@@ -223,9 +224,11 @@ void Kleicha::init_graphics_pipelines() {
 	pipelineBuilder.set_shaders(lightDrawsVertModule, lightDrawsFragModule);
 	m_lightDrawsPipeline = pipelineBuilder.build();
 
-	pipelineBuilder.set_shaders(reflectVertModule, reflectFragModule);
+	pipelineBuilder.set_shaders(environmentMapVertModule, reflectFragModule);
 	m_reflectPipeline = pipelineBuilder.build();
 
+	pipelineBuilder.set_shaders(environmentMapVertModule, refractFragModule);
+	m_refractPipeline = pipelineBuilder.build();
 
 	pipelineBuilder.set_rasterizer_state(VK_POLYGON_MODE_FILL, VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE);
 	pipelineBuilder.set_shaders(skyboxVertModule, skyboxFragModule);
@@ -259,8 +262,10 @@ void Kleicha::init_graphics_pipelines() {
 	vkDestroyShaderModule(m_device.device, lightDrawsFragModule, nullptr);
 	vkDestroyShaderModule(m_device.device, skyboxVertModule, nullptr);
 	vkDestroyShaderModule(m_device.device, skyboxFragModule, nullptr);
-	vkDestroyShaderModule(m_device.device, reflectVertModule, nullptr);
+
+	vkDestroyShaderModule(m_device.device, environmentMapVertModule, nullptr);
 	vkDestroyShaderModule(m_device.device, reflectFragModule, nullptr);
+	vkDestroyShaderModule(m_device.device, refractFragModule, nullptr);
 }
 
 void Kleicha::init_descriptors() {
@@ -555,6 +560,8 @@ std::vector<vkt::DrawData> Kleicha::create_draw_data(const std::vector<vkt::GPUM
 					m_skyboxDrawData = draw;
 				else if (drawRequest.isReflective)
 					m_reflectDrawData.emplace_back(draw);
+				else if (drawRequest.materialType >= vkt::MaterialType::WATER && drawRequest.materialType <= vkt::MaterialType::DIAMOND)
+					m_refractDrawData.emplace_back(draw);
 				else
 					m_mainDrawData.emplace_back(draw);
 
@@ -580,13 +587,16 @@ void Kleicha::init_draw_data() {
 	// main
 	std::vector<DrawRequest> drawRequests{								
 		{	MeshType::SHUTTLE,		MaterialType::NONE,		TextureType::SHUTTLE	},
-		{	MeshType::DOLPHIN,		MaterialType::NONE,		TextureType::DOLPHIN		},
+		{	MeshType::DOLPHIN,		MaterialType::NONE,		TextureType::DOLPHIN	},
 		{	MeshType::SPHERE,		MaterialType::GOLD,		TextureType::NONE		},
 		{	MeshType::SPONZA,		MaterialType::NONE,		TextureType::FLOOR		},
 	};
 
 	// reflective
 	drawRequests.push_back({ MeshType::SPHERE, MaterialType::NONE , TextureType::EARTH, false, false, true});
+
+	// refractive
+	drawRequests.push_back({ MeshType::ICOSPHERE, MaterialType::DIAMOND, TextureType::NONE });
 
 	// lights
 	for ([[maybe_unused]] const auto& light : m_lights) {
@@ -673,6 +683,10 @@ void Kleicha::init_materials() {
 	m_materials.emplace_back(vkt::Material::jade());
 	m_materials.emplace_back(vkt::Material::pearl());
 	m_materials.emplace_back(vkt::Material::silver());
+	m_materials.emplace_back(vkt::Material::water());
+	m_materials.emplace_back(vkt::Material::ice());
+	m_materials.emplace_back(vkt::Material::glass());
+	m_materials.emplace_back(vkt::Material::diamond());
 }
 
 vkt::Buffer Kleicha::upload_data(void* data, VkDeviceSize bufferSize, VkBufferUsageFlags bufferUsage, VkBool32 bdaUsage) {
@@ -1044,11 +1058,17 @@ void Kleicha::update_dynamic_buffers(const vkt::Frame& frame, float currentTime,
 	m_meshTransforms[3].modelInvTr = glm::transpose(glm::inverse(m_meshTransforms[3].model));
 	m_meshTransforms[3].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[3].modelView));
 
-	// reflective torus
-	m_meshTransforms[4].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, 15.0f, -3.5f });
+	// reflective sphere
+	m_meshTransforms[4].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 2.0f, 15.0f, -3.5f });
 	m_meshTransforms[4].modelView = view * m_meshTransforms[4].model;
 	m_meshTransforms[4].modelInvTr = glm::transpose(glm::inverse(m_meshTransforms[4].model));
 	m_meshTransforms[4].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[4].modelView));
+
+	//refractive icosphere
+	m_meshTransforms[5].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ -2.0f, 15.0f, -3.5f });
+	m_meshTransforms[5].modelView = view * m_meshTransforms[5].model;
+	m_meshTransforms[5].modelInvTr = glm::transpose(glm::inverse(m_meshTransforms[5].model));
+	m_meshTransforms[5].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[5].modelView));
 
 	// skybox
 	m_meshTransforms[m_skyboxDrawData.transformIndex].model = glm::mat4{ 1.0f };
@@ -1206,6 +1226,7 @@ void Kleicha::start() {
 				ImGui::SliderFloat3("Material Diffuse", &m_materials[i].diffuse.r, 0.0f, 1.0f);
 				ImGui::SliderFloat3("Material Specular", &m_materials[i].specular.r, 0.0f, 1.0f);
 				ImGui::SliderFloat("Shininess", &m_materials[i].shininess, 0.0f, 100.0f);
+				ImGui::SliderFloat("Refractive Index", &m_materials[i].refractiveIndex, 0.0f, 5.0f);
 				ImGui::NewLine();
 				ImGui::PopID();
 			}
@@ -1340,13 +1361,21 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 
 	vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_reflectPipeline);
 
-	// environment map draws
+	// reflect draws draws
 	for (const auto& draw : m_reflectDrawData) {
 		m_pushConstants.drawId = draw.drawId;
 		vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
 		vkCmdDrawIndexed(frame.cmdBuffer, draw.indicesCount, 1, draw.indicesOffset, draw.vertexOffset, 0);
 	}
 
+	// TO-DO: Refract draws
+	vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_refractPipeline);
+	
+	for (const auto& draw : m_refractDrawData) {
+		m_pushConstants.drawId = draw.drawId;
+		vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
+		vkCmdDrawIndexed(frame.cmdBuffer, draw.indicesCount, 1, draw.indicesOffset, draw.vertexOffset, 0);
+	}
 
 	vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_skyboxPipeline);
 	m_pushConstants.drawId = m_skyboxDrawData.drawId;
@@ -1503,6 +1532,7 @@ void Kleicha::cleanup() const {
 	vkDestroyPipeline(m_device.device, m_lightDrawsPipeline, nullptr);
 	vkDestroyPipeline(m_device.device, m_skyboxPipeline, nullptr);
 	vkDestroyPipeline(m_device.device, m_reflectPipeline, nullptr);
+	vkDestroyPipeline(m_device.device, m_refractPipeline, nullptr);
 	vkDestroyPipelineLayout(m_device.device, m_dummyPipelineLayout, nullptr);
 
 	for (const auto& renderedSemaphore : m_renderedSemaphores) {
