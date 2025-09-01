@@ -176,6 +176,7 @@ namespace vkt {
 	struct Transform {
 		glm::mat4 model{};
 		glm::mat4 modelView{};
+		glm::mat4 modelInvTr{};
 		glm::mat4 modelViewInvTr{};
 	};
 

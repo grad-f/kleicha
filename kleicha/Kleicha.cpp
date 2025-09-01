@@ -1025,24 +1025,29 @@ void Kleicha::update_dynamic_buffers(const vkt::Frame& frame, float currentTime,
 	// TODO: Only update if there was an update to a buffer
 	m_meshTransforms[0].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ -3.0f, 0.35f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, currentTime, glm::vec3{ 0.0f, 1.0f, 0.0f }) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 1.5f, 1.5f, 1.5f });
 	m_meshTransforms[0].modelView = view * m_meshTransforms[0].model;
+	m_meshTransforms[0].modelInvTr = glm::transpose(glm::inverse(m_meshTransforms[0].model));
 	m_meshTransforms[0].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[0].modelView));
 
 	m_meshTransforms[1].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, 0.0f, -3.5f }) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 2.0f, 2.0f, 2.0f }) /* glm::rotate(glm::mat4{ 1.0f }, currentTime * 0.2f, glm::vec3{ 1.0f, 0.0f, 0.0f })*/;
 	m_meshTransforms[1].modelView = view * m_meshTransforms[1].model;
+	m_meshTransforms[1].modelInvTr = glm::transpose(glm::inverse(m_meshTransforms[1].model));
 	m_meshTransforms[1].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[1].modelView));
 
 	m_meshTransforms[2].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 3.0f, .5f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, 0.0f, glm::vec3{ 0.0f, 1.0f, 0.0f }) /*glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 2.0f, 2.0f, 2.0f })*/;
 	m_meshTransforms[2].modelView = view * m_meshTransforms[2].model;
+	m_meshTransforms[2].modelInvTr = glm::transpose(glm::inverse(m_meshTransforms[2].model));
 	m_meshTransforms[2].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[2].modelView));
 
 	//m_meshTransforms[3].model =
 	m_meshTransforms[3].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, -0.9f, -3.0f }) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ .01f, .01f, .01f });
 	m_meshTransforms[3].modelView = view * m_meshTransforms[3].model;
+	m_meshTransforms[3].modelInvTr = glm::transpose(glm::inverse(m_meshTransforms[3].model));
 	m_meshTransforms[3].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[3].modelView));
 
 	// reflective torus
 	m_meshTransforms[4].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, 15.0f, -3.5f });
 	m_meshTransforms[4].modelView = view * m_meshTransforms[4].model;
+	m_meshTransforms[4].modelInvTr = glm::transpose(glm::inverse(m_meshTransforms[4].model));
 	m_meshTransforms[4].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[4].modelView));
 
 	// skybox
@@ -1052,6 +1057,7 @@ void Kleicha::update_dynamic_buffers(const vkt::Frame& frame, float currentTime,
 	m_meshTransforms[m_skyboxDrawData.transformIndex].modelView[3][0] = 0.0f;
 	m_meshTransforms[m_skyboxDrawData.transformIndex].modelView[3][1] = 0.0f;
 	m_meshTransforms[m_skyboxDrawData.transformIndex].modelView[3][2] = 0.0f;
+	m_meshTransforms[m_skyboxDrawData.transformIndex].modelInvTr = glm::transpose(glm::inverse(m_meshTransforms[m_skyboxDrawData.transformIndex].model));
 	m_meshTransforms[m_skyboxDrawData.transformIndex].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[m_skyboxDrawData.transformIndex].modelView));
 
 	/*m_meshTransforms[4].model = glm::translate(glm::mat4{1.0f}, glm::vec3{0.0f, -1.9f, -3.0f}) * glm::scale(glm::mat4{1.0f}, glm::vec3{5.0f, 5.0f, 5.0f});

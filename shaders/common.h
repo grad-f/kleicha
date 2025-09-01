@@ -22,6 +22,7 @@ struct DrawData {
 struct Transform {
 	mat4 model;
 	mat4 modelView;
+	mat4 modelInvTr;
 	mat4 modelViewInvTr;
 };
 

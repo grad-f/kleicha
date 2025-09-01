@@ -16,7 +16,7 @@ void main() {
 	
 	// vertex pos vector with respect to view
 	outVertWorld = (transform.model * vec4(vert.position, 1.0f)).xyz;
-	outNormal =  mat3(transpose(inverse(transform.model))) * vert.normal;
+	outNormal =  (transform.modelInvTr * vec4(vert.normal, 1.0f)).xyz;
 	outUV = vert.UV;
 
 	gl_Position = pc.perspectiveProj * transform.modelView * vec4(vert.position, 1.0f);
