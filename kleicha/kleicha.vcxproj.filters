@@ -224,5 +224,8 @@
   </ItemGroup>
   <ItemGroup>
     <Text Include="notes.txt" />
+    <Text Include="..\shaders\common.h">
+      <Filter>Shaders</Filter>
+    </Text>
   </ItemGroup>
 </Project>

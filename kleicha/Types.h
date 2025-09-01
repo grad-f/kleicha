@@ -13,11 +13,12 @@
 
 
 namespace vkt {
+	// need not have alignment of 16 bytes as we won't be creating arrays of this type.
 	struct PushConstants {
 		glm::mat4 perspectiveProjection{};
+		glm::vec3 viewWorldPos{};
 		uint32_t drawId{};
 		uint32_t lightId{};
-		alignas(16)glm::vec3 viewWorldPos{};
 	};
 
 	struct Instance {
@@ -115,6 +116,8 @@ namespace vkt {
 		CONCRETE,
 		SHUTTLE,
 		DOLPHIN,
+		FLOOR,
+		ICE,
 		SKYBOX_NIGHT,
 		SKYBOX_DAY,
 	};
@@ -166,7 +169,8 @@ namespace vkt {
 		glm::vec4 ambientLight{};
 		// Bias matrix maps NDC to texture space [0,1]
 		glm::mat4 bias{};
-		alignas(16) uint32_t lightCount{};
+		uint32_t lightCount{};
+
 	};
 
 	struct Transform {
@@ -179,21 +183,21 @@ namespace vkt {
 		glm::vec4 ambient{};
 		glm::vec4 diffuse{};
 		glm::vec4 specular{};
+		glm::mat4 viewProj{};
+		glm::mat4 cubeViewProjs[6]{};
+		glm::vec3 attenuationFactors{};
 		float lightSize{};
-		alignas(16)glm::vec3 attenuationFactors{};
+		glm::vec3 mPos{};
 		float frustumWidth{};
-		alignas(16)glm::vec3 mPos{};
 		alignas(16)glm::vec3 mvPos{};
-		alignas(16)glm::mat4 viewProj{};
-		alignas(16)glm::mat4 cubeViewProjs[6]{};
 	};
 
-	struct Material {
+	struct alignas(16) Material {
 		glm::vec4 ambient{};
 		glm::vec4 diffuse{};
 		glm::vec4 specular{};
 		// controls specular contribution fall-off
-		alignas(16)float shininess{};
+		float shininess{};
 
 		// surface material helpers
 		static Material none() {

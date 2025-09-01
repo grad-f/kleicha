@@ -35,13 +35,13 @@ struct Light {
 	vec4 ambient;
 	vec4 diffuse;
 	vec4 specular;
-	float lightSize;
-	vec3 attenuationFactors;
-	float frustumWidth;
-	vec3 mPos;
-	vec3 mvPos;
 	mat4 viewProj;
 	mat4 cubeViewProjs[6];
+	vec3 attenuationFactors;
+	float lightSize;
+	vec3 mPos;
+	float frustumWidth;
+	vec3 mvPos;
 };
 
 layout(binding = 0, set = 0) readonly buffer Vertices {
@@ -76,7 +76,7 @@ layout(set = 1, binding = 4) uniform samplerCube cubeShadowSampler[];
 
 layout(push_constant) uniform constants {
 	mat4 perspectiveProj;
+	vec3 viewWorldPos;
 	uint drawId;
 	uint lightId;
-	vec3 viewWorldPos;
 }pc;

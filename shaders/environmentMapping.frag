@@ -7,6 +7,7 @@
 
 layout (location = 0) in vec3 inNormal;
 layout (location = 1) in vec3 inFragWorld;
+layout (location = 2) in vec2 inUV;
 
 layout (location = 0) out vec4 outColor;
 
@@ -19,6 +20,6 @@ void main() {
 	vec3 R = reflect(I, normalize(inNormal));
 	R = vec3(R.x, -R.y, R.z);
 
-	outColor = vec4(texture(texCubeSampler[6], R).rgb, 1.0f);
-
+	float t = 0.91f;
+	outColor = (1.0f - t) * texture(texSampler[dd.textureIndex], inUV) + t * texture(texCubeSampler[8], R);
 }
