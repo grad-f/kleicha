@@ -170,7 +170,7 @@ namespace vkt {
 		// Bias matrix maps NDC to texture space [0,1]
 		glm::mat4 bias{};
 		uint32_t lightCount{};
-
+		uint32_t skyboxTexIndex{};
 	};
 
 	struct Transform {

@@ -594,11 +594,10 @@ void Kleicha::init_draw_data() {
 	}
 
 	// skybox
-	drawRequests.push_back({ MeshType::CUBE, MaterialType::NONE, TextureType::SKYBOX_NIGHT, false, true });
+	drawRequests.push_back({ MeshType::CUBE, MaterialType::NONE, TextureType::SKYBOX_DAY, false, true });
+	uint32_t skyboxTexIndex{ static_cast<uint32_t>(drawRequests.back().textureType) };
 
 	std::vector<DrawData> drawData{create_draw_data(canonicalMeshBufferInfo, drawRequests)};
-
-	//m_drawParamsBuffer = upload_data(m_drawIndirectParams.data(), m_drawIndirectParams.size() * sizeof(VkDrawIndexedIndirectCommand), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT);
 	m_drawBuffer = upload_data(drawData.data(), drawData.size() * sizeof(DrawData), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 
 	m_meshTransforms.resize(drawData.size());
@@ -612,7 +611,7 @@ void Kleicha::init_draw_data() {
 		0.5f, 0.5f, 0.0f, 1.0f
 	};
 	globalData.lightCount = static_cast<uint32_t>(m_lights.size());
-
+	globalData.skyboxTexIndex = skyboxTexIndex;
 	m_globalsBuffer = upload_data(&globalData, sizeof(globalData), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 }
 
@@ -646,11 +645,11 @@ void Kleicha::init_lights() {
 
 	m_lights.push_back(pointLight);
 
-	pointLight.mPos = { -4.5f, 6.0f, -3.0f };
+/*	pointLight.mPos = {-4.5f, 6.0f, -3.0f};
 	m_lights.push_back(pointLight);
 
 	pointLight.mPos = {-6.0f, 1.5f, -5.0f};
-	m_lights.push_back(pointLight);
+	m_lights.push_back(pointLight);*/
 
 }
 

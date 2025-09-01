@@ -21,5 +21,5 @@ void main() {
 	R = vec3(R.x, -R.y, R.z);
 
 	float t = 0.91f;
-	outColor = (1.0f - t) * texture(texSampler[dd.textureIndex], inUV) + t * texture(texCubeSampler[8], R);
+	outColor = (1.0f - t) * texture(texSampler[dd.textureIndex], inUV) + t * texture(texCubeSampler[globals.skyboxTexIndex], R);
 }
