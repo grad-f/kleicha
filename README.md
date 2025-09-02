@@ -1,4 +1,5 @@
 # kleicha
-Demo of current features
+Find below a demo of current features
 <br>
-[![kleicha](https://img.youtube.com/vi/u9p9K0Sxh6k/0.jpg)](https://www.youtube.com/watch?v=u9p9K0Sxh6k)
+
+<a href="https://www.youtube.com/watch?v=u9p9K0Sxh6k">https://www.youtube.com/watch?v=u9p9K0Sxh6k</a>
