@@ -246,6 +246,12 @@ namespace utils {
                 mesh.verts[i * (prec + 1) + j].position = { x,y,z };
                 mesh.verts[i * (prec + 1) + j].UV = { static_cast<float>(j) / prec, static_cast<float>(i) / prec };
                 mesh.verts[i * (prec + 1) + j].normal = { x,y,z };
+
+                //compute tangent
+                if (((x == 0) && (y == 1) && (z == 0)) || ((x == 0) && (y == -1) && (z == 0)))
+                    mesh.verts[i * (prec + 1) + j].tangent = glm::vec3{ 0.0f, 0.0f, -1.0f };
+                else
+                    mesh.verts[i * (prec + 1) + j].tangent = glm::cross(glm::vec3{ 0.0f, 1.0f, 0.0f }, glm::vec3{ x,y,z });
             }
         }
 

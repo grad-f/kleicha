@@ -53,7 +53,7 @@ void Kleicha::init() {
 	// disable context creation (used for opengl)
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	// set glfw key callback function
-	m_window = glfwCreateWindow(static_cast<int>(m_windowExtent.width), static_cast<int>(m_windowExtent.height), "kleicha", NULL, NULL);
+	m_window = glfwCreateWindow(static_cast<int>(m_windowExtent.width), static_cast<int>(m_windowExtent.height), "kleicha", glfwGetPrimaryMonitor(), NULL);
 	glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 	glfwSetWindowUserPointer(m_window, this);
 	glfwSetCursorPos(m_window, m_windowExtent.width / 2.0f, m_windowExtent.height / 2.0f);
@@ -588,7 +588,7 @@ void Kleicha::init_draw_data() {
 	std::vector<DrawRequest> drawRequests{								
 		{	MeshType::SHUTTLE,		MaterialType::NONE,		TextureType::SHUTTLE	},
 		{	MeshType::DOLPHIN,		MaterialType::NONE,		TextureType::DOLPHIN	},
-		{	MeshType::SPHERE,		MaterialType::GOLD,		TextureType::NONE		},
+		{	MeshType::SPHERE,		MaterialType::JADE,		TextureType::NONE		},
 		{	MeshType::SPONZA,		MaterialType::NONE,		TextureType::FLOOR		},
 	};
 
@@ -596,7 +596,7 @@ void Kleicha::init_draw_data() {
 	drawRequests.push_back({ MeshType::SPHERE, MaterialType::NONE , TextureType::EARTH, false, false, true});
 
 	// refractive
-	drawRequests.push_back({ MeshType::ICOSPHERE, MaterialType::DIAMOND, TextureType::NONE });
+	drawRequests.push_back({ MeshType::ICOSPHERE, MaterialType::WATER, TextureType::NONE });
 
 	// lights
 	for ([[maybe_unused]] const auto& light : m_lights) {
@@ -604,7 +604,7 @@ void Kleicha::init_draw_data() {
 	}
 
 	// skybox
-	drawRequests.push_back({ MeshType::CUBE, MaterialType::NONE, TextureType::SKYBOX_DAY, false, true });
+	drawRequests.push_back({ MeshType::CUBE, MaterialType::NONE, TextureType::SKYBOX_NIGHT, false, true });
 	uint32_t skyboxTexIndex{ static_cast<uint32_t>(drawRequests.back().textureType) };
 
 	std::vector<DrawData> drawData{create_draw_data(canonicalMeshBufferInfo, drawRequests)};
@@ -644,7 +644,7 @@ void Kleicha::init_lights() {
 
 	// create a standard white light 
 	vkt::Light pointLight{
-		.ambient = {0.4f, 0.4f, 0.4f, 1.0f},
+		.ambient = {0.24f, 0.24f, 0.24f, 1.0f},
 		.diffuse = {0.6f, 0.6f, 0.6f, 1.0f},
 		.specular = {1.0f, 1.0f, 1.0f, 1.0f},
 		.attenuationFactors = {1.0f, 0.133f, 0.050f},
@@ -655,10 +655,10 @@ void Kleicha::init_lights() {
 
 	m_lights.push_back(pointLight);
 
-/*	pointLight.mPos = {-4.5f, 6.0f, -3.0f};
+	pointLight.mPos = {-4.5f, 6.0f, -3.0f};
 	m_lights.push_back(pointLight);
 
-	pointLight.mPos = {-6.0f, 1.5f, -5.0f};
+	/*pointLight.mPos = {-6.0f, 1.5f, -5.0f};
 	m_lights.push_back(pointLight);*/
 
 }
@@ -1205,6 +1205,7 @@ void Kleicha::start() {
 				ImGui::PushID(static_cast<int>(i));
 				ImGui::Text("Light %d", i);
 				ImGui::SliderFloat3("Light World Pos", &m_lights[i].mPos.x, -10.0f, 50.0f);
+				//ImGui::ColorPicker3("Light Ambient", &m_lights[i].ambient.r);)
 				ImGui::SliderFloat3("Light Ambient", &m_lights[i].ambient.r, 0.0f, 1.0f);
 				ImGui::SliderFloat3("Light Diffuse", &m_lights[i].diffuse.r, 0.0f, 1.0f);
 				ImGui::SliderFloat3("Light Specular", &m_lights[i].specular.r, 0.0f, 1.0f);
