@@ -13,7 +13,7 @@
 constexpr uint32_t MAX_FRAMES_IN_FLIGHT{ 2 };
 constexpr VkFormat INTERMEDIATE_IMAGE_FORMAT{ VK_FORMAT_R16G16B16A16_SFLOAT };
 constexpr VkFormat DEPTH_IMAGE_FORMAT{ VK_FORMAT_D32_SFLOAT };
-constexpr VkExtent2D INIT_WINDOW_EXTENT{ .width = 1920, .height = 1080 };
+constexpr VkExtent2D INIT_WINDOW_EXTENT{ .width = 1600, .height = 900 };
 constexpr VkExtent2D SHADOW_CUBE_EXTENT{ .width = 1024, .height = 1024 };
 
 class Kleicha {
@@ -78,7 +78,7 @@ private:
 	// this buffer specifies indicies and offsets to the other buffers available in the shader
 	vkt::Buffer m_drawBuffer{};
 	vkt::Buffer m_globalsBuffer{};
-
+	vkt::Buffer m_gpuTextureBuffer{};
 
 	// each of these sets of draw data will be drawn with a different pipeline, provides flexibility.
 	std::vector<vkt::HostDrawData> m_mainDrawData{};
@@ -118,6 +118,9 @@ private:
 	void shadow_2D_pass(const vkt::Frame& frame);
 
 	std::vector<vkt::DrawData> create_draw_data(const std::vector<vkt::GPUMesh>& canonicalMeshes, const std::vector<vkt::DrawRequest>& drawRequests);
+
+	vkt::GPUTextureData create_texture_data(const char* albedoPath, const char* normalTexture = nullptr);
+	vkt::GPUTextureData create_texture_data(const char** albedoPath, const char* normalTexture = nullptr);
 	std::vector<vkt::GPUMesh> load_mesh_data();
 
 	vkt::PushConstants m_pushConstants{};

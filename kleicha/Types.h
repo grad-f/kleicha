@@ -199,6 +199,11 @@ namespace vkt {
 		alignas(16)glm::vec3 mvPos{};
 	};
 
+	struct GPUTextureData {
+		uint32_t albedoTexture{};
+		uint32_t normalTexture{};
+	};
+
 	struct alignas(16) Material {
 		glm::vec4 ambient{};
 		glm::vec4 diffuse{};

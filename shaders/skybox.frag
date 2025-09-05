@@ -11,6 +11,7 @@ layout (location = 0) out vec4 outColor;
 
 void main() {
 	DrawData dd = draws[pc.drawId];
+	TextureData textureData = textures[dd.textureIndex];
 
-	outColor = texture(texCubeSampler[dd.textureIndex], inSampleDir);
+	outColor = texture(texCubeSampler[textureData.albedoTexture], inSampleDir);
 }

@@ -14,7 +14,7 @@ layout (location = 0) out vec4 outColor;
 void main() {
 
 	DrawData dd = draws[pc.drawId];
-
+	TextureData skyboxTextureData = textures[globals.skyboxTexIndex];
 
 	float ratio = 1.0f/ materials[dd.materialIndex].refractiveIndex;
 	// In world space, get direction vector from camera pos to vertex pos
@@ -22,5 +22,5 @@ void main() {
 	vec3 R = refract(I, normalize(inNormal), ratio);
 	R = vec3(R.x, -R.y, R.z);
 	
-	outColor = texture(texCubeSampler[globals.skyboxTexIndex], R);
+	outColor = texture(texCubeSampler[skyboxTextureData.albedoTexture], R);
 }

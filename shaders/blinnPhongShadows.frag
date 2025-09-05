@@ -7,11 +7,9 @@
 
 layout (location = 0) in vec4 inColor;
 layout (location = 1) in vec2 inUV;
-layout (location = 2) in flat int inTexID;
-layout (location = 3) in vec3 inNormal;
-layout (location = 4) in vec3 inVertView;
-layout (location = 5) in vec3 inVertWorld;
-layout (location = 6) in flat uint inDrawId;
+layout (location = 2) in vec3 inNormal;
+layout (location = 3) in vec3 inVertView;
+layout (location = 4) in vec3 inVertWorld;
 
 layout (location = 0) out vec4 outColor;
 
@@ -31,6 +29,8 @@ float textureProj(uint samplerIndex, vec4 shadowCoord) {
 void main() {
 
 	DrawData dd = draws[pc.drawId];
+	Material material = materials[dd.materialIndex];
+	TextureData textureData = textures[dd.textureIndex];
 
 	vec3 N = normalize(inNormal);
 	vec3 V = normalize(-inVertView);
@@ -40,7 +40,6 @@ void main() {
 	vec3 specular = vec3(0.0f, 0.0f, 0.0f);
 	vec3 lightContrib = vec3(0.0f, 0.0f, 0.0f);
 
-	Material material = materials[dd.materialIndex];
 
 	float attenuationFactor;
 	float cosTheta;
@@ -106,7 +105,7 @@ void main() {
 	}		
 
 	if (dd.textureIndex > 0)
-		outColor = texture(texSampler[dd.textureIndex], inUV) * vec4(lightContrib, 1.0f);
+		outColor = texture(texSampler[textureData.albedoTexture], inUV) * vec4(lightContrib, 1.0f);
 	else
 		outColor = vec4(lightContrib, 1.0f);
 

@@ -7,11 +7,9 @@
 
 layout (location = 0) in vec4 inColor;
 layout (location = 1) in vec2 inUV;
-layout (location = 2) in flat int inTexID;
-layout (location = 3) in vec3 inNormal;
-layout (location = 4) in vec3 inVertView;
-layout (location = 5) in vec3 inVertWorld;
-layout (location = 6) in flat uint inDrawId;
+layout (location = 2) in vec3 inNormal;
+layout (location = 3) in vec3 inVertView;
+layout (location = 4) in vec3 inVertWorld;
 
 layout (location = 0) out vec4 outColor;
 

@@ -7,15 +7,12 @@
 
 layout (location = 0) out vec4 outVertColor;
 layout (location = 1) out vec2 outUV;
-layout (location = 2) out flat uint outTexID;
-layout (location = 3) out vec3 outNormal;
-layout (location = 4) out vec3 outVertView;
-layout (location = 5) out vec3 outVertWorld;
-layout (location = 6) out flat uint outDrawId;
+layout (location = 2) out vec3 outNormal;
+layout (location = 3) out vec3 outVertView;
+layout (location = 4) out vec3 outVertWorld;
 
 void main() {
 	DrawData dd = draws[pc.drawId];
-	outTexID = dd.materialIndex;
 	Vertex vert = vertices[gl_VertexIndex];
 	Transform transform = transforms[dd.transformIndex];
 

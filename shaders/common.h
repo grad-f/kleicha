@@ -47,21 +47,30 @@ struct Light {
 	vec3 mvPos;
 };
 
+struct TextureData {
+	uint albedoTexture;
+	uint normalTexture;
+};
+
 layout(binding = 0, set = 0) readonly buffer Vertices {
 	Vertex vertices[];
+};
+
+layout(binding = 1, set = 0) readonly buffer Draws {
+	DrawData draws[];
 };
 
 layout(binding = 2, set = 0) readonly buffer Globals {
 	GlobalData globals;
 };
 
+layout(binding = 3, set = 0) readonly buffer Textures {
+	TextureData textures[];
+};
+
 // view * model
 layout(binding = 0, set = 1) readonly buffer Transforms {
 	Transform transforms[];
-};
-
-layout(binding = 1, set = 0) readonly buffer Draws {
-	DrawData draws[];
 };
 
 layout(binding = 1, set = 1) readonly buffer Materials {
@@ -72,8 +81,9 @@ layout(binding = 2, set = 1) readonly buffer Lights {
 	Light lights[];
 };
 
-layout(set = 0, binding = 3) uniform sampler2D texSampler[];
-layout(set = 0, binding = 3) uniform samplerCube texCubeSampler[];
+layout(set = 0, binding = 4) uniform sampler2D texSampler[];
+layout(set = 0, binding = 4) uniform samplerCube texCubeSampler[];
+
 layout(set = 1, binding = 3) uniform sampler2D shadowSampler[];
 layout(set = 1, binding = 4) uniform samplerCube cubeShadowSampler[];
 

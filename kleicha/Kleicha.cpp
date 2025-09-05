@@ -53,7 +53,8 @@ void Kleicha::init() {
 	// disable context creation (used for opengl)
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	// set glfw key callback function
-	m_window = glfwCreateWindow(static_cast<int>(m_windowExtent.width), static_cast<int>(m_windowExtent.height), "kleicha", glfwGetPrimaryMonitor(), NULL);
+	//m_window = glfwCreateWindow(static_cast<int>(m_windowExtent.width), static_cast<int>(m_windowExtent.height), "kleicha", glfwGetPrimaryMonitor(), NULL);
+	m_window = glfwCreateWindow(static_cast<int>(m_windowExtent.width), static_cast<int>(m_windowExtent.height), "kleicha", NULL, NULL);
 	glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 	glfwSetWindowUserPointer(m_window, this);
 	glfwSetCursorPos(m_window, m_windowExtent.width / 2.0f, m_windowExtent.height / 2.0f);
@@ -271,7 +272,8 @@ void Kleicha::init_graphics_pipelines() {
 void Kleicha::init_descriptors() {
 
 	{			// create global descriptor set layout	
-		VkDescriptorBindingFlags bindingFlags[4]{
+		VkDescriptorBindingFlags bindingFlags[5]{
+			{},
 			{},
 			{},
 			{},
@@ -281,11 +283,12 @@ void Kleicha::init_descriptors() {
 		layoutBindingFlagsInfo.bindingCount = std::size(bindingFlags);
 		layoutBindingFlagsInfo.pBindingFlags = bindingFlags;
 
-		VkDescriptorSetLayoutBinding bindings[4]{
+		VkDescriptorSetLayoutBinding bindings[5]{
 			{0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
 			{1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
 			{2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
-			{3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 50, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr}
+			{3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
+			{4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 50, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr}
 		};
 
 		// create descriptor set layout
@@ -663,20 +666,52 @@ void Kleicha::init_lights() {
 
 }
 
-void Kleicha::init_materials() {
-	m_textures.emplace_back(upload_texture_image("../textures/empty.jpg"));		//0
-	m_textures.emplace_back(upload_texture_image("../textures/brick.png"));		//1
-	m_textures.emplace_back(upload_texture_image("../textures/earth.jpg"));		//2
-	m_textures.emplace_back(upload_texture_image("../textures/concrete.png"));		//3
-	m_textures.emplace_back(upload_texture_image("../textures/shuttle.jpg"));		//4
-	m_textures.emplace_back(upload_texture_image("../textures/Dolphin_HighPolyUV.png"));
-	m_textures.emplace_back(upload_texture_image("../textures/floor_color.jpg"));
-	m_textures.emplace_back(upload_texture_image("../textures/ice.jpg"));
+// TODO: This is redundant... however I do not like the idea of a template allowing any type here.
+vkt::GPUTextureData Kleicha::create_texture_data(const char** albedoPath, [[maybe_unused]] const char* normalTexture) {
+	assert(albedoPath != nullptr);
 
-	const char* nightSkybox[6]{"../textures/skybox/night/right.png", "../textures/skybox/night/left.png", "../textures/skybox/night/bottom.png", "../textures/skybox/night/top.png" , "../textures/skybox/night/front.png", "../textures/skybox/night/back.png" };
-	const char* daySkybox[6]{"../textures/skybox/day/right.jpg", "../textures/skybox/day/left.jpg", "../textures/skybox/day/bottom.jpg", "../textures/skybox/day/top.jpg" , "../textures/skybox/day/front.jpg", "../textures/skybox/day/back.jpg" };
-	m_textures.emplace_back(upload_texture_image(nightSkybox));
-	m_textures.emplace_back(upload_texture_image(daySkybox));
+	vkt::GPUTextureData textureDatum{};
+	m_textures.emplace_back(upload_texture_image(albedoPath));
+	textureDatum.albedoTexture = static_cast<uint32_t>(m_textures.size() - 1);
+
+	return textureDatum;
+}
+
+vkt::GPUTextureData Kleicha::create_texture_data(const char* albedoPath, const char* normalTexture) {
+	assert(albedoPath != nullptr);
+
+	vkt::GPUTextureData textureDatum{};
+	m_textures.emplace_back(upload_texture_image(albedoPath));
+	textureDatum.albedoTexture = static_cast<uint32_t>(m_textures.size() - 1);
+	if (normalTexture != nullptr) {
+		m_textures.emplace_back(upload_texture_image(normalTexture));
+		textureDatum.normalTexture = static_cast<uint32_t>(m_textures.size() - 1);
+	}
+
+	return textureDatum;
+}
+
+void Kleicha::init_materials() {
+
+	// stores indices to the uploaded textures
+	std::vector<vkt::GPUTextureData> textureData{};
+
+	textureData.emplace_back(create_texture_data("../textures/empty.jpg"));
+	textureData.emplace_back(create_texture_data("../textures/brick.png"));
+	textureData.emplace_back(create_texture_data("../textures/earth.jpg"));
+	textureData.emplace_back(create_texture_data("../textures/concrete.png"));
+	textureData.emplace_back(create_texture_data("../textures/shuttle.jpg"));
+	textureData.emplace_back(create_texture_data("../textures/Dolphin_HighPolyUV.png"));
+	textureData.emplace_back(create_texture_data("../textures/floor_color.jpg"));
+	textureData.emplace_back(create_texture_data("../textures/ice.jpg"));
+
+	const char* nightSkybox[6]{ "../textures/skybox/night/right.png", "../textures/skybox/night/left.png", "../textures/skybox/night/bottom.png", "../textures/skybox/night/top.png" , "../textures/skybox/night/front.png", "../textures/skybox/night/back.png" };
+	const char* daySkybox[6]{ "../textures/skybox/day/right.jpg", "../textures/skybox/day/left.jpg", "../textures/skybox/day/bottom.jpg", "../textures/skybox/day/top.jpg" , "../textures/skybox/day/front.jpg", "../textures/skybox/day/back.jpg" };
+	textureData.emplace_back(create_texture_data(nightSkybox));
+	textureData.emplace_back(create_texture_data(daySkybox));
+
+	// upload textureData
+	m_gpuTextureBuffer = upload_data(textureData.data(), sizeof(vkt::GPUTextureData) * textureData.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 
 	m_materials.emplace_back(vkt::Material::none());
 	m_materials.emplace_back(vkt::Material::gold());
@@ -741,7 +776,8 @@ void Kleicha::init_write_descriptor_sets() {
 	utils::update_set_buffer_descriptor(m_device.device, m_globalDescSet, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, m_vertexBuffer.buffer);
 	utils::update_set_buffer_descriptor(m_device.device, m_globalDescSet, 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, m_drawBuffer.buffer);
 	utils::update_set_buffer_descriptor(m_device.device, m_globalDescSet, 2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, m_globalsBuffer.buffer);
-	utils::update_set_image_sampler_descriptor(m_device.device, m_globalDescSet, 3, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, m_textureSampler, m_textures);
+	utils::update_set_buffer_descriptor(m_device.device, m_globalDescSet, 3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, m_gpuTextureBuffer.buffer);
+	utils::update_set_image_sampler_descriptor(m_device.device, m_globalDescSet, 4, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, m_textureSampler, m_textures);
 
 	// per frame descriptor set writes
 	for (auto& frame : m_frames) {
@@ -1494,6 +1530,7 @@ void Kleicha::cleanup() const {
 	vmaDestroyBuffer(m_allocator, m_vertexBuffer.buffer, m_vertexBuffer.allocation);
 	vmaDestroyBuffer(m_allocator, m_indexBuffer.buffer, m_indexBuffer.allocation);
 	vmaDestroyBuffer(m_allocator, m_globalsBuffer.buffer, m_globalsBuffer.allocation);
+	vmaDestroyBuffer(m_allocator, m_gpuTextureBuffer.buffer, m_gpuTextureBuffer.allocation);
 
 	vkDestroyFence(m_device.device, m_immFence, nullptr);
 
