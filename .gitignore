@@ -397,3 +397,11 @@ FodyWeavers.xsd
 /shaders/vert_omniShadow.spv
 /shaders/vert_shadow.spv
 /shaders/vert_skybox.spv
+/textures/brick.png
+/textures/brick_color.png
+/textures/brick_nmap.png
+/textures/castleroof_color.jpg
+/textures/castleroof_nmap.jpg
+/textures/floor_nmap.jpg
+/textures/moon_color.jpg
+/textures/moon_nmap.jpg
