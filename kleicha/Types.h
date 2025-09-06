@@ -124,6 +124,8 @@ namespace vkt {
 		DOLPHIN,
 		FLOOR,
 		ICE,
+		MOON,
+		CASTLEROOF,
 		SKYBOX_NIGHT,
 		SKYBOX_DAY,
 	};

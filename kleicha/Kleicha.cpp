@@ -591,7 +591,7 @@ void Kleicha::init_draw_data() {
 	std::vector<DrawRequest> drawRequests{								
 		{	MeshType::SHUTTLE,		MaterialType::NONE,		TextureType::SHUTTLE	},
 		{	MeshType::DOLPHIN,		MaterialType::NONE,		TextureType::DOLPHIN	},
-		{	MeshType::SPHERE,		MaterialType::JADE,		TextureType::NONE		},
+		{	MeshType::SPHERE,		MaterialType::NONE,		TextureType::BRICK		},
 		{	MeshType::SPONZA,		MaterialType::NONE,		TextureType::FLOOR		},
 	};
 
@@ -658,8 +658,8 @@ void Kleicha::init_lights() {
 
 	m_lights.push_back(pointLight);
 
-	pointLight.mPos = {-4.5f, 6.0f, -3.0f};
-	m_lights.push_back(pointLight);
+	//pointLight.mPos = {-4.5f, 6.0f, -3.0f};
+	//m_lights.push_back(pointLight);
 
 	/*pointLight.mPos = {-6.0f, 1.5f, -5.0f};
 	m_lights.push_back(pointLight);*/
@@ -695,15 +695,16 @@ void Kleicha::init_materials() {
 
 	// stores indices to the uploaded textures
 	std::vector<vkt::GPUTextureData> textureData{};
-
 	textureData.emplace_back(create_texture_data("../textures/empty.jpg"));
-	textureData.emplace_back(create_texture_data("../textures/brick.png"));
+	textureData.emplace_back(create_texture_data("../textures/brick_color.png", "../textures/brick_nmap.png"));
 	textureData.emplace_back(create_texture_data("../textures/earth.jpg"));
 	textureData.emplace_back(create_texture_data("../textures/concrete.png"));
 	textureData.emplace_back(create_texture_data("../textures/shuttle.jpg"));
 	textureData.emplace_back(create_texture_data("../textures/Dolphin_HighPolyUV.png"));
-	textureData.emplace_back(create_texture_data("../textures/floor_color.jpg"));
+	textureData.emplace_back(create_texture_data("../textures/floor_color.jpg"/*, "../textures/floor_nmap.jpg"*/));
 	textureData.emplace_back(create_texture_data("../textures/ice.jpg"));
+	textureData.emplace_back(create_texture_data("../textures/moon_color.jpg", "../textures/moon_nmap.jpg"));
+	textureData.emplace_back(create_texture_data("../textures/castleroof_color.jpg", "../textures/castleroof_nmap.jpg"));
 
 	const char* nightSkybox[6]{ "../textures/skybox/night/right.png", "../textures/skybox/night/left.png", "../textures/skybox/night/bottom.png", "../textures/skybox/night/top.png" , "../textures/skybox/night/front.png", "../textures/skybox/night/back.png" };
 	const char* daySkybox[6]{ "../textures/skybox/day/right.jpg", "../textures/skybox/day/left.jpg", "../textures/skybox/day/bottom.jpg", "../textures/skybox/day/top.jpg" , "../textures/skybox/day/front.jpg", "../textures/skybox/day/back.jpg" };

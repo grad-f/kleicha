@@ -7,11 +7,41 @@
 
 layout (location = 0) in vec4 inColor;
 layout (location = 1) in vec2 inUV;
-layout (location = 2) in vec3 inNormal;
+layout (location = 2) in vec3 inNormalView;
 layout (location = 3) in vec3 inVertView;
 layout (location = 4) in vec3 inVertWorld;
+layout (location = 5) in vec3 inTangentView;
 
 layout (location = 0) out vec4 outColor;
+
+
+// We will be performing our lighting computations in tangent space in the future. This is temporary.
+vec3 calcShadingNormal(uint textureIndex) {
+	// normal
+	vec3 N = normalize(inNormalView);
+	// tangent
+	vec3 T = normalize(inTangentView);
+
+	// perspective interpolation results in normal and tangent potentially not orthogonal. Therefore, re-orthogonalize using Gram-Schmidt process
+	T = normalize(T - dot(T, N) * N);
+	
+	// bitangent
+	vec3 B = cross(T, N);
+
+	// form change of coordinates (tangent to view) transformation
+	mat3 TBN = mat3(T,B,N);
+	
+	// sample normal map
+	vec3 shadingNormalTBN = texture(texSampler[textureIndex], inUV).rgb;
+
+	// map [0,1] to [-1,1]
+	shadingNormalTBN = shadingNormalTBN * 2.0f - 1.0f;
+
+	vec3 shadingNormalView = TBN * shadingNormalTBN;
+	shadingNormalView = normalize(shadingNormalView);
+
+	return shadingNormalView;
+}
 
 vec3 offsetDirections[128] = vec3[](
 
@@ -127,7 +157,11 @@ void main() {
 	Material material = materials[dd.materialIndex];
 	TextureData textureData = textures[dd.textureIndex];
 
-	vec3 N = normalize(inNormal);
+	vec3 N = normalize(inNormalView);
+
+	if(textureData.normalTexture > 0)
+		N = calcShadingNormal(textureData.normalTexture);
+
 	vec3 V = normalize(-inVertView);
 
 	vec3 ambient = vec3(0.0f, 0.0f, 0.0f);	

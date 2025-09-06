@@ -34,8 +34,9 @@ float shadowLookup(vec4 shadowPos, float offsetX, float offsetY, uint mapIndex) 
 }
 
 void main() {
-
 	DrawData dd = draws[pc.drawId];
+	Material material = materials[dd.materialIndex];
+	TextureData textureData = textures[dd.textureIndex];
 
 	vec3 N = normalize(inNormal);
 	vec3 V = normalize(-inVertView);
@@ -44,8 +45,6 @@ void main() {
 	vec3 diffuse = vec3(0.0f, 0.0f, 0.0f); 
 	vec3 specular = vec3(0.0f, 0.0f, 0.0f);
 	vec3 lightContrib = vec3(0.0f, 0.0f, 0.0f);
-
-	Material material = materials[dd.materialIndex];
 
 	float attenuationFactor;
 	float cosTheta;
@@ -125,7 +124,7 @@ void main() {
 	}		
 
 	if (dd.textureIndex > 0)
-		outColor = texture(texSampler[dd.textureIndex], inUV) * vec4(lightContrib, 1.0f);
+		outColor = texture(texSampler[textureData.albedoTexture], inUV) * vec4(lightContrib, 1.0f);
 	else
 		outColor = vec4(lightContrib, 1.0f);
 
