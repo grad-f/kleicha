@@ -2,7 +2,7 @@ struct Vertex {
 	vec3 position;
 	vec2 UV;
 	vec3 normal;
-	vec3 tangent;
+	vec4 tangent;
 	vec3 bitangent;
 };
 

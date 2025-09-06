@@ -82,7 +82,7 @@ namespace vkt {
 		alignas(16)glm::vec3 position{};
 		alignas(16)glm::vec2 UV{};
 		alignas(16)glm::vec3 normal{};
-		alignas(16)glm::vec3 tangent{};
+		alignas(16)glm::vec4 tangent{};
 		alignas(16)glm::vec3 bitangent{};
 		bool operator==(const Vertex& other) const {
 			return position == other.position && UV == other.UV && normal == other.normal;

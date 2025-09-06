@@ -52,5 +52,8 @@ namespace utils {
     glm::mat4 orthographicProj(float vFov, float aspectRatio, float near, float far);
 
     void set_viewport_scissor(const vkt::Frame& frame, VkExtent2D extent);
+
+    void compute_mesh_tangents(vkt::Mesh& mesh);
+
 }
 #endif // !UTILS_H

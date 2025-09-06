@@ -591,8 +591,8 @@ void Kleicha::init_draw_data() {
 	std::vector<DrawRequest> drawRequests{								
 		{	MeshType::SHUTTLE,		MaterialType::NONE,		TextureType::SHUTTLE	},
 		{	MeshType::DOLPHIN,		MaterialType::NONE,		TextureType::DOLPHIN	},
-		{	MeshType::SPHERE,		MaterialType::NONE,		TextureType::BRICK		},
-		{	MeshType::SPONZA,		MaterialType::NONE,		TextureType::FLOOR		},
+		{	MeshType::SPHERE,		MaterialType::NONE,		TextureType::FLOOR		},
+		{	MeshType::SPONZA,		MaterialType::NONE,		TextureType::BRICK		},
 	};
 
 	// reflective
@@ -701,7 +701,7 @@ void Kleicha::init_materials() {
 	textureData.emplace_back(create_texture_data("../textures/concrete.png"));
 	textureData.emplace_back(create_texture_data("../textures/shuttle.jpg"));
 	textureData.emplace_back(create_texture_data("../textures/Dolphin_HighPolyUV.png"));
-	textureData.emplace_back(create_texture_data("../textures/floor_color.jpg"/*, "../textures/floor_nmap.jpg"*/));
+	textureData.emplace_back(create_texture_data("../textures/floor_color.jpg", "../textures/floor_nmap.jpg"));
 	textureData.emplace_back(create_texture_data("../textures/ice.jpg"));
 	textureData.emplace_back(create_texture_data("../textures/moon_color.jpg", "../textures/moon_nmap.jpg"));
 	textureData.emplace_back(create_texture_data("../textures/castleroof_color.jpg", "../textures/castleroof_nmap.jpg"));

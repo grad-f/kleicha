@@ -11,6 +11,7 @@ layout (location = 2) out vec3 outNormalView;
 layout (location = 3) out vec3 outVertView;
 layout (location = 4) out vec3 outVertWorld;
 layout (location = 5) out vec3 outTangentView;
+layout (location = 6) out vec3 outBitangentView;
 
 void main() {
 	DrawData dd = draws[pc.drawId];
@@ -25,7 +26,9 @@ void main() {
 	// vertex in world space (to be transformed into light space in the frag kernel for shadow computatations)
 	outVertWorld = (	transform.model * vec4(vert.position, 1.0f)	).xyz;
 	outNormalView = (	transform.modelViewInvTr * vec4(vert.normal, 1.0f)	).xyz;
-	outTangentView = (	transform.modelViewInvTr * vec4(vert.tangent, 1.0f)	).xyz;
+	outTangentView = (	transform.modelViewInvTr * vec4(vert.tangent.xyz, 1.0f)	).xyz;
+	outBitangentView = ( transform.modelViewInvTr * vec4((cross(vert.normal, vert.tangent.xyz) * vert.tangent.w), 1.0f) ).xyz;
+
 
 	gl_Position = pc.perspectiveProj * transform.modelView * vec4(vert.position, 1.0f);
 	outUV = vert.UV;

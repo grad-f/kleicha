@@ -249,9 +249,9 @@ namespace utils {
 
                 //compute tangent
                 if (((x == 0) && (y == 1) && (z == 0)) || ((x == 0) && (y == -1) && (z == 0)))
-                    mesh.verts[i * (prec + 1) + j].tangent = glm::vec3{ 0.0f, 0.0f, -1.0f };
+                    mesh.verts[i * (prec + 1) + j].tangent = glm::vec4{ 0.0f, 0.0f, -1.0f, 1.0f };
                 else
-                    mesh.verts[i * (prec + 1) + j].tangent = glm::cross(glm::vec3{ 0.0f, 1.0f, 0.0f }, glm::vec3{ x,y,z });
+                    mesh.verts[i * (prec + 1) + j].tangent = glm::vec4{ glm::cross(glm::vec3{ 0.0f, 1.0f, 0.0f }, glm::vec3{ x,y,z }), 1.0f };
             }
         }
 
@@ -291,7 +291,7 @@ namespace utils {
             rot = glm::rotate(glm::mat4{ 1.0f }, vertRadians + glm::radians(90.0f), glm::vec3{0.0f, 0.0f, 1.0f});
             mesh.verts[i].tangent = rot * glm::vec4{0.0f, -1.0f, 0.0f, 1.0f};
             mesh.verts[i].bitangent = glm::vec3{ 0.0f, 0.0f, -1.0f };
-            mesh.verts[i].normal = glm::cross(mesh.verts[i].tangent, mesh.verts[i].bitangent);
+            mesh.verts[i].normal = glm::cross(glm::vec3{ mesh.verts[i].tangent }, mesh.verts[i].bitangent);
         }
 
         // for each of the vertices that make up the initial slice, we rotate them about the y axis
@@ -304,7 +304,7 @@ namespace utils {
                 mesh.verts[ring * (prec + 1) + vert].UV = glm::vec2{static_cast<float>(ring * 3.0f) / prec, mesh.verts[vert].UV.t};
 
                 // we're safe to rotate our direction vectors as the rotation matrix is orthonormal and the inverse transpose yields the same matrix
-                mesh.verts[ring * (prec + 1) + vert].tangent = rMat * glm::vec4{mesh.verts[vert].tangent, 1.0f};
+                mesh.verts[ring * (prec + 1) + vert].tangent = rMat * mesh.verts[vert].tangent;
                 mesh.verts[ring * (prec + 1) + vert].bitangent = rMat * glm::vec4{ mesh.verts[vert].bitangent, 1.0f };
                 mesh.verts[ring * (prec + 1) + vert].normal = rMat * glm::vec4{ mesh.verts[vert].normal, 1.0f };
             }
@@ -318,6 +318,64 @@ namespace utils {
         }
 
         return mesh;
+    }
+
+    void compute_mesh_tangents(vkt::Mesh& mesh) {
+
+        std::size_t vertsCount{ mesh.verts.size() };
+        std::vector<glm::vec3> tan1(vertsCount * 2);
+        glm::vec3* tan2{ tan1.data() + vertsCount };
+
+        for (const auto& triangle : mesh.tInd) {
+
+            // get indices to be used to index this triangle's vertices
+            uint32_t i1 = triangle.x;
+            uint32_t i2 = triangle.y;
+            uint32_t i3 = triangle.z;
+
+            // store references to triangle vertex positions and texture coords
+            const glm::vec3& v1{ mesh.verts[i1].position };
+            const glm::vec3& v2{ mesh.verts[i2].position };
+            const glm::vec3& v3{ mesh.verts[i3].position };
+
+            const glm::vec2& w1{ mesh.verts[i1].UV };
+            const glm::vec2& w2{ mesh.verts[i2].UV };
+            const glm::vec2& w3{ mesh.verts[i3].UV };
+
+            float x1{ v2.x - v1.x };
+            float x2{ v3.x - v1.x };
+            float y1{ v2.y - v1.y };
+            float y2{ v3.y - v1.y };
+            float z1{ v2.z - v1.z };
+            float z2{ v3.z - v1.z };
+            float s1{ w2.x - w1.x };
+            float s2{ w3.x - w1.x };
+            float t1{ w2.y - w1.y };
+            float t2{ w3.y - w1.y };
+
+            float r{ 1.0f / (s1 * t2 - s2 * t1) };
+            glm::vec3 sdir{ (t2 * x1 - t1 * x2) * r, (t2 * y1 - t1 * y2) * r, (t2 * z1 - t1 * z2) * r };
+            glm::vec3 tdir{ (s1 * x2 - s2 * x1) * r, (s1 * y2 - s2 * y1) * r, (s1 * z2 - s2 * z1) * r };
+
+            tan1[i1] += sdir;
+            tan1[i2] += sdir;
+            tan1[i3] += sdir;
+
+            tan2[i1] += tdir;
+            tan2[i2] += tdir;
+            tan2[i3] += tdir;
+        }
+
+        for (std::size_t i{ 0 }; i < vertsCount; ++i) {
+            const glm::vec3& N = mesh.verts[i].normal;
+            const glm::vec3& T = tan1[i];
+
+            // re-orthogonalize 
+            mesh.verts[i].tangent = glm::vec4{ glm::normalize((T - N * glm::dot(N, T))), 0.0f };
+
+            // calculuate tangent space handedness. we will factor this into our bitangent computations
+            mesh.verts[i].tangent.w = (glm::dot(glm::cross(N, T), tan2[i]) < 0.0f) ? -1.0f : 1.0f;
+        }
     }
 
     vkt::Mesh load_obj_mesh(const char* filePath, vkt::MeshType meshType) {
@@ -370,10 +428,15 @@ namespace utils {
             }
         }
 
+        // compute tangents
+        compute_mesh_tangents(mesh);
+
         fmt::println("Loaded Model: {}", filePath);
 
         return mesh;
     }
+
+
 
     glm::mat4 lookAt(glm::vec3 eye, glm::vec3 lookat, glm::vec3 up) {
         // create rh uvw basis
