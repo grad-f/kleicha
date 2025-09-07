@@ -27,8 +27,7 @@ vec3 calcShadingNormal(uint textureIndex) {
 	
 	// perspective interpolation results in normal and tangent potentially not orthogonal. Therefore, re-orthogonalize using Gram-Schmidt process
 	T = normalize(T - dot(T, N) * N);
-	
-	B = normalize(B - dot(B, T) * T); 
+	B = normalize(B - dot(B, N) * N - dot(B, T) * T)); 
 
 	// form change of coordinates (tangent to view) transformation
 	mat3 TBN = mat3(T,B,N);

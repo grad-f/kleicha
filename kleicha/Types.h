@@ -126,6 +126,7 @@ namespace vkt {
 		ICE,
 		MOON,
 		CASTLEROOF,
+		ROCK,
 		SKYBOX_NIGHT,
 		SKYBOX_DAY,
 	};

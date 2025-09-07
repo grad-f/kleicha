@@ -591,7 +591,7 @@ void Kleicha::init_draw_data() {
 	std::vector<DrawRequest> drawRequests{								
 		{	MeshType::SHUTTLE,		MaterialType::NONE,		TextureType::SHUTTLE	},
 		{	MeshType::DOLPHIN,		MaterialType::NONE,		TextureType::DOLPHIN	},
-		{	MeshType::SPHERE,		MaterialType::NONE,		TextureType::FLOOR		},
+		{	MeshType::SPHERE,		MaterialType::JADE,		TextureType::NONE		},
 		{	MeshType::SPONZA,		MaterialType::NONE,		TextureType::BRICK		},
 	};
 
@@ -667,7 +667,7 @@ void Kleicha::init_lights() {
 }
 
 // TODO: This is redundant... however I do not like the idea of a template allowing any type here.
-vkt::GPUTextureData Kleicha::create_texture_data(const char** albedoPath, [[maybe_unused]] const char* normalTexture) {
+vkt::GPUTextureData Kleicha::create_texture_data(const char** albedoPath) {
 	assert(albedoPath != nullptr);
 
 	vkt::GPUTextureData textureDatum{};
@@ -698,13 +698,14 @@ void Kleicha::init_materials() {
 	textureData.emplace_back(create_texture_data("../textures/empty.jpg"));
 	textureData.emplace_back(create_texture_data("../textures/brick_color.png", "../textures/brick_nmap.png"));
 	textureData.emplace_back(create_texture_data("../textures/earth.jpg"));
-	textureData.emplace_back(create_texture_data("../textures/concrete.png"));
+	textureData.emplace_back(create_texture_data("../textures/concrete_color.png","../textures/concrete_nmap.png" ));
 	textureData.emplace_back(create_texture_data("../textures/shuttle.jpg"));
 	textureData.emplace_back(create_texture_data("../textures/Dolphin_HighPolyUV.png"));
 	textureData.emplace_back(create_texture_data("../textures/floor_color.jpg", "../textures/floor_nmap.jpg"));
 	textureData.emplace_back(create_texture_data("../textures/ice.jpg"));
 	textureData.emplace_back(create_texture_data("../textures/moon_color.jpg", "../textures/moon_nmap.jpg"));
 	textureData.emplace_back(create_texture_data("../textures/castleroof_color.jpg", "../textures/castleroof_nmap.jpg"));
+	textureData.emplace_back(create_texture_data("../textures/rock_color.png", "../textures/rock_nmap.png"));
 
 	const char* nightSkybox[6]{ "../textures/skybox/night/right.png", "../textures/skybox/night/left.png", "../textures/skybox/night/bottom.png", "../textures/skybox/night/top.png" , "../textures/skybox/night/front.png", "../textures/skybox/night/back.png" };
 	const char* daySkybox[6]{ "../textures/skybox/day/right.jpg", "../textures/skybox/day/left.jpg", "../textures/skybox/day/bottom.jpg", "../textures/skybox/day/top.jpg" , "../textures/skybox/day/front.jpg", "../textures/skybox/day/back.jpg" };

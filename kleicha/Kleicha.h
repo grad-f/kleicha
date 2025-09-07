@@ -120,7 +120,7 @@ private:
 	std::vector<vkt::DrawData> create_draw_data(const std::vector<vkt::GPUMesh>& canonicalMeshes, const std::vector<vkt::DrawRequest>& drawRequests);
 
 	vkt::GPUTextureData create_texture_data(const char* albedoPath, const char* normalTexture = nullptr);
-	vkt::GPUTextureData create_texture_data(const char** albedoPath, const char* normalTexture = nullptr);
+	vkt::GPUTextureData create_texture_data(const char** albedoPath);
 	std::vector<vkt::GPUMesh> load_mesh_data();
 
 	vkt::PushConstants m_pushConstants{};
