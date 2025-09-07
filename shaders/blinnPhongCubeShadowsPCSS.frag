@@ -15,8 +15,6 @@ layout (location = 6) in vec3 inBitangentView;
 
 layout (location = 0) out vec4 outColor;
 
-
-// We will be performing our lighting computations in tangent space in the future. This is temporary.
 vec3 calcShadingNormal(uint textureIndex) {
 	// normal
 	vec3 N = normalize(inNormalView);
@@ -27,7 +25,7 @@ vec3 calcShadingNormal(uint textureIndex) {
 	
 	// perspective interpolation results in normal and tangent potentially not orthogonal. Therefore, re-orthogonalize using Gram-Schmidt process
 	T = normalize(T - dot(T, N) * N);
-	B = normalize(B - dot(B, N) * N - dot(B, T) * T)); 
+	B = normalize(B - dot(B, N) * N - dot(B, T) * T); 
 
 	// form change of coordinates (tangent to view) transformation
 	mat3 TBN = mat3(T,B,N);
@@ -158,10 +156,12 @@ void main() {
 	Material material = materials[dd.materialIndex];
 	TextureData textureData = textures[dd.textureIndex];
 
-	vec3 N = normalize(inNormalView);
+	vec3 N;
 
-	if(textureData.normalTexture > 0)
+	if(textureData.normalTexture > 0 && pc.enableBumpMapping > 0)
 		N = calcShadingNormal(textureData.normalTexture);
+	else
+		N = normalize(inNormalView);
 
 	vec3 V = normalize(-inVertView);
 

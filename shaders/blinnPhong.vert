@@ -7,8 +7,10 @@
 
 layout (location = 0) out vec4 outVertColor;
 layout (location = 1) out vec2 outUV;
-layout (location = 2) out vec3 outNormal;
+layout (location = 2) out vec3 outNormalView;
 layout (location = 3) out vec3 outVertView;
+layout (location = 4) out vec3 outTangentView;
+layout (location = 5) out vec3 outBitangentView;
 
 void main() {
 	DrawData dd = draws[pc.drawId];
@@ -20,7 +22,9 @@ void main() {
 	// vertex in camera space
 	outVertView = (	transform.modelView * vec4(vert.position, 1.0f)	).xyz;
 
-	outNormal = (	transform.modelViewInvTr * vec4(vert.normal, 1.0f)	).xyz;
+	outNormalView = (	transform.modelViewInvTr * vec4(vert.normal, 1.0f)	).xyz;
+	outTangentView = (	transform.modelViewInvTr * vec4(vert.tangent.xyz, 1.0f)	).xyz;
+	outBitangentView = ( transform.modelViewInvTr * vec4((cross(vert.normal, vert.tangent.xyz) * vert.tangent.w), 1.0f) ).xyz;
 
 	gl_Position = pc.perspectiveProj * transform.modelView * vec4(vert.position, 1.0f);
 	outUV = vert.UV;

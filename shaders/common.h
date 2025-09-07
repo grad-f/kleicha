@@ -92,4 +92,5 @@ layout(push_constant) uniform constants {
 	vec3 viewWorldPos;
 	uint drawId;
 	uint lightId;
+	uint enableBumpMapping;
 }pc;

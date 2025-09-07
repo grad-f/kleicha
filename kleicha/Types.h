@@ -14,11 +14,13 @@
 
 namespace vkt {
 	// need not have alignment of 16 bytes as we won't be creating arrays of this type.
+	// TODO: Global constants should be updated per frame and much of what is currently provided via push constants can be moved.
 	struct PushConstants {
 		glm::mat4 perspectiveProjection{};
 		glm::vec3 viewWorldPos{};
 		uint32_t drawId{};
 		uint32_t lightId{};
+		bool enableBumpMapping{};
 	};
 
 	struct Instance {

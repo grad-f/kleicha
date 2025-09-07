@@ -591,7 +591,7 @@ void Kleicha::init_draw_data() {
 	std::vector<DrawRequest> drawRequests{								
 		{	MeshType::SHUTTLE,		MaterialType::NONE,		TextureType::SHUTTLE	},
 		{	MeshType::DOLPHIN,		MaterialType::NONE,		TextureType::DOLPHIN	},
-		{	MeshType::SPHERE,		MaterialType::JADE,		TextureType::NONE		},
+		{	MeshType::SPHERE,		MaterialType::NONE,		TextureType::ROCK		},
 		{	MeshType::SPONZA,		MaterialType::NONE,		TextureType::BRICK		},
 	};
 
@@ -1090,8 +1090,8 @@ void Kleicha::update_dynamic_buffers(const vkt::Frame& frame, float currentTime,
 	m_meshTransforms[2].modelInvTr = glm::transpose(glm::inverse(m_meshTransforms[2].model));
 	m_meshTransforms[2].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[2].modelView));
 
-	//m_meshTransforms[3].model =
 	m_meshTransforms[3].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, -0.9f, -3.0f }) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ .01f, .01f, .01f });
+//	m_meshTransforms[3].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, -0.9f, -3.0f }) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 10.0f, 10.0f, 10.0f });
 	m_meshTransforms[3].modelView = view * m_meshTransforms[3].model;
 	m_meshTransforms[3].modelInvTr = glm::transpose(glm::inverse(m_meshTransforms[3].model));
 	m_meshTransforms[3].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[3].modelView));
@@ -1233,9 +1233,13 @@ void Kleicha::start() {
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
 
+		ImGui::Text("Shadows: ");
 		ImGui::Checkbox("Shadow Mapping (2D) PCF", &m_enableShadows);
 		ImGui::Checkbox("Shadow Mapping (Cube) PCF", &m_enableCubeShadows);
 		ImGui::Checkbox("Shadow Mapping (Cube) PCSS", &m_enableCubeShadowsPCSS);
+		ImGui::NewLine();
+		ImGui::Text("Surface Detail: ");
+		ImGui::Checkbox("Bump Mapping", &m_enableBumpMapping);
 
 		if (ImGui::CollapsingHeader("Lights")) {
 
@@ -1278,7 +1282,7 @@ void Kleicha::start() {
 	VK_CHECK(vkDeviceWaitIdle(m_device.device));
 }
 
-void Kleicha::draw([[maybe_unused]] float currentTime) {
+void Kleicha::draw(float currentTime) {
 
 	// get references to current frame
 	const vkt::Frame frame{ get_current_frame() };
@@ -1340,6 +1344,7 @@ void Kleicha::draw([[maybe_unused]] float currentTime) {
 	update_dynamic_buffers(frame, currentTime, shadowCubePerspProj);
 
 	m_pushConstants.viewWorldPos = m_camera.get_world_pos();
+	m_pushConstants.enableBumpMapping = m_enableBumpMapping;
 
 	vkCmdBindIndexBuffer(frame.cmdBuffer, m_indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
