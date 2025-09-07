@@ -405,3 +405,7 @@ FodyWeavers.xsd
 /textures/floor_nmap.jpg
 /textures/moon_color.jpg
 /textures/moon_nmap.jpg
+/textures/rock_color.png
+/textures/rock_nmap.png
+/textures/concrete_color.png
+/textures/concrete_nmap.png
