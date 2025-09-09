@@ -288,7 +288,7 @@ void Kleicha::init_descriptors() {
 			{1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
 			{2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
 			{3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
-			{4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 50, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr}
+			{4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 50, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr}
 		};
 
 		// create descriptor set layout
@@ -589,7 +589,7 @@ void Kleicha::init_draw_data() {
 
 	// main
 	std::vector<DrawRequest> drawRequests{								
-		{	MeshType::SHUTTLE,		MaterialType::NONE,		TextureType::SHUTTLE	},
+		{	MeshType::TORUS,		MaterialType::NONE,		TextureType::CONCRETE	},
 		{	MeshType::DOLPHIN,		MaterialType::NONE,		TextureType::DOLPHIN	},
 		{	MeshType::SPHERE,		MaterialType::NONE,		TextureType::ROCK		},
 		{	MeshType::SPONZA,		MaterialType::NONE,		TextureType::BRICK		},
@@ -677,7 +677,7 @@ vkt::GPUTextureData Kleicha::create_texture_data(const char** albedoPath) {
 	return textureDatum;
 }
 
-vkt::GPUTextureData Kleicha::create_texture_data(const char* albedoPath, const char* normalTexture) {
+vkt::GPUTextureData Kleicha::create_texture_data(const char* albedoPath, const char* normalTexture, const char* heightTexture) {
 	assert(albedoPath != nullptr);
 
 	vkt::GPUTextureData textureDatum{};
@@ -686,6 +686,11 @@ vkt::GPUTextureData Kleicha::create_texture_data(const char* albedoPath, const c
 	if (normalTexture != nullptr) {
 		m_textures.emplace_back(upload_texture_image(normalTexture));
 		textureDatum.normalTexture = static_cast<uint32_t>(m_textures.size() - 1);
+	}
+
+	if (heightTexture != nullptr) {
+		m_textures.emplace_back(upload_texture_image(heightTexture));
+		textureDatum.heightTexture = static_cast<uint32_t>(m_textures.size() - 1);
 	}
 
 	return textureDatum;
@@ -698,14 +703,14 @@ void Kleicha::init_materials() {
 	textureData.emplace_back(create_texture_data("../textures/empty.jpg"));
 	textureData.emplace_back(create_texture_data("../textures/brick_color.png", "../textures/brick_nmap.png"));
 	textureData.emplace_back(create_texture_data("../textures/earth.jpg"));
-	textureData.emplace_back(create_texture_data("../textures/concrete_color.png","../textures/concrete_nmap.png" ));
+	textureData.emplace_back(create_texture_data("../textures/concrete_color.png","../textures/concrete_nmap.png", "../textures/concrete_height.png"));
 	textureData.emplace_back(create_texture_data("../textures/shuttle.jpg"));
 	textureData.emplace_back(create_texture_data("../textures/Dolphin_HighPolyUV.png"));
 	textureData.emplace_back(create_texture_data("../textures/floor_color.jpg", "../textures/floor_nmap.jpg"));
 	textureData.emplace_back(create_texture_data("../textures/ice.jpg"));
 	textureData.emplace_back(create_texture_data("../textures/moon_color.jpg", "../textures/moon_nmap.jpg"));
 	textureData.emplace_back(create_texture_data("../textures/castleroof_color.jpg", "../textures/castleroof_nmap.jpg"));
-	textureData.emplace_back(create_texture_data("../textures/rock_color.png", "../textures/rock_nmap.png"));
+	textureData.emplace_back(create_texture_data("../textures/rock_color.png", "../textures/rock_nmap.png", "../textures/rock_height.png"));
 
 	const char* nightSkybox[6]{ "../textures/skybox/night/right.png", "../textures/skybox/night/left.png", "../textures/skybox/night/bottom.png", "../textures/skybox/night/top.png" , "../textures/skybox/night/front.png", "../textures/skybox/night/back.png" };
 	const char* daySkybox[6]{ "../textures/skybox/day/right.jpg", "../textures/skybox/day/left.jpg", "../textures/skybox/day/bottom.jpg", "../textures/skybox/day/top.jpg" , "../textures/skybox/day/front.jpg", "../textures/skybox/day/back.jpg" };
@@ -1075,7 +1080,7 @@ void Kleicha::update_dynamic_buffers(const vkt::Frame& frame, float currentTime,
 	// update mesh transforms
 	glm::mat4 view{ m_camera.getViewMatrix() };
 	// TODO: Only update if there was an update to a buffer
-	m_meshTransforms[0].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ -3.0f, 0.35f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, currentTime, glm::vec3{ 0.0f, 1.0f, 0.0f }) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 1.5f, 1.5f, 1.5f });
+	m_meshTransforms[0].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ -3.0f, 0.35f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, currentTime, glm::vec3{ 1.0f, 1.0f, 1.0f }) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 0.5f, 0.5f, 0.5f });
 	m_meshTransforms[0].modelView = view * m_meshTransforms[0].model;
 	m_meshTransforms[0].modelInvTr = glm::transpose(glm::inverse(m_meshTransforms[0].model));
 	m_meshTransforms[0].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[0].modelView));
@@ -1240,6 +1245,7 @@ void Kleicha::start() {
 		ImGui::NewLine();
 		ImGui::Text("Surface Detail: ");
 		ImGui::Checkbox("Bump Mapping", &m_enableBumpMapping);
+		ImGui::Checkbox("Height Mapping", &m_enableHeightMapping);
 
 		if (ImGui::CollapsingHeader("Lights")) {
 
@@ -1345,6 +1351,7 @@ void Kleicha::draw(float currentTime) {
 
 	m_pushConstants.viewWorldPos = m_camera.get_world_pos();
 	m_pushConstants.enableBumpMapping = m_enableBumpMapping;
+	m_pushConstants.enableHeightMapping = m_enableHeightMapping;
 
 	vkCmdBindIndexBuffer(frame.cmdBuffer, m_indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 

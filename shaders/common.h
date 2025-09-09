@@ -50,6 +50,7 @@ struct Light {
 struct TextureData {
 	uint albedoTexture;
 	uint normalTexture;
+	uint heightTexture;
 };
 
 layout(binding = 0, set = 0) readonly buffer Vertices {
@@ -93,4 +94,5 @@ layout(push_constant) uniform constants {
 	uint drawId;
 	uint lightId;
 	uint enableBumpMapping;
+	uint enableHeightMapping;
 }pc;

@@ -20,7 +20,8 @@ namespace vkt {
 		glm::vec3 viewWorldPos{};
 		uint32_t drawId{};
 		uint32_t lightId{};
-		bool enableBumpMapping{};
+		uint32_t enableBumpMapping{};
+		uint32_t enableHeightMapping{};
 	};
 
 	struct Instance {
@@ -207,6 +208,7 @@ namespace vkt {
 	struct GPUTextureData {
 		uint32_t albedoTexture{};
 		uint32_t normalTexture{};
+		uint32_t heightTexture{};
 	};
 
 	struct alignas(16) Material {

@@ -53,6 +53,7 @@ private:
 	bool m_enableCubeShadows{ false };
 	bool m_enableCubeShadowsPCSS{ true };
 	bool m_enableBumpMapping{ true };
+	bool m_enableHeightMapping{ true };
 
 	VmaAllocator m_allocator{};
 
@@ -120,7 +121,7 @@ private:
 
 	std::vector<vkt::DrawData> create_draw_data(const std::vector<vkt::GPUMesh>& canonicalMeshes, const std::vector<vkt::DrawRequest>& drawRequests);
 
-	vkt::GPUTextureData create_texture_data(const char* albedoPath, const char* normalTexture = nullptr);
+	vkt::GPUTextureData create_texture_data(const char* albedoPath, const char* normalTexture = nullptr, const char* heightTexture = nullptr);
 	vkt::GPUTextureData create_texture_data(const char** albedoPath);
 	std::vector<vkt::GPUMesh> load_mesh_data();
 

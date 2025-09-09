@@ -1,5 +1,6 @@
 #version 450
 #extension GL_ARB_shader_draw_parameters : enable
+#extension GL_EXT_nonuniform_qualifier : require
 #extension GL_EXT_debug_printf : enable
 #extension GL_GOOGLE_include_directive: require
 
@@ -17,20 +18,26 @@ void main() {
 	DrawData dd = draws[pc.drawId];
 	Vertex vert = vertices[gl_VertexIndex];
 	Transform transform = transforms[dd.transformIndex];
+	TextureData textureData = textures[dd.textureIndex];
+
+	vec3 vertPos = vert.position;
 
 	// we choose to perform out lighting computations in camera-space.
+	if (textureData.heightTexture > 0 && pc.enableHeightMapping > 0) {
+		vertPos += vert.normal * (texture(texSampler[textureData.heightTexture], vert.UV).r * 0.13);
+	}
 
 	// vertex in camera space
-	outVertView = (	transform.modelView * vec4(vert.position, 1.0f)	).xyz;
+	outVertView = (	transform.modelView * vec4(vertPos, 1.0f)	).xyz;
 
 	// vertex in world space (to be transformed into light space in the frag kernel for shadow computatations)
-	outVertWorld = (	transform.model * vec4(vert.position, 1.0f)	).xyz;
+	outVertWorld = (	transform.model * vec4(vertPos, 1.0f)	).xyz;
 	outNormalView = (	transform.modelViewInvTr * vec4(vert.normal, 1.0f)	).xyz;
 	outTangentView = (	transform.modelViewInvTr * vec4(vert.tangent.xyz, 1.0f)	).xyz;
 	outBitangentView = ( transform.modelViewInvTr * vec4((cross(vert.normal, vert.tangent.xyz) * vert.tangent.w), 1.0f) ).xyz;
 
 
-	gl_Position = pc.perspectiveProj * transform.modelView * vec4(vert.position, 1.0f);
+	gl_Position = pc.perspectiveProj * transform.modelView * vec4(vertPos, 1.0f);
 	outUV = vert.UV;
 
 	//debugPrintfEXT("%f | %f | %f\n", lights[0].mvPos.x, lights[0].mvPos.y, lights[0].mvPos.z);
