@@ -55,5 +55,7 @@ namespace utils {
 
     void compute_mesh_tangents(vkt::Mesh& mesh);
 
+    void load_gltf(const char* filePath);
+
 }
 #endif // !UTILS_H

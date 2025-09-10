@@ -492,14 +492,16 @@ std::vector<vkt::GPUMesh> Kleicha::load_mesh_data() {
 
 	std::vector<vkt::Mesh> meshes{};
 	meshes.emplace_back(utils::generate_pyramid_mesh());
-	meshes.emplace_back(utils::generate_sphere(48));
-	meshes.emplace_back(utils::generate_torus(48, 1.2f, 0.45f));
+	meshes.emplace_back(utils::generate_sphere(64));
+	meshes.emplace_back(utils::generate_torus(64, 1.2f, 0.45f));
 	meshes.emplace_back(utils::generate_cube_mesh());
 	meshes.emplace_back(utils::load_obj_mesh("../models/shuttle.obj", vkt::MeshType::SHUTTLE));
 	meshes.emplace_back(utils::load_obj_mesh("../models/icosphere.obj", vkt::MeshType::ICOSPHERE));
 	meshes.emplace_back(utils::load_obj_mesh("../models/dolphinHighPoly.obj", vkt::MeshType::DOLPHIN));
 	meshes.emplace_back(utils::load_obj_mesh("../models/grid.obj", vkt::MeshType::PLANE));
 	meshes.emplace_back(utils::load_obj_mesh("../models/sponza.obj", vkt::MeshType::SPONZA));
+
+	utils::load_gltf("F:\\Projects\\glTF Sample Models\\glTF-Sample-Models-main\\glTF-Sample-Models-main\\2.0\\Sponza\\glTF\\Sponza.gltf");
 
 	std::vector<vkt::GPUMesh> GPUMeshes(meshes.size());
 	// create unified vertex and index buffers for upload. meshDrawData will keep track of mesh buffer offsets within the unified buffer.

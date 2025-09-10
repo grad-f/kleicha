@@ -88,9 +88,9 @@
     <ClCompile>
       <WarningLevel>Level4</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>F:\Projects\libraries\tinyobjloader;F:\Projects\libraries\stb_image;C:\VulkanSDK\1.4.313.1\Include;F:\Projects\libraries\fmt\include\fmt;F:\Projects\libraries\glfw\include;F:\Projects\libraries\vma\3.2.1\include;F:\Projects\libraries\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>F:\Projects\libraries\tinyobjloader;F:\Projects\libraries\stb_image;C:\VulkanSDK\1.4.313.1\Include;F:\Projects\libraries\fmt\include\fmt;F:\Projects\libraries\glfw\include;F:\Projects\libraries\vma\3.2.1\include;F:\Projects\libraries\glm;F:\Projects\libraries\cgltf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <TreatWarningAsError>true</TreatWarningAsError>
       <AdditionalOptions>/w44365 %(AdditionalOptions)</AdditionalOptions>
       <ExternalWarningLevel>Level3</ExternalWarningLevel>
@@ -109,9 +109,9 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>F:\Projects\libraries\tinyobjloader;F:\Projects\libraries\stb_image;C:\VulkanSDK\1.4.313.1\Include;F:\Projects\libraries\fmt\include\fmt;F:\Projects\libraries\glfw\include;F:\Projects\libraries\vma\3.2.1\include;F:\Projects\libraries\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>F:\Projects\libraries\tinyobjloader;F:\Projects\libraries\stb_image;C:\VulkanSDK\1.4.313.1\Include;F:\Projects\libraries\fmt\include\fmt;F:\Projects\libraries\glfw\include;F:\Projects\libraries\vma\3.2.1\include;F:\Projects\libraries\glm;F:\Projects\libraries\cgltf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <TreatWarningAsError>true</TreatWarningAsError>
       <AdditionalOptions>/w44365 %(AdditionalOptions)</AdditionalOptions>
       <ExternalWarningLevel>Level3</ExternalWarningLevel>
@@ -130,12 +130,12 @@
     <ClCompile>
       <WarningLevel>Level4</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <TreatWarningAsError>true</TreatWarningAsError>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
-      <AdditionalIncludeDirectories>F:\Projects\libraries\tinyobjloader;F:\Projects\libraries\stb_image;C:\VulkanSDK\1.4.313.1\Include;F:\Projects\libraries\fmt\include\fmt;F:\Projects\libraries\glfw\include;F:\Projects\libraries\vma\3.2.1\include;F:\Projects\libraries\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>F:\Projects\libraries\tinyobjloader;F:\Projects\libraries\stb_image;C:\VulkanSDK\1.4.313.1\Include;F:\Projects\libraries\fmt\include\fmt;F:\Projects\libraries\glfw\include;F:\Projects\libraries\vma\3.2.1\include;F:\Projects\libraries\glm;F:\Projects\libraries\cgltf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/w44365 %(AdditionalOptions)</AdditionalOptions>
       <ExternalWarningLevel>Level3</ExternalWarningLevel>
       <DisableSpecificWarnings>4324</DisableSpecificWarnings>
@@ -152,12 +152,12 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <TreatWarningAsError>true</TreatWarningAsError>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
-      <AdditionalIncludeDirectories>F:\Projects\libraries\tinyobjloader;F:\Projects\libraries\stb_image;C:\VulkanSDK\1.4.313.1\Include;F:\Projects\libraries\fmt\include\fmt;F:\Projects\libraries\glfw\include;F:\Projects\libraries\vma\3.2.1\include;F:\Projects\libraries\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>F:\Projects\libraries\tinyobjloader;F:\Projects\libraries\stb_image;C:\VulkanSDK\1.4.313.1\Include;F:\Projects\libraries\fmt\include\fmt;F:\Projects\libraries\glfw\include;F:\Projects\libraries\vma\3.2.1\include;F:\Projects\libraries\glm;F:\Projects\libraries\cgltf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/w44365 %(AdditionalOptions)</AdditionalOptions>
       <ExternalWarningLevel>Level3</ExternalWarningLevel>
       <DisableSpecificWarnings>4324</DisableSpecificWarnings>

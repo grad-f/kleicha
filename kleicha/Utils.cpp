@@ -1,11 +1,17 @@
 #include "Utils.h"
 #include "Initializers.h"
+
+
+
 #include <unordered_map>
 
 #pragma warning(push)
-#pragma warning(disable : 26495 6262 6054)
+#pragma warning(disable : 26495 6262 6054 4365)
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "tiny_obj_loader.h"
+
+#define CGLTF_IMPLEMENTATION
+#include "cgltf.h"
 #pragma warning(pop)
 
 namespace std {
@@ -436,6 +442,103 @@ namespace utils {
         return mesh;
     }
 
+    void load_gltf(const char* filePath) {
+
+        cgltf_options options{};
+        cgltf_data* data{};
+        cgltf_result result{ cgltf_parse_file(&options, filePath, &data) };
+
+        if (result != cgltf_result_success) {
+            cgltf_free(data);
+            throw std::runtime_error{ "[Utils] Failed to load the gltf located at: " + std::string{filePath} };
+        }
+
+        result = cgltf_load_buffers(&options, data, filePath);
+
+        if (result != cgltf_result_success) {
+            cgltf_free(data);
+            throw std::runtime_error{ "[Utils] Failed to load buffers of the gltf located at: " + std::string{filePath} };
+        }
+
+        cgltf_validate(data);
+
+        // get default scene
+        cgltf_scene* scene{ data->scene };
+
+        for (std::size_t n{ 0 }; n < scene->nodes_count; ++n) {
+            // get the scaling that should be applied to each vertex
+            cgltf_node* node{ scene->nodes[n] };
+
+            glm::mat3 scaleMat{ 1.0f };
+
+            if (node->has_scale) {
+                cgltf_float* scale{ node->scale };
+                scaleMat = {
+                    scale[0], 0.0f, 0.0f,
+                    0.0f, scale[1], 0.0f,
+                    0.0f, 0.0f, scale[2]
+                };
+            }
+
+            // traverse meshes (in the case of sponza it is a single mesh)
+            for (std::size_t i{ 0 }; i < data->meshes_count; ++i) {
+
+                //TODO: Our sponza stores meshes as primitives... this isn't the norm and so we handle the other case where meshes correspond to different meshes in the scene...
+                const cgltf_mesh& mesh{ data->meshes[i] };
+
+                for (std::size_t j{ 0 }; j < mesh.primitives_count; ++j) {
+
+                    const cgltf_primitive& prim{ mesh.primitives[j] };
+
+                    std::size_t vertexCount{ prim.attributes[0].data->count};
+                    std::vector<vkt::Vertex> vertices(vertexCount);
+                    std::vector<float> scratchData(vertexCount * 4);
+
+                    if (const cgltf_accessor* pos = cgltf_find_accessor(&prim, cgltf_attribute_type_position, 0)) {
+
+                        assert(cgltf_num_components(pos->type) == 3);
+
+                        cgltf_accessor_unpack_floats(pos, scratchData.data(), vertexCount * 3);
+
+                        for (std::size_t x{ 0 }; x < vertexCount; ++x) {
+                            vertices[x].position = { scratchData[x * 3 + 0], scratchData[x * 3 + 1], scratchData[x * 3 + 2]};
+                        }
+                    }
+
+                    if (const cgltf_accessor* norm = cgltf_find_accessor(&prim, cgltf_attribute_type_normal, 0)) {
+
+                        assert(cgltf_num_components(norm->type) == 3);
+
+                        cgltf_accessor_unpack_floats(norm, scratchData.data(), vertexCount * 3);
+
+                        for (std::size_t x{ 0 }; x < vertexCount; ++x) {
+                            vertices[x].normal = { scratchData[x * 3 + 0], scratchData[x * 3 + 1], scratchData[x * 3 + 2] };
+                        }
+
+                    }
+
+                    if (const cgltf_accessor* tex = cgltf_find_accessor(&prim, cgltf_attribute_type_texcoord, 0)) {
+
+                        assert(cgltf_num_components(tex->type) == 2);
+
+                        cgltf_accessor_unpack_floats(tex, scratchData.data(), vertexCount * 2);
+
+                        for (std::size_t x{ 0 }; x < vertexCount; ++x) {
+                            vertices[x].UV = { scratchData[x * 2 + 0], scratchData[x * 2 + 1] };
+                        }
+                    }
+
+                    std::vector<uint32_t> indices(prim.indices->count);
+                    cgltf_accessor_unpack_indices(prim.indices, indices.data(), 4, indices.size());
+                    cgltf_size cgltf_accessor_unpack_indices(const cgltf_accessor * accessor, void* out, cgltf_size out_component_size, cgltf_size index_count);
+                
+                }
+
+            }
+        }
+
+        cgltf_free(data);
+    }
 
 
     glm::mat4 lookAt(glm::vec3 eye, glm::vec3 lookat, glm::vec3 up) {
