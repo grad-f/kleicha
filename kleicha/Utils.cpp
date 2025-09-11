@@ -171,7 +171,6 @@ namespace utils {
 
     vkt::Mesh generate_cube_mesh() {
         return {
-            .meshType = vkt::MeshType::CUBE,
             .tInd { //triangles
                 // top
                 {6, 2, 7},
@@ -208,7 +207,6 @@ namespace utils {
 
     vkt::Mesh generate_pyramid_mesh() {
         return {
-            .meshType = vkt::MeshType::PYRAMID,
             .tInd {
                 {6,2,5},
                 {4,5,2},
@@ -239,7 +237,7 @@ namespace utils {
         size_t vertexCount{ (prec + 1) * (prec + 1) };
         size_t triangleCount{ prec * prec * 2 };
         // pre-allocate
-        vkt::Mesh mesh{.meshType = vkt::MeshType::SPHERE};
+        vkt::Mesh mesh{};
         mesh.verts.resize(vertexCount);
         mesh.tInd.resize(triangleCount);
         for (size_t i{ 0 }; i <= prec; ++i) { // traverse each slice
@@ -276,7 +274,7 @@ namespace utils {
         size_t vertexCount{ (prec + 1) * (prec + 1) };
         size_t triangleCount{ prec * prec * 2 };
 
-        vkt::Mesh mesh{.meshType = vkt::MeshType::TORUS};
+        vkt::Mesh mesh{};
         mesh.verts.resize(vertexCount);
         mesh.tInd.resize(triangleCount);
 
@@ -384,13 +382,13 @@ namespace utils {
         }
     }
 
-    vkt::Mesh load_obj_mesh(const char* filePath, vkt::MeshType meshType) {
+    vkt::Mesh load_obj_mesh(const char* filePath) {
         // attrib stores arrays of vertex attributes as floats
         tinyobj::attrib_t attrib;
         std::vector<tinyobj::shape_t> shapes;
         std::string err{};
 
-        vkt::Mesh mesh{.meshType = meshType};
+        vkt::Mesh mesh{};
         if (!tinyobj::LoadObj(&attrib, &shapes, nullptr, &err, filePath)) {
             throw std::runtime_error{ "[Kleicha] Failed to load mesh from file: " + std::string{filePath} + "\nError: " + err };
         }
@@ -442,7 +440,7 @@ namespace utils {
         return mesh;
     }
 
-    void load_gltf(const char* filePath) {
+    bool load_gltf(const char* filePath, std::vector<vkt::Mesh>& meshes, std::vector<vkt::DrawData>& draws, std::vector<vkt::Transform>& transforms) {
 
         cgltf_options options{};
         cgltf_data* data{};
@@ -450,14 +448,14 @@ namespace utils {
 
         if (result != cgltf_result_success) {
             cgltf_free(data);
-            throw std::runtime_error{ "[Utils] Failed to load the gltf located at: " + std::string{filePath} };
+            return false;
         }
 
         result = cgltf_load_buffers(&options, data, filePath);
 
         if (result != cgltf_result_success) {
             cgltf_free(data);
-            throw std::runtime_error{ "[Utils] Failed to load buffers of the gltf located at: " + std::string{filePath} };
+            return false;
         }
 
         cgltf_validate(data);
@@ -469,15 +467,10 @@ namespace utils {
             // get the scaling that should be applied to each vertex
             cgltf_node* node{ scene->nodes[n] };
 
-            glm::mat3 scaleMat{ 1.0f };
-
+            glm::mat4 scaleMat{ 1.0f };
             if (node->has_scale) {
                 cgltf_float* scale{ node->scale };
-                scaleMat = {
-                    scale[0], 0.0f, 0.0f,
-                    0.0f, scale[1], 0.0f,
-                    0.0f, 0.0f, scale[2]
-                };
+                cgltf_node_transform_local(node, &(scaleMat[0].x));
             }
 
             // traverse meshes (in the case of sponza it is a single mesh)
@@ -487,6 +480,8 @@ namespace utils {
                 const cgltf_mesh& mesh{ data->meshes[i] };
 
                 for (std::size_t j{ 0 }; j < mesh.primitives_count; ++j) {
+
+                    // we construct a draw for each of these. 
 
                     const cgltf_primitive& prim{ mesh.primitives[j] };
 
@@ -528,16 +523,20 @@ namespace utils {
                         }
                     }
 
-                    std::vector<uint32_t> indices(prim.indices->count);
-                    cgltf_accessor_unpack_indices(prim.indices, indices.data(), 4, indices.size());
+                    std::vector<glm::uvec3> indices(prim.indices->count / 3);
+                    cgltf_accessor_unpack_indices(prim.indices, indices.data(), 4, indices.size() * 3);
                     cgltf_size cgltf_accessor_unpack_indices(const cgltf_accessor * accessor, void* out, cgltf_size out_component_size, cgltf_size index_count);
-                
+                    
+                    meshes.push_back(vkt::Mesh{ indices, vertices });
+                    transforms.push_back(vkt::Transform{ scaleMat });
+                    draws.push_back(vkt::DrawData{ 0, 0, static_cast<uint32_t>(transforms.size() - 1) });
                 }
 
             }
         }
 
         cgltf_free(data);
+        return true;
     }
 
 

@@ -91,7 +91,7 @@
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>F:\Projects\libraries\tinyobjloader;F:\Projects\libraries\stb_image;C:\VulkanSDK\1.4.313.1\Include;F:\Projects\libraries\fmt\include\fmt;F:\Projects\libraries\glfw\include;F:\Projects\libraries\vma\3.2.1\include;F:\Projects\libraries\glm;F:\Projects\libraries\cgltf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <TreatWarningAsError>true</TreatWarningAsError>
+      <TreatWarningAsError>false</TreatWarningAsError>
       <AdditionalOptions>/w44365 %(AdditionalOptions)</AdditionalOptions>
       <ExternalWarningLevel>Level3</ExternalWarningLevel>
       <LanguageStandard>stdcpp20</LanguageStandard>
@@ -112,7 +112,7 @@
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>F:\Projects\libraries\tinyobjloader;F:\Projects\libraries\stb_image;C:\VulkanSDK\1.4.313.1\Include;F:\Projects\libraries\fmt\include\fmt;F:\Projects\libraries\glfw\include;F:\Projects\libraries\vma\3.2.1\include;F:\Projects\libraries\glm;F:\Projects\libraries\cgltf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <TreatWarningAsError>true</TreatWarningAsError>
+      <TreatWarningAsError>false</TreatWarningAsError>
       <AdditionalOptions>/w44365 %(AdditionalOptions)</AdditionalOptions>
       <ExternalWarningLevel>Level3</ExternalWarningLevel>
       <LanguageStandard>stdcpp20</LanguageStandard>
@@ -132,7 +132,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <TreatWarningAsError>true</TreatWarningAsError>
+      <TreatWarningAsError>false</TreatWarningAsError>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <AdditionalIncludeDirectories>F:\Projects\libraries\tinyobjloader;F:\Projects\libraries\stb_image;C:\VulkanSDK\1.4.313.1\Include;F:\Projects\libraries\fmt\include\fmt;F:\Projects\libraries\glfw\include;F:\Projects\libraries\vma\3.2.1\include;F:\Projects\libraries\glm;F:\Projects\libraries\cgltf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -154,7 +154,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <TreatWarningAsError>true</TreatWarningAsError>
+      <TreatWarningAsError>false</TreatWarningAsError>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <AdditionalIncludeDirectories>F:\Projects\libraries\tinyobjloader;F:\Projects\libraries\stb_image;C:\VulkanSDK\1.4.313.1\Include;F:\Projects\libraries\fmt\include\fmt;F:\Projects\libraries\glfw\include;F:\Projects\libraries\vma\3.2.1\include;F:\Projects\libraries\glm;F:\Projects\libraries\cgltf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>

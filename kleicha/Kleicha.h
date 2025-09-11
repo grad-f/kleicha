@@ -107,9 +107,8 @@ private:
 	void init_descriptors();
 	void init_vma();
 	void init_imgui();
-	void init_draw_data();
+	void init_load_scene();
 	void init_lights();
-	void init_materials();
 	void init_image_buffers(bool windowResized = false);
 	void init_dynamic_buffers();
 	void init_samplers();
@@ -119,11 +118,9 @@ private:
 	void shadow_cube_pass(const vkt::Frame& frame);
 	void shadow_2D_pass(const vkt::Frame& frame);
 
-	std::vector<vkt::DrawData> create_draw_data(const std::vector<vkt::GPUMesh>& canonicalMeshes, const std::vector<vkt::DrawRequest>& drawRequests);
-
 	vkt::GPUTextureData create_texture_data(const char* albedoPath, const char* normalTexture = nullptr, const char* heightTexture = nullptr);
 	vkt::GPUTextureData create_texture_data(const char** albedoPath);
-	std::vector<vkt::GPUMesh> load_mesh_data();
+	//std::vector<vkt::GPUMesh> load_mesh_data();
 
 	vkt::PushConstants m_pushConstants{};
 

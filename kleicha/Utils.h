@@ -34,7 +34,7 @@ namespace utils {
     vkt::Mesh generate_pyramid_mesh();
     vkt::Mesh generate_sphere(size_t prec);
     vkt::Mesh generate_torus(size_t prec, float inner, float outer);
-    vkt::Mesh load_obj_mesh(const char* filePath, vkt::MeshType meshType);
+    vkt::Mesh load_obj_mesh(const char* filePath);
 
     vkt::Buffer create_buffer(VmaAllocator allocator, VkDeviceSize bufferSize, VkBufferUsageFlags bufferUsage,
                                 VmaMemoryUsage memoryUsage, VkMemoryPropertyFlags requiredFlags, VmaAllocationCreateFlags flags = 0);
@@ -55,7 +55,7 @@ namespace utils {
 
     void compute_mesh_tangents(vkt::Mesh& mesh);
 
-    void load_gltf(const char* filePath);
+    bool load_gltf(const char* filePath, std::vector<vkt::Mesh>& meshes, std::vector<vkt::DrawData>& draws, std::vector<vkt::Transform>& transforms);
 
 }
 #endif // !UTILS_H

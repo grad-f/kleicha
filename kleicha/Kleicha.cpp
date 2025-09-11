@@ -67,10 +67,9 @@ void Kleicha::init() {
 	init_sync_primitives();
 	init_vma();
 	init_imgui();
-	init_materials();
+	init_load_scene();
 	init_lights();
 	init_image_buffers();
-	init_draw_data();
 	init_dynamic_buffers();
 	init_samplers();
 	init_descriptors();
@@ -414,6 +413,48 @@ void Kleicha::init_imgui() {
 	ImGui_ImplVulkan_CreateFontsTexture();
 }
 
+void Kleicha::init_load_scene() {
+
+	std::vector<vkt::Mesh> meshes{};
+	std::vector<vkt::DrawData> draws{};
+	
+	std::vector<vkt::Transform> transforms{};
+
+	if (!utils::load_gltf("../data/Sponza/glTF/Sponza.gltf", meshes, draws, m_meshTransforms)) {
+		throw std::runtime_error{ "[Kleicha] Failed to load scene!" };
+	}
+	
+	m_drawBuffer = upload_data(draws.data(), sizeof(vkt::DrawData) * draws.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+
+	// now we would like to traverse meshes and build the unified vertex and indices buffer where hostDraws will keep track of our different meshes
+	m_mainDrawData.resize(meshes.size());
+	//std::vector<vkt::HostDrawData> hostDraws( meshes.size() );
+	std::vector<vkt::Vertex> unifiedVertices{};
+	std::vector<glm::uvec3> unifiedTriangles{};
+	for (std::size_t i{ 0 }; i < meshes.size(); ++i) {
+
+		// store the current vertex and triangle counts
+		int32_t vertexCount{ static_cast<int32_t>(unifiedVertices.size()) };
+		uint32_t triangleCount{ static_cast<uint32_t>(unifiedTriangles.size()) };
+
+		// store vertex and index buffer mesh start positions
+		m_mainDrawData[i].vertexOffset = vertexCount;
+		m_mainDrawData[i].indicesOffset = triangleCount * glm::uvec3::length();
+		m_mainDrawData[i].indicesCount = static_cast<uint32_t>(meshes[i].tInd.size() * glm::uvec3::length());
+
+		// allocate memory for mesh vertex data and insert it
+		unifiedVertices.reserve(vertexCount + meshes[i].verts.size());
+		unifiedVertices.insert(unifiedVertices.end(), meshes[i].verts.begin(), meshes[i].verts.end());
+
+		// allocate memory for mesh index data and insert it
+		unifiedTriangles.reserve(triangleCount + meshes[i].tInd.size());
+		unifiedTriangles.insert(unifiedTriangles.end(), meshes[i].tInd.begin(), meshes[i].tInd.end());
+	}
+
+	m_vertexBuffer = upload_data(unifiedVertices.data(), unifiedVertices.size() * sizeof(vkt::Vertex), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+	m_indexBuffer = upload_data(unifiedTriangles.data(), unifiedTriangles.size() * sizeof(glm::uvec3), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+}
+
 void Kleicha::init_image_buffers(bool windowResized) {
 
 
@@ -488,7 +529,8 @@ void Kleicha::init_image_buffers(bool windowResized) {
 			});
 	}
 
-std::vector<vkt::GPUMesh> Kleicha::load_mesh_data() {
+/*std::vector<vkt::GPUMesh> Kleicha::load_mesh_data() {
+
 
 	std::vector<vkt::Mesh> meshes{};
 	meshes.emplace_back(utils::generate_pyramid_mesh());
@@ -499,9 +541,9 @@ std::vector<vkt::GPUMesh> Kleicha::load_mesh_data() {
 	meshes.emplace_back(utils::load_obj_mesh("../models/icosphere.obj", vkt::MeshType::ICOSPHERE));
 	meshes.emplace_back(utils::load_obj_mesh("../models/dolphinHighPoly.obj", vkt::MeshType::DOLPHIN));
 	meshes.emplace_back(utils::load_obj_mesh("../models/grid.obj", vkt::MeshType::PLANE));
+	//utils::load_gltf("F:\\Projects\\glTF Sample Models\\glTF-Sample-Models-main\\glTF-Sample-Models-main\\2.0\\Sponza\\glTF\\Sponza.gltf", meshes);
 	meshes.emplace_back(utils::load_obj_mesh("../models/sponza.obj", vkt::MeshType::SPONZA));
 
-	utils::load_gltf("F:\\Projects\\glTF Sample Models\\glTF-Sample-Models-main\\glTF-Sample-Models-main\\2.0\\Sponza\\glTF\\Sponza.gltf");
 
 	std::vector<vkt::GPUMesh> GPUMeshes(meshes.size());
 	// create unified vertex and index buffers for upload. meshDrawData will keep track of mesh buffer offsets within the unified buffer.
@@ -533,89 +575,11 @@ std::vector<vkt::GPUMesh> Kleicha::load_mesh_data() {
 	m_indexBuffer = upload_data(unifiedTriangles.data(), unifiedTriangles.size() * sizeof(glm::uvec3), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
 
 	return GPUMeshes;
-}
+}*/
 
-std::vector<vkt::DrawData> Kleicha::create_draw_data(const std::vector<vkt::GPUMesh>& canonicalMeshes, const std::vector<vkt::DrawRequest>& drawRequests) {
-	
-	std::vector<vkt::DrawData> drawData{};
-
-	for (const auto& drawRequest : drawRequests) {
-		bool meshFound{ false };
-		for (const auto& mesh : canonicalMeshes) {
-			if (mesh.meshType == drawRequest.meshType) { 
-
-				meshFound = true;
-
-				// this is the draw data that will reside on the GPU and available through our shaders
-				vkt::DrawData drawDatum{ .materialIndex = static_cast<uint32_t>(drawRequest.materialType), .textureIndex = static_cast<uint32_t>(drawRequest.textureType), .transformIndex = static_cast<uint32_t>(drawData.size())};
-
-				// host draw data helps us manage our draws on the host
-				vkt::HostDrawData draw{};
-				draw.drawId = static_cast<uint32_t>(drawData.size());
-				draw.transformIndex = drawDatum.transformIndex;
-				draw.indicesCount = mesh.indicesCount;
-				draw.indicesOffset = mesh.indicesOffset;
-				draw.vertexOffset = mesh.vertexOffset;
-
-				// this may need to eventually be a switch statement
-
-				if (drawRequest.isLight)
-					m_lightDrawData.emplace_back(draw);
-				else if (drawRequest.isSkybox)
-					m_skyboxDrawData = draw;
-				else if (drawRequest.isReflective)
-					m_reflectDrawData.emplace_back(draw);
-				else if (drawRequest.materialType >= vkt::MaterialType::WATER && drawRequest.materialType <= vkt::MaterialType::DIAMOND)
-					m_refractDrawData.emplace_back(draw);
-				else
-					m_mainDrawData.emplace_back(draw);
-
-				drawData.push_back(drawDatum);
-				++m_totalDraws;
-			}
-		}
-
-		if (!meshFound)
-			throw std::runtime_error{ "[Kleicha] Requested mesh type was not found in the canonical meshes" };
-	}
-
-	return drawData;
-}
-
-void Kleicha::init_draw_data() {
+void Kleicha::init_dynamic_buffers() {
 
 	using namespace vkt;
-
-	// an array where each element is a mesh i have loaded in. it stores the indices/reference data into the unified array on the graphics card
-	std::vector<GPUMesh> canonicalMeshBufferInfo{ load_mesh_data() };
-
-	// main
-	std::vector<DrawRequest> drawRequests{								
-		{	MeshType::TORUS,		MaterialType::NONE,		TextureType::CONCRETE	},
-		{	MeshType::DOLPHIN,		MaterialType::NONE,		TextureType::DOLPHIN	},
-		{	MeshType::SPHERE,		MaterialType::NONE,		TextureType::ROCK		},
-		{	MeshType::SPONZA,		MaterialType::NONE,		TextureType::BRICK		},
-	};
-
-	// reflective
-	drawRequests.push_back({ MeshType::SPHERE, MaterialType::NONE , TextureType::EARTH, false, false, true});
-
-	// refractive
-	drawRequests.push_back({ MeshType::ICOSPHERE, MaterialType::WATER, TextureType::NONE });
-
-	// lights
-	for ([[maybe_unused]] const auto& light : m_lights) {
-		drawRequests.push_back({ MeshType::SPHERE, MaterialType::NONE, TextureType::NONE, true});
-	}
-
-	// skybox
-	drawRequests.push_back({ MeshType::CUBE, MaterialType::NONE, TextureType::SKYBOX_NIGHT, false, true });
-	uint32_t skyboxTexIndex{ static_cast<uint32_t>(drawRequests.back().textureType) };
-
-	std::vector<DrawData> drawData{create_draw_data(canonicalMeshBufferInfo, drawRequests)};
-	m_drawBuffer = upload_data(drawData.data(), drawData.size() * sizeof(DrawData), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
-
-	m_meshTransforms.resize(drawData.size());
 
 	GlobalData globalData{};
 	globalData.ambientLight = glm::vec4{ 0.22f, 0.22f, 0.22f, 1.0f };
@@ -626,26 +590,27 @@ void Kleicha::init_draw_data() {
 		0.5f, 0.5f, 0.0f, 1.0f
 	};
 	globalData.lightCount = static_cast<uint32_t>(m_lights.size());
-	globalData.skyboxTexIndex = skyboxTexIndex;
 	m_globalsBuffer = upload_data(&globalData, sizeof(globalData), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
-}
-
-void Kleicha::init_dynamic_buffers() {
 
 	// allocate per frame buffers such as transform buffer
 	for (auto& frame : m_frames) {
-		frame.transformBuffer = utils::create_buffer(m_allocator, sizeof(vkt::Transform) * m_totalDraws, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+		frame.transformBuffer = utils::create_buffer(m_allocator, sizeof(Transform) * m_meshTransforms.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
 			VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
 
-		frame.lightBuffer = utils::create_buffer(m_allocator, sizeof(vkt::Light) * m_lights.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+		frame.lightBuffer = utils::create_buffer(m_allocator, sizeof(Light) * m_lights.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
 			VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
 
-		frame.materialBuffer = utils::create_buffer(m_allocator, sizeof(vkt::Material) * m_materials.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+		frame.materialBuffer = utils::create_buffer(m_allocator, sizeof(Material) * m_materials.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
 			VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
 	}
 }
 
 void Kleicha::init_lights() {
+
+	m_textures.push_back(upload_texture_image("../textures/empty.jpg"));
+	m_gpuTextureBuffer = upload_data(m_textures.data(), sizeof(vkt::GPUTextureData) * m_textures.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+		
+	m_materials.push_back(vkt::Material::jade());
 
 	// create a standard white light 
 	vkt::Light pointLight{
@@ -654,7 +619,7 @@ void Kleicha::init_lights() {
 		.specular = {1.0f, 1.0f, 1.0f, 1.0f},
 		.attenuationFactors = {1.0f, 0.133f, 0.050f},
 		.lightSize = {9.133f},
-		.mPos = {4.5f, 6.0f, -3.0f},
+		.mPos = { 4.5f, 6.0f, -3.0f },
 		.frustumWidth = {3.75f},
 	};
 
@@ -696,41 +661,6 @@ vkt::GPUTextureData Kleicha::create_texture_data(const char* albedoPath, const c
 	}
 
 	return textureDatum;
-}
-
-void Kleicha::init_materials() {
-
-	// stores indices to the uploaded textures
-	std::vector<vkt::GPUTextureData> textureData{};
-	textureData.emplace_back(create_texture_data("../textures/empty.jpg"));
-	textureData.emplace_back(create_texture_data("../textures/brick_color.png", "../textures/brick_nmap.png"));
-	textureData.emplace_back(create_texture_data("../textures/earth.jpg"));
-	textureData.emplace_back(create_texture_data("../textures/concrete_color.png","../textures/concrete_nmap.png", "../textures/concrete_height.png"));
-	textureData.emplace_back(create_texture_data("../textures/shuttle.jpg"));
-	textureData.emplace_back(create_texture_data("../textures/Dolphin_HighPolyUV.png"));
-	textureData.emplace_back(create_texture_data("../textures/floor_color.jpg", "../textures/floor_nmap.jpg"));
-	textureData.emplace_back(create_texture_data("../textures/ice.jpg"));
-	textureData.emplace_back(create_texture_data("../textures/moon_color.jpg", "../textures/moon_nmap.jpg"));
-	textureData.emplace_back(create_texture_data("../textures/castleroof_color.jpg", "../textures/castleroof_nmap.jpg"));
-	textureData.emplace_back(create_texture_data("../textures/rock_color.png", "../textures/rock_nmap.png", "../textures/rock_height.png"));
-
-	const char* nightSkybox[6]{ "../textures/skybox/night/right.png", "../textures/skybox/night/left.png", "../textures/skybox/night/bottom.png", "../textures/skybox/night/top.png" , "../textures/skybox/night/front.png", "../textures/skybox/night/back.png" };
-	const char* daySkybox[6]{ "../textures/skybox/day/right.jpg", "../textures/skybox/day/left.jpg", "../textures/skybox/day/bottom.jpg", "../textures/skybox/day/top.jpg" , "../textures/skybox/day/front.jpg", "../textures/skybox/day/back.jpg" };
-	textureData.emplace_back(create_texture_data(nightSkybox));
-	textureData.emplace_back(create_texture_data(daySkybox));
-
-	// upload textureData
-	m_gpuTextureBuffer = upload_data(textureData.data(), sizeof(vkt::GPUTextureData) * textureData.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
-
-	m_materials.emplace_back(vkt::Material::none());
-	m_materials.emplace_back(vkt::Material::gold());
-	m_materials.emplace_back(vkt::Material::jade());
-	m_materials.emplace_back(vkt::Material::pearl());
-	m_materials.emplace_back(vkt::Material::silver());
-	m_materials.emplace_back(vkt::Material::water());
-	m_materials.emplace_back(vkt::Material::ice());
-	m_materials.emplace_back(vkt::Material::glass());
-	m_materials.emplace_back(vkt::Material::diamond());
 }
 
 vkt::Buffer Kleicha::upload_data(void* data, VkDeviceSize bufferSize, VkBufferUsageFlags bufferUsage, VkBool32 bdaUsage) {
@@ -1063,7 +993,7 @@ void Kleicha::recreate_swapchain() {
 	}
 }
 
-void Kleicha::update_dynamic_buffers(const vkt::Frame& frame, float currentTime, const glm::mat4& shadowCubePerspProj) {
+void Kleicha::update_dynamic_buffers(const vkt::Frame& frame, [[maybe_unused]] float currentTime, const glm::mat4& shadowCubePerspProj) {
 
 	// update light views
 	for (auto& light : m_lights) {
@@ -1081,66 +1011,23 @@ void Kleicha::update_dynamic_buffers(const vkt::Frame& frame, float currentTime,
 
 	// update mesh transforms
 	glm::mat4 view{ m_camera.getViewMatrix() };
-	// TODO: Only update if there was an update to a buffer
-	m_meshTransforms[0].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ -3.0f, 0.35f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, currentTime, glm::vec3{ 1.0f, 1.0f, 1.0f }) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 0.5f, 0.5f, 0.5f });
-	m_meshTransforms[0].modelView = view * m_meshTransforms[0].model;
-	m_meshTransforms[0].modelInvTr = glm::transpose(glm::inverse(m_meshTransforms[0].model));
-	m_meshTransforms[0].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[0].modelView));
 
-	m_meshTransforms[1].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, 0.0f, -3.5f }) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 2.0f, 2.0f, 2.0f }) /* glm::rotate(glm::mat4{ 1.0f }, currentTime * 0.2f, glm::vec3{ 1.0f, 0.0f, 0.0f })*/;
-	m_meshTransforms[1].modelView = view * m_meshTransforms[1].model;
-	m_meshTransforms[1].modelInvTr = glm::transpose(glm::inverse(m_meshTransforms[1].model));
-	m_meshTransforms[1].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[1].modelView));
-
-	m_meshTransforms[2].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 3.0f, .5f, -3.0f }) * glm::rotate(glm::mat4{ 1.0f }, 0.0f, glm::vec3{ 0.0f, 1.0f, 0.0f }) /*glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 2.0f, 2.0f, 2.0f })*/;
-	m_meshTransforms[2].modelView = view * m_meshTransforms[2].model;
-	m_meshTransforms[2].modelInvTr = glm::transpose(glm::inverse(m_meshTransforms[2].model));
-	m_meshTransforms[2].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[2].modelView));
-
-	m_meshTransforms[3].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, -0.9f, -3.0f }) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ .01f, .01f, .01f });
-//	m_meshTransforms[3].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 0.0f, -0.9f, -3.0f }) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 10.0f, 10.0f, 10.0f });
-	m_meshTransforms[3].modelView = view * m_meshTransforms[3].model;
-	m_meshTransforms[3].modelInvTr = glm::transpose(glm::inverse(m_meshTransforms[3].model));
-	m_meshTransforms[3].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[3].modelView));
-
-	// reflective sphere
-	m_meshTransforms[4].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ 2.0f, 15.0f, -3.5f });
-	m_meshTransforms[4].modelView = view * m_meshTransforms[4].model;
-	m_meshTransforms[4].modelInvTr = glm::transpose(glm::inverse(m_meshTransforms[4].model));
-	m_meshTransforms[4].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[4].modelView));
-
-	//refractive icosphere
-	m_meshTransforms[5].model = glm::translate(glm::mat4{ 1.0f }, glm::vec3{ -2.0f, 15.0f, -3.5f });
-	m_meshTransforms[5].modelView = view * m_meshTransforms[5].model;
-	m_meshTransforms[5].modelInvTr = glm::transpose(glm::inverse(m_meshTransforms[5].model));
-	m_meshTransforms[5].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[5].modelView));
-
-	// skybox
-	m_meshTransforms[m_skyboxDrawData.transformIndex].model = glm::mat4{ 1.0f };
-	m_meshTransforms[m_skyboxDrawData.transformIndex].modelView = view * m_meshTransforms[m_skyboxDrawData.transformIndex].model;
-	// remove view translation components as we would like our cube skybox to stay at the origin.
-	m_meshTransforms[m_skyboxDrawData.transformIndex].modelView[3][0] = 0.0f;
-	m_meshTransforms[m_skyboxDrawData.transformIndex].modelView[3][1] = 0.0f;
-	m_meshTransforms[m_skyboxDrawData.transformIndex].modelView[3][2] = 0.0f;
-	m_meshTransforms[m_skyboxDrawData.transformIndex].modelInvTr = glm::transpose(glm::inverse(m_meshTransforms[m_skyboxDrawData.transformIndex].model));
-	m_meshTransforms[m_skyboxDrawData.transformIndex].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[m_skyboxDrawData.transformIndex].modelView));
-
-	/*m_meshTransforms[4].model = glm::translate(glm::mat4{1.0f}, glm::vec3{0.0f, -1.9f, -3.0f}) * glm::scale(glm::mat4{1.0f}, glm::vec3{5.0f, 5.0f, 5.0f});
-	m_meshTransforms[4].modelView = view * m_meshTransforms[4].model;
-	m_meshTransforms[4].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[4].modelView));*/
-
-
+	for (auto& transform : m_meshTransforms) {
+		transform.modelInvTr = glm::transpose(glm::inverse(transform.model));
+		transform.modelView = view * transform.model;
+		transform.modelViewInvTr = glm::transpose(glm::inverse(transform.modelView));
+	}
 
 	// This is somewhat okay but not very robust as it depends on the light meshes being added together. This may be fine, it may not... We'll see and provide an alternative solution if needed.
-	for (std::size_t i{ 0 }; i < m_lights.size(); ++i) {
+	for (std::size_t i{0}; i < m_lights.size(); ++i) {
 		m_lights[i].mvPos = view * glm::vec4{ m_lights[i].mPos, 1.0f };
 
-		m_meshTransforms[m_lightDrawData[0].transformIndex + i].modelView = view * glm::translate(glm::mat4{ 1.0f }, m_lights[i].mPos) * glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 0.1f, 0.1f, 0.1f });
-		m_meshTransforms[m_lightDrawData[0].transformIndex + i].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[m_lightDrawData[0].transformIndex + i].modelView));
+		/*m_meshTransforms[m_lightDrawData[0].transformIndex + i].modelView = view * glm::translate(glm::mat4{1.0f}, m_lights[i].mPos) * glm::scale(glm::mat4{1.0f}, glm::vec3{0.1f, 0.1f, 0.1f});
+		m_meshTransforms[m_lightDrawData[0].transformIndex + i].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[m_lightDrawData[0].transformIndex + i].modelView));*/
 	}
 
 	// update per frame buffers
-	memcpy(frame.transformBuffer.allocation->GetMappedData(), m_meshTransforms.data(), sizeof(vkt::Transform) * m_totalDraws);
+	memcpy(frame.transformBuffer.allocation->GetMappedData(), m_meshTransforms.data(), sizeof(vkt::Transform) * m_meshTransforms.size());
 	memcpy(frame.materialBuffer.allocation->GetMappedData(), m_materials.data(), sizeof(vkt::Material) * m_materials.size());
 	memcpy(frame.lightBuffer.allocation->GetMappedData(), m_lights.data(), sizeof(vkt::Light) * m_lights.size());
 

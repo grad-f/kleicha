@@ -92,60 +92,6 @@ namespace vkt {
 		}
 	};
 
-	enum class MeshType {
-		PYRAMID,
-		SPHERE,
-		TORUS,
-		SHUTTLE,
-		ICOSPHERE,
-		DOLPHIN,
-		PLANE,
-		CUBE,
-		SPONZA,
-	};
-
-	enum class MaterialType {
-		NONE,
-		GOLD,
-		JADE,
-		PEARL,
-		SILVER,
-
-		// refractive materials
-		WATER,
-		ICE,
-		GLASS,
-		DIAMOND,
-	};
-
-	enum class TextureType {
-		NONE,
-		BRICK,
-		EARTH,
-		CONCRETE,
-		SHUTTLE,
-		DOLPHIN,
-		FLOOR,
-		ICE,
-		MOON,
-		CASTLEROOF,
-		ROCK,
-		SKYBOX_NIGHT,
-		SKYBOX_DAY,
-	};
-
-
-
-	struct DrawRequest {
-		vkt::MeshType meshType{};
-		vkt::MaterialType materialType{};
-		vkt::TextureType textureType{};
-		bool isLight{ false };
-		bool isSkybox{ false };
-		bool isReflective{ false };
-		bool isRefractive{ false };
-	};
-
 	struct DrawData {
 		uint32_t materialIndex{};
 		uint32_t textureIndex{};
@@ -154,24 +100,12 @@ namespace vkt {
 
 	struct HostDrawData {
 		uint32_t drawId{};
-		uint32_t transformIndex{};
 		uint32_t indicesCount{};
 		uint32_t indicesOffset{};
-		int32_t vertexOffset{};
-	};
-
-	// this will be used to build the host draw data.
-	struct GPUMesh {
-		vkt::MeshType meshType{};
-		uint32_t indicesCount{};
-		// an offset in the index buffer in which this meshes index data begins
-		uint32_t indicesOffset{};
-		// an offset in the vertex buffer in which this meshes vertex data begins
 		int32_t vertexOffset{};
 	};
 
 	struct Mesh {
-		MeshType meshType{};
 		// triangle indices
 		std::vector<glm::uvec3> tInd{};
 		std::vector<Vertex> verts{};
