@@ -287,7 +287,7 @@ void Kleicha::init_descriptors() {
 			{1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
 			{2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
 			{3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
-			{4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 50, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr}
+			{4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 200, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr}
 		};
 
 		// create descriptor set layout
@@ -317,7 +317,7 @@ void Kleicha::init_descriptors() {
 	//create descriptor set pool
 	VkDescriptorPoolSize poolDescriptorSizes[2]{
 		{VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 5},
-		{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 50}	// Textures
+		{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 200}	// Textures
 	};
 
 	VkDescriptorPoolCreateInfo descriptorPoolInfo{ .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
@@ -329,7 +329,7 @@ void Kleicha::init_descriptors() {
 	VK_CHECK(vkCreateDescriptorPool(m_device.device, &descriptorPoolInfo, nullptr, &m_descPool));
 
 	{
-		uint32_t variableSizedDescriptorSize{ 50 };
+		uint32_t variableSizedDescriptorSize{ 200 };
 		// we must specify the number of descriptors in our variable-sized descriptor binding in the descriptor set we are allocating
 		VkDescriptorSetVariableDescriptorCountAllocateInfo variableDescriptorCountAllocInfo{ .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO };
 		variableDescriptorCountAllocInfo.descriptorSetCount = 1;
@@ -417,14 +417,13 @@ void Kleicha::init_load_scene() {
 
 	std::vector<vkt::Mesh> meshes{};
 	std::vector<vkt::DrawData> draws{};
+	std::vector<vkt::TextureIndices> texIndices{};
+	texIndices.push_back(vkt::TextureIndices{});
+	std::vector<std::string> texturePaths{};
 	
-	std::vector<vkt::Transform> transforms{};
-
-	if (!utils::load_gltf("../data/Sponza/glTF/Sponza.gltf", meshes, draws, m_meshTransforms)) {
+	if (!utils::load_gltf("../data/Sponza/glTF/Sponza.gltf", meshes, draws, m_meshTransforms, texIndices, texturePaths)) {
 		throw std::runtime_error{ "[Kleicha] Failed to load scene!" };
 	}
-	
-	m_drawBuffer = upload_data(draws.data(), sizeof(vkt::DrawData) * draws.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 
 	// now we would like to traverse meshes and build the unified vertex and indices buffer where hostDraws will keep track of our different meshes
 	m_mainDrawData.resize(meshes.size());
@@ -433,11 +432,14 @@ void Kleicha::init_load_scene() {
 	std::vector<glm::uvec3> unifiedTriangles{};
 	for (std::size_t i{ 0 }; i < meshes.size(); ++i) {
 
+		utils::compute_mesh_tangents(meshes[i]);
+
 		// store the current vertex and triangle counts
 		int32_t vertexCount{ static_cast<int32_t>(unifiedVertices.size()) };
 		uint32_t triangleCount{ static_cast<uint32_t>(unifiedTriangles.size()) };
 
 		// store vertex and index buffer mesh start positions
+		m_mainDrawData[i].drawId = i;
 		m_mainDrawData[i].vertexOffset = vertexCount;
 		m_mainDrawData[i].indicesOffset = triangleCount * glm::uvec3::length();
 		m_mainDrawData[i].indicesCount = static_cast<uint32_t>(meshes[i].tInd.size() * glm::uvec3::length());
@@ -453,6 +455,15 @@ void Kleicha::init_load_scene() {
 
 	m_vertexBuffer = upload_data(unifiedVertices.data(), unifiedVertices.size() * sizeof(vkt::Vertex), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 	m_indexBuffer = upload_data(unifiedTriangles.data(), unifiedTriangles.size() * sizeof(glm::uvec3), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+	m_drawBuffer = upload_data(draws.data(), sizeof(vkt::DrawData) * draws.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+	m_textureIndicesBuffer = upload_data(texIndices.data(), sizeof(vkt::TextureIndices) * texIndices.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+
+	//m_textures.push_back(upload_texture_image("../textures/empty.jpg"));
+
+	for (std::size_t i{ 0 }; i < texturePaths.size(); ++i) {
+		m_textures.push_back(upload_texture_image(texturePaths[i].c_str()));
+	}
+
 }
 
 void Kleicha::init_image_buffers(bool windowResized) {
@@ -605,11 +616,7 @@ void Kleicha::init_dynamic_buffers() {
 	}
 }
 
-void Kleicha::init_lights() {
-
-	m_textures.push_back(upload_texture_image("../textures/empty.jpg"));
-	m_gpuTextureBuffer = upload_data(m_textures.data(), sizeof(vkt::GPUTextureData) * m_textures.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
-		
+void Kleicha::init_lights() {		
 	m_materials.push_back(vkt::Material::jade());
 
 	// create a standard white light 
@@ -631,36 +638,6 @@ void Kleicha::init_lights() {
 	/*pointLight.mPos = {-6.0f, 1.5f, -5.0f};
 	m_lights.push_back(pointLight);*/
 
-}
-
-// TODO: This is redundant... however I do not like the idea of a template allowing any type here.
-vkt::GPUTextureData Kleicha::create_texture_data(const char** albedoPath) {
-	assert(albedoPath != nullptr);
-
-	vkt::GPUTextureData textureDatum{};
-	m_textures.emplace_back(upload_texture_image(albedoPath));
-	textureDatum.albedoTexture = static_cast<uint32_t>(m_textures.size() - 1);
-
-	return textureDatum;
-}
-
-vkt::GPUTextureData Kleicha::create_texture_data(const char* albedoPath, const char* normalTexture, const char* heightTexture) {
-	assert(albedoPath != nullptr);
-
-	vkt::GPUTextureData textureDatum{};
-	m_textures.emplace_back(upload_texture_image(albedoPath));
-	textureDatum.albedoTexture = static_cast<uint32_t>(m_textures.size() - 1);
-	if (normalTexture != nullptr) {
-		m_textures.emplace_back(upload_texture_image(normalTexture));
-		textureDatum.normalTexture = static_cast<uint32_t>(m_textures.size() - 1);
-	}
-
-	if (heightTexture != nullptr) {
-		m_textures.emplace_back(upload_texture_image(heightTexture));
-		textureDatum.heightTexture = static_cast<uint32_t>(m_textures.size() - 1);
-	}
-
-	return textureDatum;
 }
 
 vkt::Buffer Kleicha::upload_data(void* data, VkDeviceSize bufferSize, VkBufferUsageFlags bufferUsage, VkBool32 bdaUsage) {
@@ -715,7 +692,7 @@ void Kleicha::init_write_descriptor_sets() {
 	utils::update_set_buffer_descriptor(m_device.device, m_globalDescSet, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, m_vertexBuffer.buffer);
 	utils::update_set_buffer_descriptor(m_device.device, m_globalDescSet, 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, m_drawBuffer.buffer);
 	utils::update_set_buffer_descriptor(m_device.device, m_globalDescSet, 2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, m_globalsBuffer.buffer);
-	utils::update_set_buffer_descriptor(m_device.device, m_globalDescSet, 3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, m_gpuTextureBuffer.buffer);
+	utils::update_set_buffer_descriptor(m_device.device, m_globalDescSet, 3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, m_textureIndicesBuffer.buffer);
 	utils::update_set_image_sampler_descriptor(m_device.device, m_globalDescSet, 4, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, m_textureSampler, m_textures);
 
 	// per frame descriptor set writes
@@ -797,7 +774,7 @@ vkt::Image Kleicha::upload_texture_image(const char** filePaths) {
 
 vkt::Image Kleicha::upload_texture_image(const char* filePath) {
 
-	stbi_set_flip_vertically_on_load(true);
+	stbi_set_flip_vertically_on_load(false);
 
 	int width, height;
 	stbi_uc* textureData{ stbi_load(filePath, &width, &height, nullptr, STBI_rgb_alpha) };
@@ -1433,7 +1410,7 @@ void Kleicha::cleanup() const {
 	vmaDestroyBuffer(m_allocator, m_vertexBuffer.buffer, m_vertexBuffer.allocation);
 	vmaDestroyBuffer(m_allocator, m_indexBuffer.buffer, m_indexBuffer.allocation);
 	vmaDestroyBuffer(m_allocator, m_globalsBuffer.buffer, m_globalsBuffer.allocation);
-	vmaDestroyBuffer(m_allocator, m_gpuTextureBuffer.buffer, m_gpuTextureBuffer.allocation);
+	vmaDestroyBuffer(m_allocator, m_textureIndicesBuffer.buffer, m_textureIndicesBuffer.allocation);
 
 	vkDestroyFence(m_device.device, m_immFence, nullptr);
 

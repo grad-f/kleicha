@@ -80,7 +80,7 @@ private:
 	// this buffer specifies indicies and offsets to the other buffers available in the shader
 	vkt::Buffer m_drawBuffer{};
 	vkt::Buffer m_globalsBuffer{};
-	vkt::Buffer m_gpuTextureBuffer{};
+	vkt::Buffer m_textureIndicesBuffer{};
 
 	// each of these sets of draw data will be drawn with a different pipeline, provides flexibility.
 	std::vector<vkt::HostDrawData> m_mainDrawData{};
@@ -118,8 +118,6 @@ private:
 	void shadow_cube_pass(const vkt::Frame& frame);
 	void shadow_2D_pass(const vkt::Frame& frame);
 
-	vkt::GPUTextureData create_texture_data(const char* albedoPath, const char* normalTexture = nullptr, const char* heightTexture = nullptr);
-	vkt::GPUTextureData create_texture_data(const char** albedoPath);
 	//std::vector<vkt::GPUMesh> load_mesh_data();
 
 	vkt::PushConstants m_pushConstants{};

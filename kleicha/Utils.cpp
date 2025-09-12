@@ -440,8 +440,7 @@ namespace utils {
         return mesh;
     }
 
-    bool load_gltf(const char* filePath, std::vector<vkt::Mesh>& meshes, std::vector<vkt::DrawData>& draws, std::vector<vkt::Transform>& transforms) {
-
+    bool load_gltf(const char* filePath, std::vector<vkt::Mesh>& meshes, std::vector<vkt::DrawData>& draws, std::vector<vkt::Transform>& transforms, std::vector<vkt::TextureIndices>& textureIndices, std::vector<std::string>& texturePaths) {
         cgltf_options options{};
         cgltf_data* data{};
         cgltf_result result{ cgltf_parse_file(&options, filePath, &data) };
@@ -469,7 +468,6 @@ namespace utils {
 
             glm::mat4 scaleMat{ 1.0f };
             if (node->has_scale) {
-                cgltf_float* scale{ node->scale };
                 cgltf_node_transform_local(node, &(scaleMat[0].x));
             }
 
@@ -480,8 +478,6 @@ namespace utils {
                 const cgltf_mesh& mesh{ data->meshes[i] };
 
                 for (std::size_t j{ 0 }; j < mesh.primitives_count; ++j) {
-
-                    // we construct a draw for each of these. 
 
                     const cgltf_primitive& prim{ mesh.primitives[j] };
 
@@ -500,6 +496,17 @@ namespace utils {
                         }
                     }
 
+                    if (const cgltf_accessor* tex = cgltf_find_accessor(&prim, cgltf_attribute_type_texcoord, 0)) {
+
+                        assert(cgltf_num_components(tex->type) == 2);
+
+                        cgltf_accessor_unpack_floats(tex, scratchData.data(), vertexCount * 2);
+
+                        for (std::size_t x{ 0 }; x < vertexCount; ++x) {
+                            vertices[x].UV = { scratchData[x * 2 + 0], scratchData[x * 2 + 1] };
+                        }
+                    }
+
                     if (const cgltf_accessor* norm = cgltf_find_accessor(&prim, cgltf_attribute_type_normal, 0)) {
 
                         assert(cgltf_num_components(norm->type) == 3);
@@ -512,27 +519,69 @@ namespace utils {
 
                     }
 
-                    if (const cgltf_accessor* tex = cgltf_find_accessor(&prim, cgltf_attribute_type_texcoord, 0)) {
+                    /*if (const cgltf_accessor* tan = cgltf_find_accessor(&prim, cgltf_attribute_type_tangent, 0)) {
 
-                        assert(cgltf_num_components(tex->type) == 2);
-
-                        cgltf_accessor_unpack_floats(tex, scratchData.data(), vertexCount * 2);
+                        assert(cgltf_num_components(tan->type) == 4);
+                        cgltf_accessor_unpack_floats(tan, scratchData.data(), vertexCount * 4);
 
                         for (std::size_t x{ 0 }; x < vertexCount; ++x) {
-                            vertices[x].UV = { scratchData[x * 2 + 0], scratchData[x * 2 + 1] };
+                            vertices[x].tangent = { scratchData[x * 4 + 0], scratchData[x * 4 + 1], scratchData[x*4+2], scratchData[x*4+3]};
                         }
-                    }
+                    }*/
 
                     std::vector<glm::uvec3> indices(prim.indices->count / 3);
                     cgltf_accessor_unpack_indices(prim.indices, indices.data(), 4, indices.size() * 3);
                     cgltf_size cgltf_accessor_unpack_indices(const cgltf_accessor * accessor, void* out, cgltf_size out_component_size, cgltf_size index_count);
+
+                    cgltf_size matIndex{ cgltf_material_index(data, prim.material) };
                     
                     meshes.push_back(vkt::Mesh{ indices, vertices });
                     transforms.push_back(vkt::Transform{ scaleMat });
-                    draws.push_back(vkt::DrawData{ 0, 0, static_cast<uint32_t>(transforms.size() - 1) });
+                    draws.push_back(vkt::DrawData{ 0, static_cast<uint32_t>(matIndex + 1), static_cast<uint32_t>(transforms.size() - 1) });
                 }
 
             }
+        }
+
+        for (std::size_t i{ 0 }; i < data->materials_count; ++i) {
+            
+            cgltf_material* material{ &data->materials[i] };
+            vkt::TextureIndices indices{};
+            
+            if (material->has_pbr_metallic_roughness) {
+                if (material->pbr_metallic_roughness.base_color_texture.texture)
+                    indices.albedoTexture = static_cast<uint32_t>(cgltf_texture_index(data, material->pbr_metallic_roughness.base_color_texture.texture));
+
+                if (material->pbr_metallic_roughness.metallic_roughness_texture.texture)
+                    indices.heightTexture = static_cast<uint32_t>(cgltf_texture_index(data, material->pbr_metallic_roughness.metallic_roughness_texture.texture));
+            }
+
+            if (material->normal_texture.texture)
+                indices.normalTexture = static_cast<uint32_t>(cgltf_texture_index(data, material->normal_texture.texture));
+
+            textureIndices.push_back(indices);
+        }
+
+        for (std::size_t i{ 0 }; i < data->textures_count; ++i) {
+            cgltf_texture* texture{ &data->textures[i] };
+            assert(texture->image);
+
+            cgltf_image* image{ texture->image };
+            assert(image->uri);
+
+            std::string sPath{ filePath };
+            std::size_t pos{ sPath.find_last_of("/\\") };
+            // if none of the characters provided are found which can happen if the assets are in the project folder
+            if (pos == std::string::npos)
+                sPath = "";
+            else
+                sPath = sPath.substr(0, pos + 1);
+
+            std::string uri{ image->uri };
+            // handle special characters
+            uri.resize(cgltf_decode_uri(&uri[0]));
+
+            texturePaths.push_back(sPath + uri);
         }
 
         cgltf_free(data);

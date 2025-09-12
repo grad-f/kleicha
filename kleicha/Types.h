@@ -139,7 +139,7 @@ namespace vkt {
 		alignas(16)glm::vec3 mvPos{};
 	};
 
-	struct GPUTextureData {
+	struct TextureIndices {
 		uint32_t albedoTexture{};
 		uint32_t normalTexture{};
 		uint32_t heightTexture{};
