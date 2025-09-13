@@ -53,8 +53,8 @@ void Kleicha::init() {
 	// disable context creation (used for opengl)
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	// set glfw key callback function
-	//m_window = glfwCreateWindow(static_cast<int>(m_windowExtent.width), static_cast<int>(m_windowExtent.height), "kleicha", glfwGetPrimaryMonitor(), NULL);
-	m_window = glfwCreateWindow(static_cast<int>(m_windowExtent.width), static_cast<int>(m_windowExtent.height), "kleicha", NULL, NULL);
+	m_window = glfwCreateWindow(static_cast<int>(m_windowExtent.width), static_cast<int>(m_windowExtent.height), "kleicha", glfwGetPrimaryMonitor(), NULL);
+	//m_window = glfwCreateWindow(static_cast<int>(m_windowExtent.width), static_cast<int>(m_windowExtent.height), "kleicha", NULL, NULL);
 	glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 	glfwSetWindowUserPointer(m_window, this);
 	glfwSetCursorPos(m_window, m_windowExtent.width / 2.0f, m_windowExtent.height / 2.0f);
@@ -637,14 +637,14 @@ void Kleicha::init_lights() {
 		.diffuse = {0.6f, 0.6f, 0.6f, 1.0f},
 		.specular = {1.0f, 1.0f, 1.0f, 1.0f},
 		.attenuationFactors = {1.0f, 0.133f, 0.050f},
-		.lightSize = {9.133f},
-		.mPos = { 0.0f, 5.0f, 0.0f },
+		.lightSize = {4.0f},
+		.mPos = { -3.0f, 5.0f, 0.0f },
 		.frustumWidth = {3.75f},
 	};
 
 	m_lights.push_back(pointLight);
 
-	//pointLight.mPos = {-4.5f, 6.0f, -3.0f};
+	//pointLight.mPos = {3.0f, 5.0f, 0.0f};
 	//m_lights.push_back(pointLight);
 
 	/*pointLight.mPos = {-6.0f, 1.5f, -5.0f};
