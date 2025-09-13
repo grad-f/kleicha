@@ -32,6 +32,14 @@ void main() {
 	Material material = materials[dd.materialIndex];
 	TextureData textureData = textures[dd.textureIndex];
 
+	vec4 albedoSample;
+	if (textureData.albedoTexture > 0) {
+		albedoSample = texture(texSampler[textureData.albedoTexture], inUV);
+		
+		if (albedoSample.a < 0.5f)
+			discard;
+	}
+
 	vec3 N = normalize(inNormal);
 	vec3 V = normalize(-inVertView);
 
@@ -105,7 +113,7 @@ void main() {
 	}		
 
 	if (textureData.albedoTexture > 0)
-		outColor = texture(texSampler[textureData.albedoTexture], inUV) * vec4(lightContrib, 1.0f);
+		outColor = albedoSample * vec4(lightContrib, 1.0f);
 	else
 		outColor = vec4(lightContrib, 1.0f);
 

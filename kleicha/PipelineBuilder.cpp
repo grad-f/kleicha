@@ -53,6 +53,12 @@ PipelineBuilder& PipelineBuilder::set_color_blend_state(VkColorComponentFlags co
 {
 	m_colorBlendAttachmentState.colorWriteMask = colorComponentFlags;
 	m_colorBlendAttachmentState.blendEnable = blendEnable;
+	m_colorBlendAttachmentState.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+	m_colorBlendAttachmentState.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+	m_colorBlendAttachmentState.colorBlendOp = VK_BLEND_OP_ADD;
+	m_colorBlendAttachmentState.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+	m_colorBlendAttachmentState.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+	m_colorBlendAttachmentState.alphaBlendOp = VK_BLEND_OP_ADD;
 	m_colorBlendInfo.logicOpEnable = VK_FALSE;
 	m_colorBlendInfo.logicOp = VK_LOGIC_OP_COPY;
 

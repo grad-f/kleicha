@@ -205,7 +205,7 @@ void Kleicha::init_graphics_pipelines() {
 	pipelineBuilder.pipelineLayout = m_dummyPipelineLayout;
 	pipelineBuilder.set_shaders(lightShadowVertModule, lightShadowFragModule);								//ccw winding
 	pipelineBuilder.set_rasterizer_state(VK_POLYGON_MODE_FILL , VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
-	pipelineBuilder.set_color_blend_state(VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT);
+	pipelineBuilder.set_color_blend_state(VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT, false);
 	pipelineBuilder.set_depth_stencil_state(VK_TRUE);
 	pipelineBuilder.set_depth_attachment_format(DEPTH_IMAGE_FORMAT);
 	pipelineBuilder.set_color_attachment_format(INTERMEDIATE_IMAGE_FORMAT);
