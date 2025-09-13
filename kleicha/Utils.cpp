@@ -519,7 +519,7 @@ namespace utils {
 
                     }
 
-                    /*if (const cgltf_accessor* tan = cgltf_find_accessor(&prim, cgltf_attribute_type_tangent, 0)) {
+                    if (const cgltf_accessor* tan = cgltf_find_accessor(&prim, cgltf_attribute_type_tangent, 0)) {
 
                         assert(cgltf_num_components(tan->type) == 4);
                         cgltf_accessor_unpack_floats(tan, scratchData.data(), vertexCount * 4);
@@ -527,7 +527,7 @@ namespace utils {
                         for (std::size_t x{ 0 }; x < vertexCount; ++x) {
                             vertices[x].tangent = { scratchData[x * 4 + 0], scratchData[x * 4 + 1], scratchData[x*4+2], scratchData[x*4+3]};
                         }
-                    }*/
+                    }
 
                     std::vector<glm::uvec3> indices(prim.indices->count / 3);
                     cgltf_accessor_unpack_indices(prim.indices, indices.data(), 4, indices.size() * 3);
@@ -537,7 +537,7 @@ namespace utils {
                     
                     meshes.push_back(vkt::Mesh{ indices, vertices });
                     transforms.push_back(vkt::Transform{ scaleMat });
-                    draws.push_back(vkt::DrawData{ 0, static_cast<uint32_t>(matIndex + 1), static_cast<uint32_t>(transforms.size() - 1) });
+                    draws.push_back(vkt::DrawData{ 0, static_cast<uint32_t>(matIndex), static_cast<uint32_t>(transforms.size() - 1) });
                 }
 
             }
@@ -550,14 +550,14 @@ namespace utils {
             
             if (material->has_pbr_metallic_roughness) {
                 if (material->pbr_metallic_roughness.base_color_texture.texture)
-                    indices.albedoTexture = static_cast<uint32_t>(cgltf_texture_index(data, material->pbr_metallic_roughness.base_color_texture.texture));
+                    indices.albedoTexture = 1 + static_cast<uint32_t>(cgltf_texture_index(data, material->pbr_metallic_roughness.base_color_texture.texture));
 
                 if (material->pbr_metallic_roughness.metallic_roughness_texture.texture)
-                    indices.heightTexture = static_cast<uint32_t>(cgltf_texture_index(data, material->pbr_metallic_roughness.metallic_roughness_texture.texture));
+                    indices.heightTexture = 1 + static_cast<uint32_t>(cgltf_texture_index(data, material->pbr_metallic_roughness.metallic_roughness_texture.texture));
             }
 
             if (material->normal_texture.texture)
-                indices.normalTexture = static_cast<uint32_t>(cgltf_texture_index(data, material->normal_texture.texture));
+                indices.normalTexture = 1 + static_cast<uint32_t>(cgltf_texture_index(data, material->normal_texture.texture));
 
             textureIndices.push_back(indices);
         }
@@ -571,7 +571,7 @@ namespace utils {
 
             std::string sPath{ filePath };
             std::size_t pos{ sPath.find_last_of("/\\") };
-            // if none of the characters provided are found which can happen if the assets are in the project folder
+            // handle case where files are in the project folder
             if (pos == std::string::npos)
                 sPath = "";
             else

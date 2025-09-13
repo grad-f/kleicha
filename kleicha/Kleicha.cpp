@@ -418,7 +418,6 @@ void Kleicha::init_load_scene() {
 	std::vector<vkt::Mesh> meshes{};
 	std::vector<vkt::DrawData> draws{};
 	std::vector<vkt::TextureIndices> texIndices{};
-	texIndices.push_back(vkt::TextureIndices{});
 	std::vector<std::string> texturePaths{};
 	
 	if (!utils::load_gltf("../data/Sponza/glTF/Sponza.gltf", meshes, draws, m_meshTransforms, texIndices, texturePaths)) {
@@ -432,14 +431,14 @@ void Kleicha::init_load_scene() {
 	std::vector<glm::uvec3> unifiedTriangles{};
 	for (std::size_t i{ 0 }; i < meshes.size(); ++i) {
 
-		utils::compute_mesh_tangents(meshes[i]);
+		//utils::compute_mesh_tangents(meshes[i]);
 
 		// store the current vertex and triangle counts
 		int32_t vertexCount{ static_cast<int32_t>(unifiedVertices.size()) };
 		uint32_t triangleCount{ static_cast<uint32_t>(unifiedTriangles.size()) };
 
 		// store vertex and index buffer mesh start positions
-		m_mainDrawData[i].drawId = i;
+		m_mainDrawData[i].drawId = static_cast<uint32_t>(i);
 		m_mainDrawData[i].vertexOffset = vertexCount;
 		m_mainDrawData[i].indicesOffset = triangleCount * glm::uvec3::length();
 		m_mainDrawData[i].indicesCount = static_cast<uint32_t>(meshes[i].tInd.size() * glm::uvec3::length());
@@ -457,11 +456,24 @@ void Kleicha::init_load_scene() {
 	m_indexBuffer = upload_data(unifiedTriangles.data(), unifiedTriangles.size() * sizeof(glm::uvec3), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
 	m_drawBuffer = upload_data(draws.data(), sizeof(vkt::DrawData) * draws.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 	m_textureIndicesBuffer = upload_data(texIndices.data(), sizeof(vkt::TextureIndices) * texIndices.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
-
-	//m_textures.push_back(upload_texture_image("../textures/empty.jpg"));
+	
+	m_textures.push_back(upload_texture_image("../textures/empty.jpg"));
 
 	for (std::size_t i{ 0 }; i < texturePaths.size(); ++i) {
-		m_textures.push_back(upload_texture_image(texturePaths[i].c_str()));
+		// check if the texture we're processing is a normal map
+		bool isNormalMap{ false };
+
+		for (std::size_t j{ 0 }; j < texIndices.size(); ++j) {
+			if ((i + 1) == texIndices[j].normalTexture) {
+				isNormalMap = true;
+				break;
+			}
+		}
+
+		if(isNormalMap)
+			m_textures.push_back(upload_texture_image(texturePaths[i].c_str(), VK_FORMAT_R8G8B8A8_UNORM));
+		else
+			m_textures.push_back(upload_texture_image(texturePaths[i].c_str()));
 	}
 
 }
@@ -626,7 +638,7 @@ void Kleicha::init_lights() {
 		.specular = {1.0f, 1.0f, 1.0f, 1.0f},
 		.attenuationFactors = {1.0f, 0.133f, 0.050f},
 		.lightSize = {9.133f},
-		.mPos = { 4.5f, 6.0f, -3.0f },
+		.mPos = { 0.0f, 5.0f, 0.0f },
 		.frustumWidth = {3.75f},
 	};
 
@@ -772,7 +784,7 @@ vkt::Image Kleicha::upload_texture_image(const char** filePaths) {
 	return textureImage;
 }
 
-vkt::Image Kleicha::upload_texture_image(const char* filePath) {
+vkt::Image Kleicha::upload_texture_image(const char* filePath, VkFormat format) {
 
 	stbi_set_flip_vertically_on_load(false);
 
@@ -796,9 +808,9 @@ vkt::Image Kleicha::upload_texture_image(const char* filePath) {
 	// compute mip levels from longest edge
 	textureImage.mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1;
 	// allocate device_local memory to store the texture image
-	VkImageCreateInfo textureImageInfo{ init::create_image_info(VK_FORMAT_R8G8B8A8_SRGB, textureExtent, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, textureImage.mipLevels) };
+	VkImageCreateInfo textureImageInfo{ init::create_image_info(format, textureExtent, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, textureImage.mipLevels) };
 	VK_CHECK(vmaCreateImage(m_allocator, &textureImageInfo, &allocationInfo, &textureImage.image, &textureImage.allocation, &textureImage.allocationInfo));
-	VkImageViewCreateInfo imageViewInfo{ init::create_image_view_info(textureImage.image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, textureImage.mipLevels) };
+	VkImageViewCreateInfo imageViewInfo{ init::create_image_view_info(textureImage.image, format, VK_IMAGE_ASPECT_COLOR_BIT, textureImage.mipLevels) };
 	VK_CHECK(vkCreateImageView(m_device.device, &imageViewInfo, nullptr, &textureImage.imageView));
 
 	// allocate host visible mapped memory

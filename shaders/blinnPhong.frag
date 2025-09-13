@@ -109,7 +109,7 @@ void main() {
 		lightContrib += attenuationFactor * (ambient + diffuse + specular);
 	}		
 
-	if (dd.textureIndex > 0)
+	if (textureData.albedoTexture > 0)
 		outColor = texture(texSampler[textureData.albedoTexture], inUV) * vec4(lightContrib, 1.0f);
 	else
 		outColor = vec4(lightContrib, 1.0f);

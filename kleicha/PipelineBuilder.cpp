@@ -52,7 +52,7 @@ PipelineBuilder& PipelineBuilder::set_rasterizer_state(VkPolygonMode polygonMode
 PipelineBuilder& PipelineBuilder::set_color_blend_state(VkColorComponentFlags colorComponentFlags, VkBool32 blendEnable)
 {
 	m_colorBlendAttachmentState.colorWriteMask = colorComponentFlags;
-	m_colorBlendAttachmentState.blendEnable = blendEnable;;
+	m_colorBlendAttachmentState.blendEnable = blendEnable;
 	m_colorBlendInfo.logicOpEnable = VK_FALSE;
 	m_colorBlendInfo.logicOp = VK_LOGIC_OP_COPY;
 
