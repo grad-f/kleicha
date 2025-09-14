@@ -13,7 +13,7 @@ void PipelineBuilder::reset() {
 	m_renderingInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
 }
 
-PipelineBuilder& PipelineBuilder::set_shaders(VkShaderModule vertexShader, VkShaderModule fragmentShader) {
+PipelineBuilder& PipelineBuilder::set_shaders(VkShaderModule vertexShader, VkShaderModule fragmentShader, VkSpecializationInfo* vertSpecializationInfo, VkSpecializationInfo* fragSpecializationInfo) {
 	
 	if (!m_shaderInfos.empty())
 		m_shaderInfos.clear();
@@ -23,11 +23,14 @@ PipelineBuilder& PipelineBuilder::set_shaders(VkShaderModule vertexShader, VkSha
 	shaderInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
 	shaderInfo.module = vertexShader;
 	shaderInfo.pName = "main";
-
+	if (vertSpecializationInfo)
+		shaderInfo.pSpecializationInfo = vertSpecializationInfo;
 	m_shaderInfos.emplace_back(shaderInfo);
 
 	shaderInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
 	shaderInfo.module = fragmentShader;
+	if (fragSpecializationInfo)
+		shaderInfo.pSpecializationInfo = fragSpecializationInfo;
 
 	m_shaderInfos.emplace_back(shaderInfo);
 

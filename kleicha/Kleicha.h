@@ -41,6 +41,7 @@ private:
 	VkPipeline m_shadowPipeline{};
 	VkPipeline m_cubeShadowPipeline;
 	VkPipeline m_lightCubeShadowPCSSPipeline;
+	VkPipeline m_lightCubeShadowPCSSAlphaPipeline;
 	VkPipeline m_lightCubeShadowPipeline{};
 	VkPipeline m_skyboxPipeline{};
 	VkPipeline m_reflectPipeline{};
@@ -83,11 +84,8 @@ private:
 	vkt::Buffer m_textureIndicesBuffer{};
 
 	// each of these sets of draw data will be drawn with a different pipeline, provides flexibility.
-	std::vector<vkt::HostDrawData> m_mainDrawData{};
-	std::vector<vkt::HostDrawData> m_lightDrawData{};
-	std::vector<vkt::HostDrawData> m_reflectDrawData{};
-	std::vector<vkt::HostDrawData> m_refractDrawData{};
-	vkt::HostDrawData m_skyboxDrawData{};
+	std::vector<vkt::HostDrawData> m_sponzaDraws{};
+	std::vector<vkt::HostDrawData> m_sponzaAlphaDraws{};
 
 	//std::vector<VkDrawIndexedIndirectCommand> m_drawIndirectParams{};
 	std::vector<vkt::Transform> m_meshTransforms{};

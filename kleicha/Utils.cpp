@@ -94,6 +94,7 @@ namespace utils {
         blitImageInfo.dstImageLayout = dstImageLayout;
         blitImageInfo.regionCount = 1;
         blitImageInfo.pRegions = &blitRegion;
+        blitImageInfo.filter = VK_FILTER_LINEAR;
 
         vkCmdBlitImage2(cmdBuffer, &blitImageInfo);
     }
@@ -534,8 +535,12 @@ namespace utils {
                     cgltf_size cgltf_accessor_unpack_indices(const cgltf_accessor * accessor, void* out, cgltf_size out_component_size, cgltf_size index_count);
 
                     cgltf_size matIndex{ cgltf_material_index(data, prim.material) };
-                    
-                    meshes.push_back(vkt::Mesh{ indices, vertices });
+                        
+                    bool useAlphaTest{ false };
+                    if (prim.material->alpha_mode == cgltf_alpha_mode_mask)
+                        useAlphaTest = true;
+
+                    meshes.push_back(vkt::Mesh{ indices, vertices, useAlphaTest });
                     transforms.push_back(vkt::Transform{ scaleMat });
                     draws.push_back(vkt::DrawData{ 0, static_cast<uint32_t>(matIndex), static_cast<uint32_t>(transforms.size() - 1) });
                 }

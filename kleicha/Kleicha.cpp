@@ -53,8 +53,8 @@ void Kleicha::init() {
 	// disable context creation (used for opengl)
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	// set glfw key callback function
-	m_window = glfwCreateWindow(static_cast<int>(m_windowExtent.width), static_cast<int>(m_windowExtent.height), "kleicha", glfwGetPrimaryMonitor(), NULL);
-	//m_window = glfwCreateWindow(static_cast<int>(m_windowExtent.width), static_cast<int>(m_windowExtent.height), "kleicha", NULL, NULL);
+	//m_window = glfwCreateWindow(static_cast<int>(m_windowExtent.width), static_cast<int>(m_windowExtent.height), "kleicha", glfwGetPrimaryMonitor(), NULL);
+	m_window = glfwCreateWindow(static_cast<int>(m_windowExtent.width), static_cast<int>(m_windowExtent.height), "kleicha", NULL, NULL);
 	glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 	glfwSetWindowUserPointer(m_window, this);
 	glfwSetCursorPos(m_window, m_windowExtent.width / 2.0f, m_windowExtent.height / 2.0f);
@@ -201,6 +201,21 @@ void Kleicha::init_graphics_pipelines() {
 	VkShaderModule reflectFragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_environmentMappingReflect.spv") };
 	VkShaderModule refractFragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_environmentMappingRefract.spv") };
 
+	/*	the below defined speciailization constant allows the driver compiler to optimize around our alpha testing
+		allowing us to retain early - z occlusion culling when rendering meshes that aren't performing alpha testing	*/
+	VkSpecializationMapEntry mapEntry{};
+	mapEntry.constantID = 0;
+	mapEntry.offset = 0;
+	mapEntry.size = sizeof(uint32_t);
+
+	// create specialization constant that'll allow the compiler to remove the alpha testing discard rather than introducing a new shader
+	uint32_t useAlphaTest{ 0 };
+	VkSpecializationInfo specializationInfo{};
+	specializationInfo.mapEntryCount = 1;
+	specializationInfo.pMapEntries = &mapEntry;
+	specializationInfo.dataSize = sizeof(uint32_t);
+	specializationInfo.pData = &useAlphaTest;
+
 	PipelineBuilder pipelineBuilder{ m_device.device };
 	pipelineBuilder.pipelineLayout = m_dummyPipelineLayout;
 	pipelineBuilder.set_shaders(lightShadowVertModule, lightShadowFragModule);								//ccw winding
@@ -211,28 +226,21 @@ void Kleicha::init_graphics_pipelines() {
 	pipelineBuilder.set_color_attachment_format(INTERMEDIATE_IMAGE_FORMAT);
 	m_lightShadowPipeline = pipelineBuilder.build();
 
-
 	pipelineBuilder.set_shaders(lightShadowVertModule, lightCubeShadowFragModule);
 	m_lightCubeShadowPipeline = pipelineBuilder.build();
 
-	pipelineBuilder.set_shaders(lightShadowVertModule, lightCubeShadowPCSSFragModule);
+	pipelineBuilder.set_shaders(lightShadowVertModule, lightCubeShadowPCSSFragModule, nullptr, &specializationInfo);
 	m_lightCubeShadowPCSSPipeline = pipelineBuilder.build();
+
+	useAlphaTest = 1;
+	pipelineBuilder.set_shaders(lightShadowVertModule, lightCubeShadowPCSSFragModule, nullptr, &specializationInfo);
+	m_lightCubeShadowPCSSAlphaPipeline = pipelineBuilder.build();
 
 	pipelineBuilder.set_shaders(lightVertModule, lightFragModule);
 	m_lightPipeline = pipelineBuilder.build();
 
 	pipelineBuilder.set_shaders(lightDrawsVertModule, lightDrawsFragModule);
 	m_lightDrawsPipeline = pipelineBuilder.build();
-
-	pipelineBuilder.set_shaders(environmentMapVertModule, reflectFragModule);
-	m_reflectPipeline = pipelineBuilder.build();
-
-	pipelineBuilder.set_shaders(environmentMapVertModule, refractFragModule);
-	m_refractPipeline = pipelineBuilder.build();
-
-	pipelineBuilder.set_rasterizer_state(VK_POLYGON_MODE_FILL, VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE);
-	pipelineBuilder.set_shaders(skyboxVertModule, skyboxFragModule);
-	m_skyboxPipeline = pipelineBuilder.build();
 
 	pipelineBuilder.set_rasterizer_state(VK_POLYGON_MODE_FILL, VK_CULL_MODE_FRONT_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE, -1.25f, -1.75f);
 	pipelineBuilder.set_shaders(shadowVertModule, shadowFragModule);
@@ -245,6 +253,19 @@ void Kleicha::init_graphics_pipelines() {
 	pipelineBuilder.enable_color_output();
 	pipelineBuilder.set_view_mask(0b111111);
 	m_cubeShadowPipeline = pipelineBuilder.build();
+
+	/* {
+		pipelineBuilder.set_shaders(environmentMapVertModule, reflectFragModule);
+		m_reflectPipeline = pipelineBuilder.build();
+
+		pipelineBuilder.set_shaders(environmentMapVertModule, refractFragModule);
+		m_refractPipeline = pipelineBuilder.build();
+
+		pipelineBuilder.set_rasterizer_state(VK_POLYGON_MODE_FILL, VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+		pipelineBuilder.set_shaders(skyboxVertModule, skyboxFragModule);
+		m_skyboxPipeline = pipelineBuilder.build();
+	}*/
+
 
 	// TO-DO: we should find a better way of doing this. Perhaps pipeline builder should deallocate these automatically after creating the pipeline?
 	// we're free to destroy shader modules after pipeline creation
@@ -424,9 +445,7 @@ void Kleicha::init_load_scene() {
 		throw std::runtime_error{ "[Kleicha] Failed to load scene!" };
 	}
 
-	// now we would like to traverse meshes and build the unified vertex and indices buffer where hostDraws will keep track of our different meshes
-	m_mainDrawData.resize(meshes.size());
-	//std::vector<vkt::HostDrawData> hostDraws( meshes.size() );
+	// now we would like to traverse meshes and build the unified vertex and indices buffer where host draws will keep track of our different meshes
 	std::vector<vkt::Vertex> unifiedVertices{};
 	std::vector<glm::uvec3> unifiedTriangles{};
 	for (std::size_t i{ 0 }; i < meshes.size(); ++i) {
@@ -438,10 +457,17 @@ void Kleicha::init_load_scene() {
 		uint32_t triangleCount{ static_cast<uint32_t>(unifiedTriangles.size()) };
 
 		// store vertex and index buffer mesh start positions
-		m_mainDrawData[i].drawId = static_cast<uint32_t>(i);
-		m_mainDrawData[i].vertexOffset = vertexCount;
-		m_mainDrawData[i].indicesOffset = triangleCount * glm::uvec3::length();
-		m_mainDrawData[i].indicesCount = static_cast<uint32_t>(meshes[i].tInd.size() * glm::uvec3::length());
+		vkt::HostDrawData hostDraw{};
+		hostDraw.drawId = static_cast<uint32_t>(i);
+		hostDraw.vertexOffset = vertexCount;
+		hostDraw.indicesOffset = triangleCount * glm::uvec3::length();
+		hostDraw.indicesCount = static_cast<uint32_t>(meshes[i].tInd.size() * glm::uvec3::length());
+
+		if (meshes[i].useAlphaTest)
+			m_sponzaAlphaDraws.push_back(hostDraw);
+		else
+			m_sponzaDraws.push_back(hostDraw);
+
 
 		// allocate memory for mesh vertex data and insert it
 		unifiedVertices.reserve(vertexCount + meshes[i].verts.size());
@@ -629,8 +655,7 @@ void Kleicha::init_dynamic_buffers() {
 }
 
 void Kleicha::init_lights() {		
-	m_materials.push_back(vkt::Material::jade());
-
+	m_materials.push_back(vkt::Material::none());
 	// create a standard white light 
 	vkt::Light pointLight{
 		.ambient = {0.24f, 0.24f, 0.24f, 1.0f},
@@ -691,7 +716,7 @@ vkt::Buffer Kleicha::upload_data(void* data, VkDeviceSize bufferSize, VkBufferUs
 }
 
 void Kleicha::init_samplers() {
-	VkSamplerCreateInfo textureSamplerInfo{ init::create_sampler_info(m_device, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_TRUE, 16.0f) };
+	VkSamplerCreateInfo textureSamplerInfo{ init::create_sampler_info(m_device, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_TRUE, VK_LOD_CLAMP_NONE) };
 	VK_CHECK(vkCreateSampler(m_device.device, &textureSamplerInfo, nullptr, &m_textureSampler));
 
 
@@ -1053,7 +1078,13 @@ void Kleicha::shadow_cube_pass(const vkt::Frame& frame) {
 
 		vkCmdBeginRendering(frame.cmdBuffer, &cubeShadowRenderingInfo);
 
-		for (const auto& draw : m_mainDrawData) {
+		for (const auto& draw : m_sponzaDraws) {
+			m_pushConstants.drawId = draw.drawId;
+			vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
+			vkCmdDrawIndexed(frame.cmdBuffer, draw.indicesCount, 1, draw.indicesOffset, draw.vertexOffset, 0);
+		}
+
+		for (const auto& draw : m_sponzaAlphaDraws) {
 			m_pushConstants.drawId = draw.drawId;
 			vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
 			vkCmdDrawIndexed(frame.cmdBuffer, draw.indicesCount, 1, draw.indicesOffset, draw.vertexOffset, 0);
@@ -1094,7 +1125,13 @@ void Kleicha::shadow_2D_pass(const vkt::Frame& frame) {
 
 		m_pushConstants.lightId = j;
 
-		for (const auto& draw : m_mainDrawData) {
+		for (const auto& draw : m_sponzaDraws) {
+			m_pushConstants.drawId = draw.drawId;
+			vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
+			vkCmdDrawIndexed(frame.cmdBuffer, draw.indicesCount, 1, draw.indicesOffset, draw.vertexOffset, 0);
+		}
+
+		for (const auto& draw : m_sponzaAlphaDraws) {
 			m_pushConstants.drawId = draw.drawId;
 			vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
 			vkCmdDrawIndexed(frame.cmdBuffer, draw.indicesCount, 1, draw.indicesOffset, draw.vertexOffset, 0);
@@ -1145,8 +1182,7 @@ void Kleicha::start() {
 
 
 		if (ImGui::CollapsingHeader("Materials")) {
-
-			for (std::size_t i{ 1 }; i < m_materials.size(); ++i) {
+			for (std::size_t i{ 0 }; i < m_materials.size(); ++i) {
 				ImGui::PushID(static_cast<int>(i));
 				ImGui::Text("Material %d", i - 1);
 				ImGui::SliderFloat3("Material Ambient", &m_materials[i].ambient.r, 0.0f, 1.0f);
@@ -1272,44 +1308,20 @@ void Kleicha::draw(float currentTime) {
 
 	vkCmdBeginRendering(frame.cmdBuffer, &renderingInfo);
 	vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
-	
-	for (const auto& draw : m_mainDrawData) {
+
+	for (const auto& draw : m_sponzaDraws) {
 		m_pushConstants.drawId = draw.drawId;
 		vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
 		vkCmdDrawIndexed(frame.cmdBuffer, draw.indicesCount, 1, draw.indicesOffset, draw.vertexOffset, 0);
 	}
 
-	vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_lightDrawsPipeline);
+	vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_lightCubeShadowPCSSAlphaPipeline);
 
-	for (std::uint32_t i{ 0 }; i < m_lightDrawData.size(); ++i) {
-		m_pushConstants.drawId = m_lightDrawData[i].drawId;
-		m_pushConstants.lightId = i;
-		vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
-		vkCmdDrawIndexed(frame.cmdBuffer, m_lightDrawData[i].indicesCount, 1, m_lightDrawData[i].indicesOffset, m_lightDrawData[i].vertexOffset, 0);
-	}
-
-	vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_reflectPipeline);
-
-	// reflect draws draws
-	for (const auto& draw : m_reflectDrawData) {
+	for (const auto& draw : m_sponzaAlphaDraws) {
 		m_pushConstants.drawId = draw.drawId;
 		vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
 		vkCmdDrawIndexed(frame.cmdBuffer, draw.indicesCount, 1, draw.indicesOffset, draw.vertexOffset, 0);
 	}
-
-	// TO-DO: Refract draws
-	vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_refractPipeline);
-	
-	for (const auto& draw : m_refractDrawData) {
-		m_pushConstants.drawId = draw.drawId;
-		vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
-		vkCmdDrawIndexed(frame.cmdBuffer, draw.indicesCount, 1, draw.indicesOffset, draw.vertexOffset, 0);
-	}
-
-	vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_skyboxPipeline);
-	m_pushConstants.drawId = m_skyboxDrawData.drawId;
-	vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
-	vkCmdDrawIndexed(frame.cmdBuffer, m_skyboxDrawData.indicesCount, 1, m_skyboxDrawData.indicesOffset, m_skyboxDrawData.vertexOffset, 0);
 
 	vkCmdEndRendering(frame.cmdBuffer);
 
@@ -1456,6 +1468,7 @@ void Kleicha::cleanup() const {
 	vkDestroyPipeline(m_device.device, m_lightShadowPipeline, nullptr);
 	vkDestroyPipeline(m_device.device, m_lightCubeShadowPipeline, nullptr);
 	vkDestroyPipeline(m_device.device, m_lightCubeShadowPCSSPipeline, nullptr);
+	vkDestroyPipeline(m_device.device, m_lightCubeShadowPCSSAlphaPipeline, nullptr);
 	vkDestroyPipeline(m_device.device, m_lightPipeline, nullptr);
 	vkDestroyPipeline(m_device.device, m_shadowPipeline, nullptr);
 	vkDestroyPipeline(m_device.device, m_cubeShadowPipeline, nullptr);

@@ -109,6 +109,7 @@ namespace vkt {
 		// triangle indices
 		std::vector<glm::uvec3> tInd{};
 		std::vector<Vertex> verts{};
+		bool useAlphaTest{ false };
 	};
 
 	struct GlobalData {

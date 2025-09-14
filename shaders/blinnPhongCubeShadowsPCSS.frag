@@ -15,6 +15,8 @@ layout (location = 6) in vec3 inBitangentView;
 
 layout (location = 0) out vec4 outColor;
 
+layout(constant_id = 0) const uint useAlphaTesting = 0;
+
 vec3 calcShadingNormal(uint textureIndex) {
 	// normal
 	vec3 N = normalize(inNormalView);
@@ -155,12 +157,14 @@ void main() {
 	DrawData dd = draws[pc.drawId];
 	Material material = materials[dd.materialIndex];
 	TextureData textureData = textures[dd.textureIndex];
-
+	
 	vec4 albedoSample;
-	if (textureData.albedoTexture > 0) {
+	if(textureData.albedoTexture > 0)
 		albedoSample = texture(texSampler[textureData.albedoTexture], inUV);
-		
-		if (albedoSample.a < 0.5f)
+	
+	
+	if (useAlphaTesting > 0) {
+		if(albedoSample.a < 0.5f)
 			discard;
 	}
 
@@ -232,7 +236,7 @@ void main() {
 		lightContrib += (sFactor * (attenuationFactor * (diffuse + specular)) + attenuationFactor * ambient);
 	}		
 
-	if (textureData.albedoTexture > 0)
+	if (textureData.albedoTexture > 0) 
 		outColor = albedoSample * vec4(lightContrib, 1.0f);
 	else
 		outColor = vec4(lightContrib, 1.0f);
