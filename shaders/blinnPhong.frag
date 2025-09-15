@@ -12,8 +12,9 @@ layout (location = 3) in vec3 inVertView;
 layout (location = 4) in vec3 inTangentView;
 layout (location = 5) in vec3 inBitangentView;
 
-
 layout (location = 0) out vec4 outColor;
+
+layout(constant_id = 0) const uint useAlphaTesting = 0;
 
 vec3 calcShadingNormal(uint textureIndex) {
 	// normal
@@ -51,11 +52,14 @@ void main() {
 	vec4 albedoSample = vec4(0,0,0,0);
 	vec4 emissiveSample = vec4(0,0,0,0);
 
-	if (textureData.albedoTexture > 0) {
+	if(textureData.albedoTexture > 0) {
+
 		albedoSample = texture(texSampler[textureData.albedoTexture], inUV);
-			
-			if (albedoSample.a < 0.5f)
+
+		if (useAlphaTesting > 0) {
+			if(albedoSample.a < 0.5f)
 				discard;
+		}
 	}
 
 	if(textureData.emissiveTexture>0)

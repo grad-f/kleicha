@@ -161,16 +161,18 @@ void main() {
 	vec4 albedoSample = vec4(0,0,0,0);
 	vec4 emissiveSample = vec4(0,0,0,0);
 
-	if(textureData.albedoTexture > 0)
+	if(textureData.albedoTexture > 0) {
+
 		albedoSample = texture(texSampler[textureData.albedoTexture], inUV);
+
+		if (useAlphaTesting > 0) {
+			if(albedoSample.a < 0.5f)
+				discard;
+		}
+	}
 	
 	if(textureData.emissiveTexture>0)
 		emissiveSample = texture(texSampler[textureData.emissiveTexture], inUV);
-	
-	if (useAlphaTesting > 0) {
-		if(albedoSample.a < 0.5f)
-			discard;
-	}
 
 	vec3 N;
 

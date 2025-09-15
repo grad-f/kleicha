@@ -15,6 +15,8 @@ layout (location = 6) in vec3 inBitangentView;
 
 layout (location = 0) out vec4 outColor;
 
+layout(constant_id = 0) const uint useAlphaTesting = 0;
+
 // We will be performing our lighting computations in tangent space in the future. This is temporary.
 vec3 calcShadingNormal(uint textureIndex) {
 	// normal
@@ -131,11 +133,14 @@ void main() {
 	vec4 albedoSample = vec4(0,0,0,0);
 	vec4 emissiveSample = vec4(0,0,0,0);
 
-	if (textureData.albedoTexture > 0) {
+	if(textureData.albedoTexture > 0) {
+
 		albedoSample = texture(texSampler[textureData.albedoTexture], inUV);
-			
-			if (albedoSample.a < 0.5f)
+
+		if (useAlphaTesting > 0) {
+			if(albedoSample.a < 0.5f)
 				discard;
+		}
 	}
 
 	if(textureData.emissiveTexture>0)

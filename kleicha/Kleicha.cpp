@@ -191,8 +191,8 @@ void Kleicha::init_graphics_pipelines() {
 	VkShaderModule cubeShadowVertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_omniShadow.spv") };
 	VkShaderModule cubeShadowFragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_omniShadow.spv") };
 
-	VkShaderModule lightDrawsVertModule{utils::create_shader_module(m_device.device, "../shaders/vert_lightDraws.spv")};
-	VkShaderModule lightDrawsFragModule{utils::create_shader_module(m_device.device, "../shaders/frag_lightDraws.spv")};
+	//VkShaderModule lightDrawsVertModule{utils::create_shader_module(m_device.device, "../shaders/vert_lightDraws.spv")};
+	//VkShaderModule lightDrawsFragModule{utils::create_shader_module(m_device.device, "../shaders/frag_lightDraws.spv")};
 
 	VkShaderModule skyboxVertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_skybox.spv") };
 	VkShaderModule skyboxFragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_skybox.spv") };
@@ -201,46 +201,54 @@ void Kleicha::init_graphics_pipelines() {
 	VkShaderModule reflectFragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_environmentMappingReflect.spv") };
 	VkShaderModule refractFragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_environmentMappingRefract.spv") };
 
+	PipelineBuilder pipelineBuilder{ m_device.device };
+	pipelineBuilder.pipelineLayout = m_dummyPipelineLayout;
+	pipelineBuilder.set_rasterizer_state(VK_POLYGON_MODE_FILL , VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+	pipelineBuilder.set_color_blend_state(VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT, false);
+	pipelineBuilder.set_depth_stencil_state(VK_TRUE);
+	pipelineBuilder.set_depth_attachment_format(DEPTH_IMAGE_FORMAT);
+	pipelineBuilder.set_color_attachment_format(INTERMEDIATE_IMAGE_FORMAT);
+	pipelineBuilder.set_shaders(lightVertModule, lightFragModule);
+	m_lightPipeline = pipelineBuilder.build();
+
+	//	2D pcf
+	pipelineBuilder.set_shaders(lightShadowVertModule, lightShadowFragModule);
+	m_lightShadowPipeline = pipelineBuilder.build();
+
+	//	PCF
+	pipelineBuilder.set_shaders(lightShadowVertModule, lightCubeShadowFragModule);
+	m_lightCubeShadowPipeline = pipelineBuilder.build();
+
+	//	PCSS
+	pipelineBuilder.set_shaders(lightShadowVertModule, lightCubeShadowPCSSFragModule);
+	m_lightCubeShadowPCSSPipeline = pipelineBuilder.build();
+
 	/*	the below defined speciailization constant allows the driver compiler to optimize around our alpha testing
-		allowing us to retain early - z occlusion culling when rendering meshes that aren't performing alpha testing	*/
+	allowing us to retain early - z occlusion culling when rendering meshes that aren't performing alpha testing	*/
 	VkSpecializationMapEntry mapEntry{};
 	mapEntry.constantID = 0;
 	mapEntry.offset = 0;
 	mapEntry.size = sizeof(uint32_t);
 
 	// create specialization constant that'll allow the compiler to remove the alpha testing discard rather than introducing a new shader
-	uint32_t useAlphaTest{ 0 };
+	uint32_t useAlphaTest{ 1 };
 	VkSpecializationInfo specializationInfo{};
 	specializationInfo.mapEntryCount = 1;
 	specializationInfo.pMapEntries = &mapEntry;
 	specializationInfo.dataSize = sizeof(uint32_t);
 	specializationInfo.pData = &useAlphaTest;
 
-	PipelineBuilder pipelineBuilder{ m_device.device };
-	pipelineBuilder.pipelineLayout = m_dummyPipelineLayout;
-	pipelineBuilder.set_shaders(lightShadowVertModule, lightShadowFragModule);								//ccw winding
-	pipelineBuilder.set_rasterizer_state(VK_POLYGON_MODE_FILL , VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
-	pipelineBuilder.set_color_blend_state(VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT, false);
-	pipelineBuilder.set_depth_stencil_state(VK_TRUE);
-	pipelineBuilder.set_depth_attachment_format(DEPTH_IMAGE_FORMAT);
-	pipelineBuilder.set_color_attachment_format(INTERMEDIATE_IMAGE_FORMAT);
-	m_lightShadowPipeline = pipelineBuilder.build();
+	pipelineBuilder.set_shaders(lightVertModule, lightFragModule, nullptr, &specializationInfo);
+	m_lightAlphaPipeline = pipelineBuilder.build();
 
-	pipelineBuilder.set_shaders(lightShadowVertModule, lightCubeShadowFragModule);
-	m_lightCubeShadowPipeline = pipelineBuilder.build();
+	pipelineBuilder.set_shaders(lightShadowVertModule, lightShadowFragModule, nullptr, &specializationInfo);
+	m_lightShadowAlphaPipeline = pipelineBuilder.build();
 
-	pipelineBuilder.set_shaders(lightShadowVertModule, lightCubeShadowPCSSFragModule, nullptr, &specializationInfo);
-	m_lightCubeShadowPCSSPipeline = pipelineBuilder.build();
-
-	useAlphaTest = 1;
 	pipelineBuilder.set_shaders(lightShadowVertModule, lightCubeShadowPCSSFragModule, nullptr, &specializationInfo);
 	m_lightCubeShadowPCSSAlphaPipeline = pipelineBuilder.build();
 
-	pipelineBuilder.set_shaders(lightVertModule, lightFragModule);
-	m_lightPipeline = pipelineBuilder.build();
-
-	pipelineBuilder.set_shaders(lightDrawsVertModule, lightDrawsFragModule);
-	m_lightDrawsPipeline = pipelineBuilder.build();
+	pipelineBuilder.set_shaders(lightShadowVertModule, lightCubeShadowFragModule, nullptr, &specializationInfo);
+	m_lightCubeShadowAlphaPipeline = pipelineBuilder.build();
 
 	pipelineBuilder.set_rasterizer_state(VK_POLYGON_MODE_FILL, VK_CULL_MODE_FRONT_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE, -1.25f, -1.75f);
 	pipelineBuilder.set_shaders(shadowVertModule, shadowFragModule);
@@ -279,8 +287,8 @@ void Kleicha::init_graphics_pipelines() {
 	vkDestroyShaderModule(m_device.device, shadowFragModule, nullptr);
 	vkDestroyShaderModule(m_device.device, cubeShadowVertModule, nullptr);
 	vkDestroyShaderModule(m_device.device, cubeShadowFragModule, nullptr);
-	vkDestroyShaderModule(m_device.device, lightDrawsVertModule, nullptr);
-	vkDestroyShaderModule(m_device.device, lightDrawsFragModule, nullptr);
+	//vkDestroyShaderModule(m_device.device, lightDrawsVertModule, nullptr);
+	//vkDestroyShaderModule(m_device.device, lightDrawsFragModule, nullptr);
 	vkDestroyShaderModule(m_device.device, skyboxVertModule, nullptr);
 	vkDestroyShaderModule(m_device.device, skyboxFragModule, nullptr);
 
@@ -1060,6 +1068,27 @@ void Kleicha::update_dynamic_buffers(const vkt::Frame& frame, [[maybe_unused]] f
 	// the below draw calls using a pipeline barrier.
 }
 
+void Kleicha::record_draws(const vkt::Frame& frame, VkPipeline* opaquePipeline, VkPipeline* alphaPipeline) {
+
+	assert(opaquePipeline);
+
+	vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, *opaquePipeline);
+	for (const auto& draw : m_sponzaDraws) {
+		m_pushConstants.drawId = draw.drawId;
+		vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
+		vkCmdDrawIndexed(frame.cmdBuffer, draw.indicesCount, 1, draw.indicesOffset, draw.vertexOffset, 0);
+	}
+
+	if (alphaPipeline)
+		vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, *alphaPipeline);
+
+	for (const auto& draw : m_sponzaAlphaDraws) {
+		m_pushConstants.drawId = draw.drawId;
+		vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
+		vkCmdDrawIndexed(frame.cmdBuffer, draw.indicesCount, 1, draw.indicesOffset, draw.vertexOffset, 0);
+	}
+}
+
 void Kleicha::shadow_cube_pass(const vkt::Frame& frame) {
 
 	utils::set_viewport_scissor(frame, SHADOW_CUBE_EXTENT);
@@ -1307,31 +1336,16 @@ void Kleicha::draw(float currentTime) {
 	renderingInfo.pColorAttachments = &colorAttachment;
 	renderingInfo.pDepthAttachment = &depthAttachment;
 
-	if (m_enableShadows)
-		vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_lightShadowPipeline);
-	else if (m_enableCubeShadows)
-		vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_lightCubeShadowPipeline);
-	else if (m_enableCubeShadowsPCSS)
-		vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_lightCubeShadowPCSSPipeline);
-	else
-		vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_lightPipeline);
-
 	vkCmdBeginRendering(frame.cmdBuffer, &renderingInfo);
-	vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
 
-	for (const auto& draw : m_sponzaDraws) {
-		m_pushConstants.drawId = draw.drawId;
-		vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
-		vkCmdDrawIndexed(frame.cmdBuffer, draw.indicesCount, 1, draw.indicesOffset, draw.vertexOffset, 0);
-	}
-
-	vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_lightCubeShadowPCSSAlphaPipeline);
-
-	/*for (const auto& draw : m_sponzaAlphaDraws) {
-		m_pushConstants.drawId = draw.drawId;
-		vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
-		vkCmdDrawIndexed(frame.cmdBuffer, draw.indicesCount, 1, draw.indicesOffset, draw.vertexOffset, 0);
-	}*/
+	if (m_enableShadows)
+		record_draws(frame, &m_lightShadowPipeline, &m_lightShadowAlphaPipeline);
+	else if (m_enableCubeShadows)
+		record_draws(frame, &m_lightCubeShadowPipeline, &m_lightCubeShadowAlphaPipeline);
+	else if (m_enableCubeShadowsPCSS)
+		record_draws(frame, &m_lightCubeShadowPCSSPipeline, &m_lightCubeShadowPCSSAlphaPipeline);
+	else
+		record_draws(frame, &m_lightPipeline, &m_lightAlphaPipeline);
 
 	vkCmdEndRendering(frame.cmdBuffer);
 
@@ -1478,14 +1492,18 @@ void Kleicha::cleanup() const {
 	vkDestroyPipeline(m_device.device, m_lightShadowPipeline, nullptr);
 	vkDestroyPipeline(m_device.device, m_lightCubeShadowPipeline, nullptr);
 	vkDestroyPipeline(m_device.device, m_lightCubeShadowPCSSPipeline, nullptr);
-	vkDestroyPipeline(m_device.device, m_lightCubeShadowPCSSAlphaPipeline, nullptr);
 	vkDestroyPipeline(m_device.device, m_lightPipeline, nullptr);
 	vkDestroyPipeline(m_device.device, m_shadowPipeline, nullptr);
 	vkDestroyPipeline(m_device.device, m_cubeShadowPipeline, nullptr);
-	vkDestroyPipeline(m_device.device, m_lightDrawsPipeline, nullptr);
 	vkDestroyPipeline(m_device.device, m_skyboxPipeline, nullptr);
 	vkDestroyPipeline(m_device.device, m_reflectPipeline, nullptr);
 	vkDestroyPipeline(m_device.device, m_refractPipeline, nullptr);
+
+	vkDestroyPipeline(m_device.device, m_lightAlphaPipeline, nullptr);
+	vkDestroyPipeline(m_device.device, m_lightShadowAlphaPipeline, nullptr);
+	vkDestroyPipeline(m_device.device, m_lightCubeShadowAlphaPipeline, nullptr);
+	vkDestroyPipeline(m_device.device, m_lightCubeShadowPCSSAlphaPipeline, nullptr);
+
 	vkDestroyPipelineLayout(m_device.device, m_dummyPipelineLayout, nullptr);
 
 	for (const auto& renderedSemaphore : m_renderedSemaphores) {

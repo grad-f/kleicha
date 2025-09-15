@@ -13,6 +13,8 @@ layout (location = 4) in vec3 inVertWorld;
 
 layout (location = 0) out vec4 outColor;
 
+layout(constant_id = 0) const uint useAlphaTesting = 0;
+
 float textureProj(uint samplerIndex, vec4 shadowCoord) {
 	
 	// homogenize shadow coordinates
@@ -35,11 +37,14 @@ void main() {
 	vec4 albedoSample = vec4(0,0,0,0);
 	vec4 emissiveSample = vec4(0,0,0,0);
 
-	if (textureData.albedoTexture > 0) {
+	if(textureData.albedoTexture > 0) {
+
 		albedoSample = texture(texSampler[textureData.albedoTexture], inUV);
-			
-			if (albedoSample.a < 0.5f)
+
+		if (useAlphaTesting > 0) {
+			if(albedoSample.a < 0.5f)
 				discard;
+		}
 	}
 
 	if(textureData.emissiveTexture>0)

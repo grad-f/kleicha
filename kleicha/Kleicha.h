@@ -41,14 +41,15 @@ private:
 	VkPipeline m_shadowPipeline{};
 	VkPipeline m_cubeShadowPipeline;
 	VkPipeline m_lightCubeShadowPCSSPipeline;
-	VkPipeline m_lightCubeShadowPCSSAlphaPipeline;
 	VkPipeline m_lightCubeShadowPipeline{};
 	VkPipeline m_skyboxPipeline{};
 	VkPipeline m_reflectPipeline{};
 	VkPipeline m_refractPipeline{};
 
-	// draws point light geometry (spheres) with simple shaders.
-	VkPipeline m_lightDrawsPipeline{};
+	VkPipeline m_lightAlphaPipeline;
+	VkPipeline m_lightShadowAlphaPipeline;
+	VkPipeline m_lightCubeShadowAlphaPipeline;
+	VkPipeline m_lightCubeShadowPCSSAlphaPipeline;
 
 	bool m_enableShadows{ false };
 	bool m_enableCubeShadows{ false };
@@ -113,6 +114,8 @@ private:
 	void init_write_descriptor_sets();
 
 	void update_dynamic_buffers(const vkt::Frame& frame, float currentTime, const glm::mat4& shadowCubePerspProj);
+	// we can expand this to supply the opaque and alpha draws if we end up having different groups of draws
+	void record_draws(const vkt::Frame& frame, VkPipeline* opaquePipeline, VkPipeline* alphaPipeline);
 	void shadow_cube_pass(const vkt::Frame& frame);
 	void shadow_2D_pass(const vkt::Frame& frame);
 
