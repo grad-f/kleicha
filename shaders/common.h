@@ -51,6 +51,7 @@ struct TextureData {
 	uint albedoTexture;
 	uint normalTexture;
 	uint heightTexture;
+	uint emissiveTexture;
 };
 
 layout(binding = 0, set = 0) readonly buffer Vertices {

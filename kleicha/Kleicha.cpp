@@ -445,12 +445,22 @@ void Kleicha::init_load_scene() {
 		throw std::runtime_error{ "[Kleicha] Failed to load scene!" };
 	}
 
+	if (!utils::load_gltf("../data/DamagedHelmet/glTF/DamagedHelmet.gltf", meshes, draws, m_meshTransforms, texIndices, texturePaths)) {
+		throw std::runtime_error{ "[Kleicha] Failed to load scene!" };
+	}
+
+	if (!utils::load_gltf("../data/BoomBox/glTF/BoomBox.gltf", meshes, draws, m_meshTransforms, texIndices, texturePaths)) {
+		throw std::runtime_error{ "[Kleicha] Failed to load scene!" };
+	}
+
+
 	// now we would like to traverse meshes and build the unified vertex and indices buffer where host draws will keep track of our different meshes
 	std::vector<vkt::Vertex> unifiedVertices{};
 	std::vector<glm::uvec3> unifiedTriangles{};
 	for (std::size_t i{ 0 }; i < meshes.size(); ++i) {
 
-		//utils::compute_mesh_tangents(meshes[i]);
+		if(meshes[i].computeTangent)
+			utils::compute_mesh_tangents(meshes[i]);
 
 		// store the current vertex and triangle counts
 		int32_t vertexCount{ static_cast<int32_t>(unifiedVertices.size()) };
@@ -1317,11 +1327,11 @@ void Kleicha::draw(float currentTime) {
 
 	vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_lightCubeShadowPCSSAlphaPipeline);
 
-	for (const auto& draw : m_sponzaAlphaDraws) {
+	/*for (const auto& draw : m_sponzaAlphaDraws) {
 		m_pushConstants.drawId = draw.drawId;
 		vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
 		vkCmdDrawIndexed(frame.cmdBuffer, draw.indicesCount, 1, draw.indicesOffset, draw.vertexOffset, 0);
-	}
+	}*/
 
 	vkCmdEndRendering(frame.cmdBuffer);
 

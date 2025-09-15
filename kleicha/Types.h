@@ -110,6 +110,7 @@ namespace vkt {
 		std::vector<glm::uvec3> tInd{};
 		std::vector<Vertex> verts{};
 		bool useAlphaTest{ false };
+		bool computeTangent{ false };
 	};
 
 	struct GlobalData {
@@ -144,6 +145,7 @@ namespace vkt {
 		uint32_t albedoTexture{};
 		uint32_t normalTexture{};
 		uint32_t heightTexture{};
+		uint32_t emissiveTexture{};
 	};
 
 	struct alignas(16) Material {

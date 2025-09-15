@@ -54,7 +54,7 @@ private:
 	bool m_enableCubeShadows{ false };
 	bool m_enableCubeShadowsPCSS{ true };
 	bool m_enableBumpMapping{ true };
-	bool m_enableHeightMapping{ true };
+	bool m_enableHeightMapping{ false };
 
 	VmaAllocator m_allocator{};
 

@@ -128,13 +128,18 @@ void main() {
 	Material material = materials[dd.materialIndex];
 	TextureData textureData = textures[dd.textureIndex];
 
-	vec4 albedoSample;
+	vec4 albedoSample = vec4(0,0,0,0);
+	vec4 emissiveSample = vec4(0,0,0,0);
+
 	if (textureData.albedoTexture > 0) {
 		albedoSample = texture(texSampler[textureData.albedoTexture], inUV);
-		
-		if (albedoSample.a < 0.5f)
-			discard;
+			
+			if (albedoSample.a < 0.5f)
+				discard;
 	}
+
+	if(textureData.emissiveTexture>0)
+		emissiveSample = texture(texSampler[textureData.emissiveTexture], inUV);
 
 		vec3 N;
 
@@ -205,8 +210,8 @@ void main() {
 		lightContrib += attenuationFactor * ((sFactor * (diffuse + specular)) + ambient);
 	}		
 
-	if (textureData.albedoTexture > 0)
-		outColor = albedoSample * vec4(lightContrib, 1.0f);
+	if (textureData.albedoTexture > 0) 
+		outColor = albedoSample * vec4(lightContrib, 1.0f) + emissiveSample;	
 	else
 		outColor = vec4(lightContrib, 1.0f);
 

@@ -446,6 +446,10 @@ namespace utils {
         cgltf_data* data{};
         cgltf_result result{ cgltf_parse_file(&options, filePath, &data) };
 
+        std::size_t materialOffset{ textureIndices.size() };
+
+        uint32_t textureOffset{ static_cast<uint32_t>(texturePaths.size()) };
+
         if (result != cgltf_result_success) {
             cgltf_free(data);
             return false;
@@ -467,9 +471,9 @@ namespace utils {
             // get the scaling that should be applied to each vertex
             cgltf_node* node{ scene->nodes[n] };
 
-            glm::mat4 scaleMat{ 1.0f };
-            if (node->has_scale) {
-                cgltf_node_transform_local(node, &(scaleMat[0].x));
+            glm::mat4 model{ 1.0f };
+            if (node->has_scale || node->has_rotation || node->has_scale) {
+                cgltf_node_transform_local(node, &(model[0].x));
             }
 
             // traverse meshes (in the case of sponza it is a single mesh)
@@ -520,6 +524,7 @@ namespace utils {
 
                     }
 
+                    bool computeTangent{ true };
                     if (const cgltf_accessor* tan = cgltf_find_accessor(&prim, cgltf_attribute_type_tangent, 0)) {
 
                         assert(cgltf_num_components(tan->type) == 4);
@@ -528,6 +533,8 @@ namespace utils {
                         for (std::size_t x{ 0 }; x < vertexCount; ++x) {
                             vertices[x].tangent = { scratchData[x * 4 + 0], scratchData[x * 4 + 1], scratchData[x*4+2], scratchData[x*4+3]};
                         }
+
+                        computeTangent = false;
                     }
 
                     std::vector<glm::uvec3> indices(prim.indices->count / 3);
@@ -540,9 +547,9 @@ namespace utils {
                     if (prim.material->alpha_mode == cgltf_alpha_mode_mask)
                         useAlphaTest = true;
 
-                    meshes.push_back(vkt::Mesh{ indices, vertices, useAlphaTest });
-                    transforms.push_back(vkt::Transform{ scaleMat });
-                    draws.push_back(vkt::DrawData{ 0, static_cast<uint32_t>(matIndex), static_cast<uint32_t>(transforms.size() - 1) });
+                    meshes.push_back(vkt::Mesh{ indices, vertices, useAlphaTest, computeTangent });
+                    transforms.push_back(vkt::Transform{ model });
+                    draws.push_back(vkt::DrawData{ 0, static_cast<uint32_t>(matIndex + materialOffset), static_cast<uint32_t>(transforms.size() - 1) });
                 }
 
             }
@@ -555,14 +562,17 @@ namespace utils {
             
             if (material->has_pbr_metallic_roughness) {
                 if (material->pbr_metallic_roughness.base_color_texture.texture)
-                    indices.albedoTexture = 1 + static_cast<uint32_t>(cgltf_texture_index(data, material->pbr_metallic_roughness.base_color_texture.texture));
+                    indices.albedoTexture = 1 + textureOffset + static_cast<uint32_t>(cgltf_texture_index(data, material->pbr_metallic_roughness.base_color_texture.texture));
 
                 if (material->pbr_metallic_roughness.metallic_roughness_texture.texture)
-                    indices.heightTexture = 1 + static_cast<uint32_t>(cgltf_texture_index(data, material->pbr_metallic_roughness.metallic_roughness_texture.texture));
+                    indices.heightTexture = 1 + textureOffset + static_cast<uint32_t>(cgltf_texture_index(data, material->pbr_metallic_roughness.metallic_roughness_texture.texture));
             }
 
             if (material->normal_texture.texture)
-                indices.normalTexture = 1 + static_cast<uint32_t>(cgltf_texture_index(data, material->normal_texture.texture));
+                indices.normalTexture = 1 + textureOffset + static_cast<uint32_t>(cgltf_texture_index(data, material->normal_texture.texture));
+
+            if (material->emissive_texture.texture)
+                indices.emissiveTexture = 1 + textureOffset + static_cast<uint32_t>(cgltf_texture_index(data, material->emissive_texture.texture));
 
             textureIndices.push_back(indices);
         }
