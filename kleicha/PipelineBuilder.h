@@ -20,7 +20,7 @@ public:
 	void reset();
 	VkPipeline build();
 
-	PipelineBuilder& set_shaders(VkShaderModule vertexShader, VkShaderModule fragmentShader, VkSpecializationInfo* vertSpecializationInfo = nullptr, VkSpecializationInfo* fragSpecializationInfo = nullptr);
+	PipelineBuilder& set_shaders(VkShaderModule* vertexShader, VkSpecializationInfo* vertSpecializationInfo = nullptr, VkShaderModule* fragmentShader = nullptr, VkSpecializationInfo* fragSpecializationInfo = nullptr, VkShaderModule* tessControlShader = nullptr, VkShaderModule* tessEvalShader = nullptr);
 	PipelineBuilder& set_rasterizer_state(VkPolygonMode polygonMode, VkCullModeFlags cullMode, VkFrontFace frontFace, float depthBiasConstant = 0.0f, float depthBiasSlope = 0.0f);
 	PipelineBuilder& set_color_blend_state(VkColorComponentFlags colorComponentFlags, VkBool32 blendEnable = false);
 

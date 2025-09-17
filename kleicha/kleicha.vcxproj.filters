@@ -205,6 +205,18 @@
     <None Include="..\shaders\environmentMappingReflect.frag">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="..\shaders\bezier.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shaders\bezier.tesc">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shaders\bezier.tese">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shaders\bezier.vert">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Image Include="..\textures\brick.png">

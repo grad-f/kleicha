@@ -252,6 +252,10 @@
     <None Include="..\imgui\imgui.natstepfilter" />
     <None Include="..\shaders\basic.frag" />
     <None Include="..\shaders\basic.vert" />
+    <None Include="..\shaders\bezier.frag" />
+    <None Include="..\shaders\bezier.tesc" />
+    <None Include="..\shaders\bezier.tese" />
+    <None Include="..\shaders\bezier.vert" />
     <None Include="..\shaders\blinnPhong.frag" />
     <None Include="..\shaders\blinnPhong.vert" />
     <None Include="..\shaders\blinnPhongCubeShadowsPCF.frag" />

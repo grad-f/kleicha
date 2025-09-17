@@ -32,4 +32,9 @@ C:\VulkanSDK\1.4.313.1\Bin\glslc.exe environmentMapping.vert -o vert_environment
 C:\VulkanSDK\1.4.313.1\Bin\glslc.exe environmentMappingReflect.frag -o frag_environmentMappingReflect.spv -g
 C:\VulkanSDK\1.4.313.1\Bin\glslc.exe environmentMappingRefract.frag -o frag_environmentMappingRefract.spv -g
 
+C:\VulkanSDK\1.4.313.1\Bin\glslc.exe bezier.vert -o vert_bezier.spv -g
+C:\VulkanSDK\1.4.313.1\Bin\glslc.exe bezier.tesc -o tesc_bezier.spv -g
+C:\VulkanSDK\1.4.313.1\Bin\glslc.exe bezier.tese -o tese_bezier.spv -g
+C:\VulkanSDK\1.4.313.1\Bin\glslc.exe bezier.frag -o frag_bezier.spv -g
+
 pause

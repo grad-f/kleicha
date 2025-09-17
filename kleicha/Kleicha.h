@@ -45,6 +45,7 @@ private:
 	VkPipeline m_skyboxPipeline{};
 	VkPipeline m_reflectPipeline{};
 	VkPipeline m_refractPipeline{};
+	VkPipeline m_bezierPipeline{};
 
 	VkPipeline m_lightAlphaPipeline;
 	VkPipeline m_lightShadowAlphaPipeline;

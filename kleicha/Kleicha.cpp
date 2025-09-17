@@ -93,18 +93,15 @@ void Kleicha::init_vulkan() {
 	vkt::DeviceFeatures deviceFeatures{};
 	deviceFeatures.VkFeatures.features.samplerAnisotropy = true;
 	deviceFeatures.VkFeatures.features.multiDrawIndirect = true;
-	deviceFeatures.Vk11Features.shaderDrawParameters = true;
+	deviceFeatures.VkFeatures.features.tessellationShader = true;
 	deviceFeatures.Vk11Features.multiview = true;
 	deviceFeatures.Vk12Features.runtimeDescriptorArray = true;
-	deviceFeatures.Vk12Features.timelineSemaphore = true;
 	deviceFeatures.Vk12Features.bufferDeviceAddress = true;
 	deviceFeatures.Vk12Features.descriptorIndexing = true;
 	deviceFeatures.Vk12Features.descriptorBindingPartiallyBound = true;
 	deviceFeatures.Vk12Features.descriptorBindingVariableDescriptorCount = true;
-	deviceFeatures.Vk12Features.scalarBlockLayout = true;
 	deviceFeatures.Vk13Features.dynamicRendering = true;
 	deviceFeatures.Vk13Features.synchronization2 = true;
-	deviceFeatures.Vk13Features.pipelineCreationCacheControl = true;
 	DeviceBuilder device{m_instance.instance, m_surface};
 	m_device = device.request_extensions(deviceExtensions).request_features(deviceFeatures).build();
 }
@@ -201,6 +198,12 @@ void Kleicha::init_graphics_pipelines() {
 	VkShaderModule reflectFragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_environmentMappingReflect.spv") };
 	VkShaderModule refractFragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_environmentMappingRefract.spv") };
 
+
+	VkShaderModule bezierVertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_bezier.spv") };
+	VkShaderModule bezierTCSModule{ utils::create_shader_module(m_device.device, "../shaders/tesc_bezier.spv") };
+	VkShaderModule bezierTESModule{ utils::create_shader_module(m_device.device, "../shaders/tese_bezier.spv") };
+	VkShaderModule bezierFragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_bezier.spv") };
+
 	PipelineBuilder pipelineBuilder{ m_device.device };
 	pipelineBuilder.pipelineLayout = m_dummyPipelineLayout;
 	pipelineBuilder.set_rasterizer_state(VK_POLYGON_MODE_FILL , VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
@@ -208,19 +211,22 @@ void Kleicha::init_graphics_pipelines() {
 	pipelineBuilder.set_depth_stencil_state(VK_TRUE);
 	pipelineBuilder.set_depth_attachment_format(DEPTH_IMAGE_FORMAT);
 	pipelineBuilder.set_color_attachment_format(INTERMEDIATE_IMAGE_FORMAT);
-	pipelineBuilder.set_shaders(lightVertModule, lightFragModule);
+	pipelineBuilder.set_shaders(&lightVertModule, nullptr, &lightFragModule);
 	m_lightPipeline = pipelineBuilder.build();
 
+	pipelineBuilder.set_shaders(&bezierVertModule, nullptr, &bezierFragModule, nullptr, &bezierTCSModule, &bezierTESModule);
+	m_bezierPipeline = pipelineBuilder.build();
+
 	//	2D pcf
-	pipelineBuilder.set_shaders(lightShadowVertModule, lightShadowFragModule);
+	pipelineBuilder.set_shaders(&lightShadowVertModule, nullptr, &lightShadowFragModule);
 	m_lightShadowPipeline = pipelineBuilder.build();
 
 	//	PCF
-	pipelineBuilder.set_shaders(lightShadowVertModule, lightCubeShadowFragModule);
+	pipelineBuilder.set_shaders(&lightShadowVertModule, nullptr, &lightCubeShadowFragModule);
 	m_lightCubeShadowPipeline = pipelineBuilder.build();
 
 	//	PCSS
-	pipelineBuilder.set_shaders(lightShadowVertModule, lightCubeShadowPCSSFragModule);
+	pipelineBuilder.set_shaders(&lightShadowVertModule, nullptr, &lightCubeShadowPCSSFragModule);
 	m_lightCubeShadowPCSSPipeline = pipelineBuilder.build();
 
 	/*	the below defined speciailization constant allows the driver compiler to optimize around our alpha testing
@@ -238,24 +244,24 @@ void Kleicha::init_graphics_pipelines() {
 	specializationInfo.dataSize = sizeof(uint32_t);
 	specializationInfo.pData = &useAlphaTest;
 
-	pipelineBuilder.set_shaders(lightVertModule, lightFragModule, nullptr, &specializationInfo);
+	pipelineBuilder.set_shaders(&lightVertModule, nullptr, &lightFragModule, &specializationInfo);
 	m_lightAlphaPipeline = pipelineBuilder.build();
 
-	pipelineBuilder.set_shaders(lightShadowVertModule, lightShadowFragModule, nullptr, &specializationInfo);
+	pipelineBuilder.set_shaders(&lightShadowVertModule, nullptr, &lightShadowFragModule, &specializationInfo);
 	m_lightShadowAlphaPipeline = pipelineBuilder.build();
 
-	pipelineBuilder.set_shaders(lightShadowVertModule, lightCubeShadowPCSSFragModule, nullptr, &specializationInfo);
+	pipelineBuilder.set_shaders(&lightShadowVertModule, nullptr, &lightCubeShadowPCSSFragModule, &specializationInfo);
 	m_lightCubeShadowPCSSAlphaPipeline = pipelineBuilder.build();
 
-	pipelineBuilder.set_shaders(lightShadowVertModule, lightCubeShadowFragModule, nullptr, &specializationInfo);
+	pipelineBuilder.set_shaders(&lightShadowVertModule, nullptr, &lightCubeShadowFragModule, &specializationInfo);
 	m_lightCubeShadowAlphaPipeline = pipelineBuilder.build();
 
 	pipelineBuilder.set_rasterizer_state(VK_POLYGON_MODE_FILL, VK_CULL_MODE_FRONT_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE, -1.25f, -1.75f);
-	pipelineBuilder.set_shaders(shadowVertModule, shadowFragModule);
+	pipelineBuilder.set_shaders(&shadowVertModule, nullptr, &shadowFragModule);
 	pipelineBuilder.disable_color_output();
 	m_shadowPipeline = pipelineBuilder.build();
 
-	pipelineBuilder.set_shaders(cubeShadowVertModule, cubeShadowFragModule);
+	pipelineBuilder.set_shaders(&cubeShadowVertModule, nullptr, &cubeShadowFragModule);
 	pipelineBuilder.set_color_blend_state(VK_COLOR_COMPONENT_R_BIT);
 	pipelineBuilder.set_color_attachment_format(VK_FORMAT_R32_SFLOAT);
 	pipelineBuilder.enable_color_output();
@@ -295,6 +301,11 @@ void Kleicha::init_graphics_pipelines() {
 	vkDestroyShaderModule(m_device.device, environmentMapVertModule, nullptr);
 	vkDestroyShaderModule(m_device.device, reflectFragModule, nullptr);
 	vkDestroyShaderModule(m_device.device, refractFragModule, nullptr);
+
+	vkDestroyShaderModule(m_device.device, bezierVertModule, nullptr);	
+	vkDestroyShaderModule(m_device.device, bezierTCSModule, nullptr);	
+	vkDestroyShaderModule(m_device.device, bezierTESModule, nullptr);
+	vkDestroyShaderModule(m_device.device, bezierFragModule, nullptr);
 }
 
 void Kleicha::init_descriptors() {

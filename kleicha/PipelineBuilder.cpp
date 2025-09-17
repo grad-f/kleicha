@@ -13,26 +13,41 @@ void PipelineBuilder::reset() {
 	m_renderingInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
 }
 
-PipelineBuilder& PipelineBuilder::set_shaders(VkShaderModule vertexShader, VkShaderModule fragmentShader, VkSpecializationInfo* vertSpecializationInfo, VkSpecializationInfo* fragSpecializationInfo) {
-	
+PipelineBuilder& PipelineBuilder::set_shaders(VkShaderModule* vertexShader, VkSpecializationInfo* vertSpecializationInfo, VkShaderModule* fragmentShader, VkSpecializationInfo* fragSpecializationInfo, VkShaderModule* tessControlShader, VkShaderModule* tessEvalShader) {
+
 	if (!m_shaderInfos.empty())
 		m_shaderInfos.clear();
 
 	VkPipelineShaderStageCreateInfo shaderInfo{ .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
 	shaderInfo.pNext = nullptr;
 	shaderInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-	shaderInfo.module = vertexShader;
+	shaderInfo.module = *vertexShader;
 	shaderInfo.pName = "main";
 	if (vertSpecializationInfo)
 		shaderInfo.pSpecializationInfo = vertSpecializationInfo;
 	m_shaderInfos.emplace_back(shaderInfo);
 
-	shaderInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-	shaderInfo.module = fragmentShader;
-	if (fragSpecializationInfo)
-		shaderInfo.pSpecializationInfo = fragSpecializationInfo;
+	
+	
+	if (fragmentShader) {
+		shaderInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+		shaderInfo.module = *fragmentShader;
+		if (fragSpecializationInfo)
+			shaderInfo.pSpecializationInfo = fragSpecializationInfo;
+		m_shaderInfos.emplace_back(shaderInfo);
+	}
 
-	m_shaderInfos.emplace_back(shaderInfo);
+	if (tessControlShader) {
+		shaderInfo.stage = VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
+		shaderInfo.module = *tessControlShader;
+		m_shaderInfos.emplace_back(shaderInfo);
+	}
+
+	if (tessControlShader) {
+		shaderInfo.stage = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
+		shaderInfo.module = *tessEvalShader;
+		m_shaderInfos.emplace_back(shaderInfo);
+	}
 
 	return *this;
 }
