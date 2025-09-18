@@ -162,7 +162,7 @@ void Kleicha::init_sync_primitives() {
 void Kleicha::init_graphics_pipelines() {
 
 	// create dummy shader modules to test pipeline builder.
-	VkPushConstantRange pushConstantRange{ .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, .offset = 0, .size = sizeof(vkt::PushConstants)};
+	VkPushConstantRange pushConstantRange{ .stageFlags = VK_SHADER_STAGE_ALL, .offset = 0, .size = sizeof(vkt::PushConstants)};
 
 	VkDescriptorSetLayout setLayouts[]{ m_globDescSetLayout, m_frameDescSetLayout };
 
@@ -206,16 +206,18 @@ void Kleicha::init_graphics_pipelines() {
 
 	PipelineBuilder pipelineBuilder{ m_device.device };
 	pipelineBuilder.pipelineLayout = m_dummyPipelineLayout;
-	pipelineBuilder.set_rasterizer_state(VK_POLYGON_MODE_FILL , VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+	pipelineBuilder.set_input_assembly_state(VK_PRIMITIVE_TOPOLOGY_PATCH_LIST);
+	pipelineBuilder.set_rasterizer_state(VK_POLYGON_MODE_LINE , VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
 	pipelineBuilder.set_color_blend_state(VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT, false);
 	pipelineBuilder.set_depth_stencil_state(VK_TRUE);
 	pipelineBuilder.set_depth_attachment_format(DEPTH_IMAGE_FORMAT);
 	pipelineBuilder.set_color_attachment_format(INTERMEDIATE_IMAGE_FORMAT);
-	pipelineBuilder.set_shaders(&lightVertModule, nullptr, &lightFragModule);
-	m_lightPipeline = pipelineBuilder.build();
-
 	pipelineBuilder.set_shaders(&bezierVertModule, nullptr, &bezierFragModule, nullptr, &bezierTCSModule, &bezierTESModule);
 	m_bezierPipeline = pipelineBuilder.build();
+
+	pipelineBuilder.set_input_assembly_state(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+	pipelineBuilder.set_shaders(&lightVertModule, nullptr, &lightFragModule);
+	m_lightPipeline = pipelineBuilder.build();
 
 	//	2D pcf
 	pipelineBuilder.set_shaders(&lightShadowVertModule, nullptr, &lightShadowFragModule);
@@ -323,11 +325,11 @@ void Kleicha::init_descriptors() {
 		layoutBindingFlagsInfo.pBindingFlags = bindingFlags;
 
 		VkDescriptorSetLayoutBinding bindings[5]{
-			{0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
-			{1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
-			{2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
-			{3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
-			{4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 200, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr}
+			{0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_ALL, nullptr},
+			{1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_ALL, nullptr},
+			{2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,VK_SHADER_STAGE_ALL, nullptr},
+			{3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_ALL, nullptr},
+			{4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 200, VK_SHADER_STAGE_ALL, nullptr}
 		};
 
 		// create descriptor set layout
@@ -340,11 +342,11 @@ void Kleicha::init_descriptors() {
 
 	{		// create per frame descriptor set layout
 		VkDescriptorSetLayoutBinding bindings[5]{
-			{0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
-			{1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
-			{2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
-			{3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, static_cast<uint32_t>(m_lights.size()), VK_SHADER_STAGE_FRAGMENT_BIT, nullptr}, // 2D shadow map
-			{4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, static_cast<uint32_t>(m_lights.size()), VK_SHADER_STAGE_FRAGMENT_BIT, nullptr}, // cube shadow map
+			{0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_ALL, nullptr},
+			{1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_ALL, nullptr},
+			{2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_ALL, nullptr},
+			{3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, static_cast<uint32_t>(m_lights.size()), VK_SHADER_STAGE_ALL, nullptr}, // 2D shadow map
+			{4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, static_cast<uint32_t>(m_lights.size()), VK_SHADER_STAGE_ALL, nullptr}, // cube shadow map
 		};
 
 		VkDescriptorSetLayoutCreateInfo descriptorSetLayoutInfo{ .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
@@ -478,7 +480,7 @@ void Kleicha::init_load_scene() {
 	std::vector<glm::uvec3> unifiedTriangles{};
 	for (std::size_t i{ 0 }; i < meshes.size(); ++i) {
 
-		if(meshes[i].computeTangent)
+		if (meshes[i].computeTangent)
 			utils::compute_mesh_tangents(meshes[i]);
 
 		// store the current vertex and triangle counts
@@ -493,10 +495,9 @@ void Kleicha::init_load_scene() {
 		hostDraw.indicesCount = static_cast<uint32_t>(meshes[i].tInd.size() * glm::uvec3::length());
 
 		if (meshes[i].useAlphaTest)
-			m_sponzaAlphaDraws.push_back(hostDraw);
+			m_alphaDraws.push_back(hostDraw);
 		else
-			m_sponzaDraws.push_back(hostDraw);
-
+			m_draws.push_back(hostDraw);
 
 		// allocate memory for mesh vertex data and insert it
 		unifiedVertices.reserve(vertexCount + meshes[i].verts.size());
@@ -506,6 +507,10 @@ void Kleicha::init_load_scene() {
 		unifiedTriangles.reserve(triangleCount + meshes[i].tInd.size());
 		unifiedTriangles.insert(unifiedTriangles.end(), meshes[i].tInd.begin(), meshes[i].tInd.end());
 	}
+
+	m_meshTransforms.push_back(vkt::Transform{ .model = glm::translate(glm::mat4{1.0f}, glm::vec3{0.0f, -5.0f, -3.0f}) * glm::scale(glm::mat4{1.0f}, glm::vec3{5.0f, 5.0f, 5.0f})});
+	draws.push_back(vkt::DrawData{ .transformIndex = static_cast<uint32_t>(m_meshTransforms.size() - 1) });
+	m_bezierDraw = vkt::HostDrawData{ .drawId = static_cast<uint32_t>(draws.size() - 1)};
 
 	m_vertexBuffer = upload_data(unifiedVertices.data(), unifiedVertices.size() * sizeof(vkt::Vertex), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 	m_indexBuffer = upload_data(unifiedTriangles.data(), unifiedTriangles.size() * sizeof(glm::uvec3), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
@@ -524,7 +529,6 @@ void Kleicha::init_load_scene() {
 				break;
 			}
 		}
-
 		if(isNormalMap)
 			m_textures.push_back(upload_texture_image(texturePaths[i].c_str(), VK_FORMAT_R8G8B8A8_UNORM));
 		else
@@ -1084,18 +1088,18 @@ void Kleicha::record_draws(const vkt::Frame& frame, VkPipeline* opaquePipeline, 
 	assert(opaquePipeline);
 
 	vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, *opaquePipeline);
-	for (const auto& draw : m_sponzaDraws) {
+	for (const auto& draw : m_draws) {
 		m_pushConstants.drawId = draw.drawId;
-		vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
+		vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_ALL, 0, sizeof(vkt::PushConstants), &m_pushConstants);
 		vkCmdDrawIndexed(frame.cmdBuffer, draw.indicesCount, 1, draw.indicesOffset, draw.vertexOffset, 0);
 	}
 
 	if (alphaPipeline)
 		vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, *alphaPipeline);
 
-	for (const auto& draw : m_sponzaAlphaDraws) {
+	for (const auto& draw : m_alphaDraws) {
 		m_pushConstants.drawId = draw.drawId;
-		vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
+		vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_ALL, 0, sizeof(vkt::PushConstants), &m_pushConstants);
 		vkCmdDrawIndexed(frame.cmdBuffer, draw.indicesCount, 1, draw.indicesOffset, draw.vertexOffset, 0);
 	}
 }
@@ -1128,15 +1132,15 @@ void Kleicha::shadow_cube_pass(const vkt::Frame& frame) {
 
 		vkCmdBeginRendering(frame.cmdBuffer, &cubeShadowRenderingInfo);
 
-		for (const auto& draw : m_sponzaDraws) {
+		for (const auto& draw : m_draws) {
 			m_pushConstants.drawId = draw.drawId;
-			vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
+			vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_ALL, 0, sizeof(vkt::PushConstants), &m_pushConstants);
 			vkCmdDrawIndexed(frame.cmdBuffer, draw.indicesCount, 1, draw.indicesOffset, draw.vertexOffset, 0);
 		}
 
-		for (const auto& draw : m_sponzaAlphaDraws) {
+		for (const auto& draw : m_alphaDraws) {
 			m_pushConstants.drawId = draw.drawId;
-			vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
+			vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_ALL, 0, sizeof(vkt::PushConstants), &m_pushConstants);
 			vkCmdDrawIndexed(frame.cmdBuffer, draw.indicesCount, 1, draw.indicesOffset, draw.vertexOffset, 0);
 		}
 
@@ -1175,15 +1179,15 @@ void Kleicha::shadow_2D_pass(const vkt::Frame& frame) {
 
 		m_pushConstants.lightId = j;
 
-		for (const auto& draw : m_sponzaDraws) {
+		for (const auto& draw : m_draws) {
 			m_pushConstants.drawId = draw.drawId;
-			vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
+			vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_ALL, 0, sizeof(vkt::PushConstants), &m_pushConstants);
 			vkCmdDrawIndexed(frame.cmdBuffer, draw.indicesCount, 1, draw.indicesOffset, draw.vertexOffset, 0);
 		}
 
-		for (const auto& draw : m_sponzaAlphaDraws) {
+		for (const auto& draw : m_alphaDraws) {
 			m_pushConstants.drawId = draw.drawId;
-			vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vkt::PushConstants), &m_pushConstants);
+			vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_ALL, 0, sizeof(vkt::PushConstants), &m_pushConstants);
 			vkCmdDrawIndexed(frame.cmdBuffer, draw.indicesCount, 1, draw.indicesOffset, draw.vertexOffset, 0);
 		}
 
@@ -1358,6 +1362,12 @@ void Kleicha::draw(float currentTime) {
 	else
 		record_draws(frame, &m_lightPipeline, &m_lightAlphaPipeline);
 
+	m_pushConstants.drawId = m_bezierDraw.drawId;
+	vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_ALL, 0, sizeof(vkt::PushConstants), &m_pushConstants);
+	vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_bezierPipeline);
+
+	vkCmdDraw(frame.cmdBuffer, 1, 1, 0, 0);
+
 	vkCmdEndRendering(frame.cmdBuffer);
 
 	// transition image to transfer src
@@ -1500,6 +1510,7 @@ void Kleicha::cleanup() const {
 	vkDestroyDescriptorSetLayout(m_device.device, m_globDescSetLayout, nullptr);
 	vkDestroyDescriptorSetLayout(m_device.device, m_frameDescSetLayout, nullptr);
 
+	vkDestroyPipeline(m_device.device, m_bezierPipeline, nullptr);
 	vkDestroyPipeline(m_device.device, m_lightShadowPipeline, nullptr);
 	vkDestroyPipeline(m_device.device, m_lightCubeShadowPipeline, nullptr);
 	vkDestroyPipeline(m_device.device, m_lightCubeShadowPCSSPipeline, nullptr);

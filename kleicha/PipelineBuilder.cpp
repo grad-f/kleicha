@@ -13,6 +13,14 @@ void PipelineBuilder::reset() {
 	m_renderingInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
 }
 
+PipelineBuilder& PipelineBuilder::set_input_assembly_state(VkPrimitiveTopology topology) {
+
+	m_inputAssemblyInfo.topology = topology;
+	m_inputAssemblyInfo.primitiveRestartEnable = VK_FALSE;
+
+	return *this;
+}
+
 PipelineBuilder& PipelineBuilder::set_shaders(VkShaderModule* vertexShader, VkSpecializationInfo* vertSpecializationInfo, VkShaderModule* fragmentShader, VkSpecializationInfo* fragSpecializationInfo, VkShaderModule* tessControlShader, VkShaderModule* tessEvalShader) {
 
 	if (!m_shaderInfos.empty())
@@ -27,8 +35,6 @@ PipelineBuilder& PipelineBuilder::set_shaders(VkShaderModule* vertexShader, VkSp
 		shaderInfo.pSpecializationInfo = vertSpecializationInfo;
 	m_shaderInfos.emplace_back(shaderInfo);
 
-	
-	
 	if (fragmentShader) {
 		shaderInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
 		shaderInfo.module = *fragmentShader;
@@ -122,10 +128,6 @@ VkPipeline PipelineBuilder::build() {
 	pipelineInfo.pStages = m_shaderInfos.data();
 	pipelineInfo.pVertexInputState = &m_vertInputInfo; // we will be using buffer device address, no need to describe to the pipeline how to read the vertex attribute data.
 
-	// set this always to triangle list topology for now
-	m_inputAssemblyInfo.primitiveRestartEnable = VK_FALSE;
-	m_inputAssemblyInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-
 	pipelineInfo.pInputAssemblyState = &m_inputAssemblyInfo;
 
 	// viewport and scissor state will be set dynamically during command buffer recording
@@ -158,7 +160,12 @@ VkPipeline PipelineBuilder::build() {
 
 	pipelineInfo.pColorBlendState = &m_colorBlendInfo;
 
+	VkPipelineTessellationStateCreateInfo tessellationStateInfo{ .sType = VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO };
+	tessellationStateInfo.patchControlPoints = 1U;
+
 	pipelineInfo.layout = pipelineLayout;
+
+	pipelineInfo.pTessellationState = &tessellationStateInfo;
 
 	VkPipeline pipeline{};
 	VK_CHECK(vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline));

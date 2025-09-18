@@ -19,7 +19,7 @@ public:
 	VkPipelineLayout pipelineLayout{};
 	void reset();
 	VkPipeline build();
-
+	PipelineBuilder& set_input_assembly_state(VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
 	PipelineBuilder& set_shaders(VkShaderModule* vertexShader, VkSpecializationInfo* vertSpecializationInfo = nullptr, VkShaderModule* fragmentShader = nullptr, VkSpecializationInfo* fragSpecializationInfo = nullptr, VkShaderModule* tessControlShader = nullptr, VkShaderModule* tessEvalShader = nullptr);
 	PipelineBuilder& set_rasterizer_state(VkPolygonMode polygonMode, VkCullModeFlags cullMode, VkFrontFace frontFace, float depthBiasConstant = 0.0f, float depthBiasSlope = 0.0f);
 	PipelineBuilder& set_color_blend_state(VkColorComponentFlags colorComponentFlags, VkBool32 blendEnable = false);
