@@ -1366,7 +1366,7 @@ void Kleicha::draw(float currentTime) {
 	vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_ALL, 0, sizeof(vkt::PushConstants), &m_pushConstants);
 	vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_bezierPipeline);
 
-	vkCmdDraw(frame.cmdBuffer, 1, 1, 0, 0);
+	vkCmdDraw(frame.cmdBuffer, 16, 1, 0, 0);
 
 	vkCmdEndRendering(frame.cmdBuffer);
 

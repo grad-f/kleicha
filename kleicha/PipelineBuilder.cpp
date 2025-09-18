@@ -161,7 +161,7 @@ VkPipeline PipelineBuilder::build() {
 	pipelineInfo.pColorBlendState = &m_colorBlendInfo;
 
 	VkPipelineTessellationStateCreateInfo tessellationStateInfo{ .sType = VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO };
-	tessellationStateInfo.patchControlPoints = 1U;
+	tessellationStateInfo.patchControlPoints = 16U;
 
 	pipelineInfo.layout = pipelineLayout;
 
