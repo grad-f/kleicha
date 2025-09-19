@@ -10,8 +10,8 @@ The Tessellation Control Shader has access to all control points for a patch of 
 
 */
 
-layout(location = 0) in vec2 inTexCoords[];
-layout(location = 0) out vec2 outTexCoords[];
+layout(location = 0) in vec2 inUV[];
+layout(location = 0) out vec2 outUV[];
 
 void main() {	
 	
@@ -26,6 +26,6 @@ void main() {
 		gl_TessLevelInner[1] = tessLevels;
 	}
 
-	outTexCoords[gl_InvocationID] = inTexCoords[gl_InvocationID];
+	outUV[gl_InvocationID] = inUV[gl_InvocationID];
 	gl_out[gl_InvocationID].gl_Position = gl_in[gl_InvocationID].gl_Position;
 }

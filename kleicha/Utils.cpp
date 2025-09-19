@@ -448,7 +448,7 @@ namespace utils {
 
         std::size_t materialOffset{ textureIndices.size() };
 
-        uint32_t textureOffset{ static_cast<uint32_t>(texturePaths.size()) };
+        uint32_t textureOffset{ 1 + static_cast<uint32_t>(texturePaths.size()) };
 
         if (result != cgltf_result_success) {
             cgltf_free(data);
@@ -551,7 +551,7 @@ namespace utils {
                     transforms.push_back(vkt::Transform{ model });
                     draws.push_back(vkt::DrawData{ 0, static_cast<uint32_t>(matIndex + materialOffset), static_cast<uint32_t>(transforms.size() - 1) });
                 }
-
+                
             }
         }
 
@@ -562,17 +562,17 @@ namespace utils {
             
             if (material->has_pbr_metallic_roughness) {
                 if (material->pbr_metallic_roughness.base_color_texture.texture)
-                    indices.albedoTexture = 1 + textureOffset + static_cast<uint32_t>(cgltf_texture_index(data, material->pbr_metallic_roughness.base_color_texture.texture));
+                    indices.albedoTexture = textureOffset + static_cast<uint32_t>(cgltf_texture_index(data, material->pbr_metallic_roughness.base_color_texture.texture));
 
                 if (material->pbr_metallic_roughness.metallic_roughness_texture.texture)
-                    indices.heightTexture = 1 + textureOffset + static_cast<uint32_t>(cgltf_texture_index(data, material->pbr_metallic_roughness.metallic_roughness_texture.texture));
+                    indices.heightTexture = textureOffset + static_cast<uint32_t>(cgltf_texture_index(data, material->pbr_metallic_roughness.metallic_roughness_texture.texture));
             }
 
             if (material->normal_texture.texture)
-                indices.normalTexture = 1 + textureOffset + static_cast<uint32_t>(cgltf_texture_index(data, material->normal_texture.texture));
+                indices.normalTexture = textureOffset + static_cast<uint32_t>(cgltf_texture_index(data, material->normal_texture.texture));
 
             if (material->emissive_texture.texture)
-                indices.emissiveTexture = 1 + textureOffset + static_cast<uint32_t>(cgltf_texture_index(data, material->emissive_texture.texture));
+                indices.emissiveTexture = textureOffset + static_cast<uint32_t>(cgltf_texture_index(data, material->emissive_texture.texture));
 
             textureIndices.push_back(indices);
         }

@@ -207,7 +207,7 @@ void Kleicha::init_graphics_pipelines() {
 	PipelineBuilder pipelineBuilder{ m_device.device };
 	pipelineBuilder.pipelineLayout = m_dummyPipelineLayout;
 	pipelineBuilder.set_input_assembly_state(VK_PRIMITIVE_TOPOLOGY_PATCH_LIST);
-	pipelineBuilder.set_rasterizer_state(VK_POLYGON_MODE_LINE , VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+	pipelineBuilder.set_rasterizer_state(VK_POLYGON_MODE_FILL , VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
 	pipelineBuilder.set_color_blend_state(VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT, false);
 	pipelineBuilder.set_depth_stencil_state(VK_TRUE);
 	pipelineBuilder.set_depth_attachment_format(DEPTH_IMAGE_FORMAT);
@@ -474,8 +474,6 @@ void Kleicha::init_load_scene() {
 		throw std::runtime_error{ "[Kleicha] Failed to load scene!" };
 	}
 
-
-	// now we would like to traverse meshes and build the unified vertex and indices buffer where host draws will keep track of our different meshes
 	std::vector<vkt::Vertex> unifiedVertices{};
 	std::vector<glm::uvec3> unifiedTriangles{};
 	for (std::size_t i{ 0 }; i < meshes.size(); ++i) {
@@ -508,8 +506,12 @@ void Kleicha::init_load_scene() {
 		unifiedTriangles.insert(unifiedTriangles.end(), meshes[i].tInd.begin(), meshes[i].tInd.end());
 	}
 
+	// load any other draw data we're interested in -- bit of a crude approach for now.
+	uint32_t texIndicesArrOffset{ static_cast<uint32_t>(texIndices.size()) };
+	uint32_t textureOffset{ static_cast<uint32_t>(1 + texturePaths.size() ) };
+	texIndices.push_back(vkt::TextureIndices{ .albedoTexture = textureOffset });
 	m_meshTransforms.push_back(vkt::Transform{ .model = glm::translate(glm::mat4{1.0f}, glm::vec3{0.0f, -5.0f, -3.0f}) * glm::scale(glm::mat4{1.0f}, glm::vec3{5.0f, 5.0f, 5.0f})});
-	draws.push_back(vkt::DrawData{ .transformIndex = static_cast<uint32_t>(m_meshTransforms.size() - 1) });
+	draws.push_back(vkt::DrawData{ .textureIndex = texIndicesArrOffset, .transformIndex = static_cast<uint32_t>(m_meshTransforms.size() - 1) });
 	m_bezierDraw = vkt::HostDrawData{ .drawId = static_cast<uint32_t>(draws.size() - 1)};
 
 	m_vertexBuffer = upload_data(unifiedVertices.data(), unifiedVertices.size() * sizeof(vkt::Vertex), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
@@ -518,7 +520,6 @@ void Kleicha::init_load_scene() {
 	m_textureIndicesBuffer = upload_data(texIndices.data(), sizeof(vkt::TextureIndices) * texIndices.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 	
 	m_textures.push_back(upload_texture_image("../textures/empty.jpg"));
-
 	for (std::size_t i{ 0 }; i < texturePaths.size(); ++i) {
 		// check if the texture we're processing is a normal map
 		bool isNormalMap{ false };
@@ -534,6 +535,8 @@ void Kleicha::init_load_scene() {
 		else
 			m_textures.push_back(upload_texture_image(texturePaths[i].c_str()));
 	}
+	m_textures.push_back(upload_texture_image("../textures/brick_color.png"));
+
 
 }
 

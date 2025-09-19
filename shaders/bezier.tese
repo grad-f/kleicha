@@ -1,12 +1,14 @@
 #version 450
 #extension GL_EXT_nonuniform_qualifier : require
+#extension GL_EXT_debug_printf : enable
+
 
 layout(quads, equal_spacing, ccw) in;
 
 #include "common.h"
 
-layout(location = 0) in vec2 inTexCoords[];
-layout(location = 0) out vec2 outTexCoords;
+layout(location = 0) in vec2 inUV[];
+layout(location = 0) out vec2 outUV;
 
 void main() {
 	
@@ -31,6 +33,7 @@ void main() {
 	vec3 p23 = gl_in[14].gl_Position.xyz;
 	vec3 p33 = gl_in[15].gl_Position.xyz;
 
+	// output from tessellator are [0,1]
 	float u = gl_TessCoord.x;
 	float v = gl_TessCoord.y;
 
@@ -49,6 +52,11 @@ void main() {
 		+ bu1 * ( bv0*p10 + bv1*p11 + bv2*p12 + bv3*p13 )
 		+ bu2 * ( bv0*p20 + bv1*p21 + bv2*p22 + bv3*p23 )
 		+ bu3 * ( bv0*p30 + bv1*p31 + bv2*p32 + bv3*p33 );
+	
+	// use control point texture coordinates and lerp to compute vertex tc
+	vec2 topTC = mix(inUV[0], inUV[3], u);
+	vec2 bottomTC = mix(inUV[12], inUV[15], u);
+	outUV = mix(bottomTC, topTC, v);
 
 	gl_Position = pc.perspectiveProj * transform.modelView * vec4(outputPosition, 1.0f);
 	//gl_Position = pc.perspectiveProj * transform.modelView * vec4(u, 0, v, 1.0f);
