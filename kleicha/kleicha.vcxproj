@@ -269,6 +269,8 @@
     <None Include="..\shaders\environmentMapping.vert" />
     <None Include="..\shaders\environmentMappingReflect.frag" />
     <None Include="..\shaders\environmentMappingRefract.frag" />
+    <None Include="..\shaders\light.frag" />
+    <None Include="..\shaders\light.vert" />
     <None Include="..\shaders\lightDraws.frag" />
     <None Include="..\shaders\lightDraws.vert" />
     <None Include="..\shaders\omniShadow.frag" />

@@ -17,9 +17,9 @@
 namespace std {
     template<> struct hash<vkt::Vertex> {
         size_t operator()(vkt::Vertex const& vertex) const {
-            return ((hash<glm::vec3>()(vertex.position) ^
-                (hash<glm::vec3>()(vertex.normal) << 1)) >> 1) ^
-                (hash<glm::vec2>()(vertex.UV) << 1);
+            return ((hash<glm::vec3>()(vertex.m_v3Position) ^
+                (hash<glm::vec3>()(vertex.m_v3Normal) << 1)) >> 1) ^
+                (hash<glm::vec2>()(vertex.m_v2UV) << 1);
         }
     };
 }
@@ -248,15 +248,15 @@ namespace utils {
                 // slice radius
                 float x{ -cos(glm::radians(j * 360.0f / prec)) * abs(cos(asin(y))) };
                 float z{ sin(glm::radians(j * 360.0f / prec)) * abs(cos(asin(y))) };
-                mesh.verts[i * (prec + 1) + j].position = { x,y,z };
-                mesh.verts[i * (prec + 1) + j].UV = { static_cast<float>(j) / prec, static_cast<float>(i) / prec };
-                mesh.verts[i * (prec + 1) + j].normal = { x,y,z };
+                mesh.verts[i * (prec + 1) + j].m_v3Position = { x,y,z };
+                mesh.verts[i * (prec + 1) + j].m_v2UV = { static_cast<float>(j) / prec, static_cast<float>(i) / prec };
+                mesh.verts[i * (prec + 1) + j].m_v3Normal = { x,y,z };
 
                 //compute tangent
                 if (((x == 0) && (y == 1) && (z == 0)) || ((x == 0) && (y == -1) && (z == 0)))
-                    mesh.verts[i * (prec + 1) + j].tangent = glm::vec4{ 0.0f, 0.0f, -1.0f, 1.0f };
+                    mesh.verts[i * (prec + 1) + j].m_v4Tangent = glm::vec4{ 0.0f, 0.0f, -1.0f, 1.0f };
                 else
-                    mesh.verts[i * (prec + 1) + j].tangent = glm::vec4{ glm::cross(glm::vec3{ 0.0f, 1.0f, 0.0f }, glm::vec3{ x,y,z }), 1.0f };
+                    mesh.verts[i * (prec + 1) + j].m_v4Tangent = glm::vec4{ glm::cross(glm::vec3{ 0.0f, 1.0f, 0.0f }, glm::vec3{ x,y,z }), 1.0f };
             }
         }
 
@@ -289,14 +289,14 @@ namespace utils {
             // init pos is the initial slice vertex position with outer radius
             glm::vec3 initPos{ rot * glm::vec4{0.0f, outer, 0.0f, 1.0f} };
             // store the init pos displaced by inner units in the x
-            mesh.verts[i].position = initPos + glm::vec3{ inner, 0.0f, 0.0f };
+            mesh.verts[i].m_v3Position = initPos + glm::vec3{ inner, 0.0f, 0.0f };
             // all vertices that share this slice will map to a vertical stripe in the texture image
-            mesh.verts[i].UV = glm::vec2{ 0.0f, static_cast<float>(i) / prec };
+            mesh.verts[i].m_v2UV = glm::vec2{ 0.0f, static_cast<float>(i) / prec };
             // rotation about z by vertRadians + 90 degrees
             rot = glm::rotate(glm::mat4{ 1.0f }, vertRadians + glm::radians(90.0f), glm::vec3{0.0f, 0.0f, 1.0f});
-            mesh.verts[i].tangent = rot * glm::vec4{0.0f, -1.0f, 0.0f, 1.0f};
-            mesh.verts[i].bitangent = glm::vec3{ 0.0f, 0.0f, -1.0f };
-            mesh.verts[i].normal = glm::cross(glm::vec3{ mesh.verts[i].tangent }, mesh.verts[i].bitangent);
+            mesh.verts[i].m_v4Tangent = rot * glm::vec4{0.0f, -1.0f, 0.0f, 1.0f};
+            mesh.verts[i].m_v3Bitangent = glm::vec3{ 0.0f, 0.0f, -1.0f };
+            mesh.verts[i].m_v3Normal = glm::cross(glm::vec3{ mesh.verts[i].m_v4Tangent }, mesh.verts[i].m_v3Bitangent);
         }
 
         // for each of the vertices that make up the initial slice, we rotate them about the y axis
@@ -305,13 +305,13 @@ namespace utils {
             float ringRadians{ glm::radians(ring * 360.0f / prec) };
             for (std::size_t vert{ 0 }; vert < prec + 1; ++vert) {
                 glm::mat4 rMat{ glm::rotate(glm::mat4{1.0f}, ringRadians, glm::vec3{0.0f, 1.0f, 0.0f}) };
-                mesh.verts[ring * (prec + 1) + vert].position = rMat * glm::vec4{ mesh.verts[vert].position, 1.0f };
-                mesh.verts[ring * (prec + 1) + vert].UV = glm::vec2{static_cast<float>(ring * 3.0f) / prec, mesh.verts[vert].UV.t};
+                mesh.verts[ring * (prec + 1) + vert].m_v3Position = rMat * glm::vec4{ mesh.verts[vert].m_v3Position, 1.0f };
+                mesh.verts[ring * (prec + 1) + vert].m_v2UV = glm::vec2{static_cast<float>(ring * 3.0f) / prec, mesh.verts[vert].m_v2UV.t};
 
                 // we're safe to rotate our direction vectors as the rotation matrix is orthonormal and the inverse transpose yields the same matrix
-                mesh.verts[ring * (prec + 1) + vert].tangent = rMat * mesh.verts[vert].tangent;
-                mesh.verts[ring * (prec + 1) + vert].bitangent = rMat * glm::vec4{ mesh.verts[vert].bitangent, 1.0f };
-                mesh.verts[ring * (prec + 1) + vert].normal = rMat * glm::vec4{ mesh.verts[vert].normal, 1.0f };
+                mesh.verts[ring * (prec + 1) + vert].m_v4Tangent = rMat * mesh.verts[vert].m_v4Tangent;
+                mesh.verts[ring * (prec + 1) + vert].m_v3Bitangent = rMat * glm::vec4{ mesh.verts[vert].m_v3Bitangent, 1.0f };
+                mesh.verts[ring * (prec + 1) + vert].m_v3Normal = rMat * glm::vec4{ mesh.verts[vert].m_v3Normal, 1.0f };
             }
         }
 
@@ -339,13 +339,13 @@ namespace utils {
             uint32_t i3 = triangle.z;
 
             // store references to triangle vertex positions and texture coords
-            const glm::vec3& v1{ mesh.verts[i1].position };
-            const glm::vec3& v2{ mesh.verts[i2].position };
-            const glm::vec3& v3{ mesh.verts[i3].position };
+            const glm::vec3& v1{ mesh.verts[i1].m_v3Position };
+            const glm::vec3& v2{ mesh.verts[i2].m_v3Position };
+            const glm::vec3& v3{ mesh.verts[i3].m_v3Position };
 
-            const glm::vec2& w1{ mesh.verts[i1].UV };
-            const glm::vec2& w2{ mesh.verts[i2].UV };
-            const glm::vec2& w3{ mesh.verts[i3].UV };
+            const glm::vec2& w1{ mesh.verts[i1].m_v2UV };
+            const glm::vec2& w2{ mesh.verts[i2].m_v2UV };
+            const glm::vec2& w3{ mesh.verts[i3].m_v2UV };
 
             float x1{ v2.x - v1.x };
             float x2{ v3.x - v1.x };
@@ -372,14 +372,14 @@ namespace utils {
         }
 
         for (std::size_t i{ 0 }; i < vertsCount; ++i) {
-            const glm::vec3& N = mesh.verts[i].normal;
+            const glm::vec3& N = mesh.verts[i].m_v3Normal;
             const glm::vec3& T = tan1[i];
 
             // re-orthogonalize 
-            mesh.verts[i].tangent = glm::vec4{ glm::normalize((T - N * glm::dot(N, T))), 0.0f };
+            mesh.verts[i].m_v4Tangent = glm::vec4{ glm::normalize((T - N * glm::dot(N, T))), 0.0f };
 
             // calculuate tangent space handedness. we will factor this into our bitangent computations
-            mesh.verts[i].tangent.w = (glm::dot(glm::cross(N, T), tan2[i]) < 0.0f) ? -1.0f : 1.0f;
+            mesh.verts[i].m_v4Tangent.w = (glm::dot(glm::cross(N, T), tan2[i]) < 0.0f) ? -1.0f : 1.0f;
         }
     }
 
@@ -407,9 +407,9 @@ namespace utils {
                 vkt::Vertex vertex{};
 
                 // index the vertex data stored in attrib using the indices to generate the vertex data
-                vertex.position = { attrib.vertices[3 * posIndex + 0], attrib.vertices[3 * posIndex + 1], attrib.vertices[3 * posIndex + 2] };
-                vertex.normal = { attrib.normals[3 * normIndex + 0], attrib.normals[3 * normIndex + 1], attrib.normals[3 * normIndex + 2] };
-                vertex.UV = { attrib.texcoords[2 * texIndex + 0], attrib.texcoords[2 * texIndex + 1] };
+                vertex.m_v3Position = { attrib.vertices[3 * posIndex + 0], attrib.vertices[3 * posIndex + 1], attrib.vertices[3 * posIndex + 2] };
+                vertex.m_v3Normal = { attrib.normals[3 * normIndex + 0], attrib.normals[3 * normIndex + 1], attrib.normals[3 * normIndex + 2] };
+                vertex.m_v2UV = { attrib.texcoords[2 * texIndex + 0], attrib.texcoords[2 * texIndex + 1] };
 
                 // check if vertex already exists in our unique vertices map
                 if (uniqueVertices.count(vertex) == 0) {
@@ -441,12 +441,12 @@ namespace utils {
         return mesh;
     }
 
-    bool load_gltf(const char* filePath, std::vector<vkt::Mesh>& meshes, std::vector<vkt::DrawData>& draws, std::vector<vkt::Transform>& transforms, std::vector<vkt::TextureIndices>& textureIndices, std::vector<std::string>& texturePaths) {
+    bool load_gltf(const char* filePath, std::vector<vkt::Mesh>& meshes, std::vector<vkt::DrawData>& draws, std::vector<vkt::Transform>& transforms, std::vector<vkt::Material>& materials, std::vector<std::string>& texturePaths) {
         cgltf_options options{};
         cgltf_data* data{};
         cgltf_result result{ cgltf_parse_file(&options, filePath, &data) };
 
-        std::size_t materialOffset{ textureIndices.size() };
+        std::size_t materialOffset{ materials.size() };
 
         uint32_t textureOffset{ 1 + static_cast<uint32_t>(texturePaths.size()) };
 
@@ -497,7 +497,7 @@ namespace utils {
                         cgltf_accessor_unpack_floats(pos, scratchData.data(), vertexCount * 3);
 
                         for (std::size_t x{ 0 }; x < vertexCount; ++x) {
-                            vertices[x].position = { scratchData[x * 3 + 0], scratchData[x * 3 + 1], scratchData[x * 3 + 2]};
+                            vertices[x].m_v3Position = { scratchData[x * 3 + 0], scratchData[x * 3 + 1], scratchData[x * 3 + 2]};
                         }
                     }
 
@@ -508,7 +508,7 @@ namespace utils {
                         cgltf_accessor_unpack_floats(tex, scratchData.data(), vertexCount * 2);
 
                         for (std::size_t x{ 0 }; x < vertexCount; ++x) {
-                            vertices[x].UV = { scratchData[x * 2 + 0], scratchData[x * 2 + 1] };
+                            vertices[x].m_v2UV = { scratchData[x * 2 + 0], scratchData[x * 2 + 1] };
                         }
                     }
 
@@ -519,7 +519,7 @@ namespace utils {
                         cgltf_accessor_unpack_floats(norm, scratchData.data(), vertexCount * 3);
 
                         for (std::size_t x{ 0 }; x < vertexCount; ++x) {
-                            vertices[x].normal = { scratchData[x * 3 + 0], scratchData[x * 3 + 1], scratchData[x * 3 + 2] };
+                            vertices[x].m_v3Normal = { scratchData[x * 3 + 0], scratchData[x * 3 + 1], scratchData[x * 3 + 2] };
                         }
 
                     }
@@ -531,7 +531,7 @@ namespace utils {
                         cgltf_accessor_unpack_floats(tan, scratchData.data(), vertexCount * 4);
 
                         for (std::size_t x{ 0 }; x < vertexCount; ++x) {
-                            vertices[x].tangent = { scratchData[x * 4 + 0], scratchData[x * 4 + 1], scratchData[x*4+2], scratchData[x*4+3]};
+                            vertices[x].m_v4Tangent = { scratchData[x * 4 + 0], scratchData[x * 4 + 1], scratchData[x*4+2], scratchData[x*4+3]};
                         }
 
                         computeTangent = false;
@@ -549,7 +549,7 @@ namespace utils {
 
                     meshes.push_back(vkt::Mesh{ indices, vertices, useAlphaTest, computeTangent });
                     transforms.push_back(vkt::Transform{ model });
-                    draws.push_back(vkt::DrawData{ 0, static_cast<uint32_t>(matIndex + materialOffset), static_cast<uint32_t>(transforms.size() - 1) });
+                    draws.push_back(vkt::DrawData{ static_cast<uint32_t>(matIndex + materialOffset), static_cast<uint32_t>(transforms.size() - 1) });
                 }
                 
             }
@@ -557,24 +557,24 @@ namespace utils {
 
         for (std::size_t i{ 0 }; i < data->materials_count; ++i) {
             
-            cgltf_material* material{ &data->materials[i] };
-            vkt::TextureIndices indices{};
+            cgltf_material* cgltfMaterial{ &data->materials[i] };
+            vkt::Material material{ vkt::Material::none()};
             
-            if (material->has_pbr_metallic_roughness) {
-                if (material->pbr_metallic_roughness.base_color_texture.texture)
-                    indices.albedoTexture = textureOffset + static_cast<uint32_t>(cgltf_texture_index(data, material->pbr_metallic_roughness.base_color_texture.texture));
+            if (cgltfMaterial->has_pbr_metallic_roughness) {
+                if (cgltfMaterial->pbr_metallic_roughness.base_color_texture.texture)
+                    material.m_uiAlbedoTexture = textureOffset + static_cast<uint32_t>(cgltf_texture_index(data, cgltfMaterial->pbr_metallic_roughness.base_color_texture.texture));
 
-                if (material->pbr_metallic_roughness.metallic_roughness_texture.texture)
-                    indices.heightTexture = textureOffset + static_cast<uint32_t>(cgltf_texture_index(data, material->pbr_metallic_roughness.metallic_roughness_texture.texture));
+                if (cgltfMaterial->pbr_metallic_roughness.metallic_roughness_texture.texture)
+                    material.m_uiAlbedoTexture = textureOffset + static_cast<uint32_t>(cgltf_texture_index(data, cgltfMaterial->pbr_metallic_roughness.metallic_roughness_texture.texture));
             }
 
-            if (material->normal_texture.texture)
-                indices.normalTexture = textureOffset + static_cast<uint32_t>(cgltf_texture_index(data, material->normal_texture.texture));
+            if (cgltfMaterial->normal_texture.texture)
+                material.m_uiNormalTexture = textureOffset + static_cast<uint32_t>(cgltf_texture_index(data, cgltfMaterial->normal_texture.texture));
 
-            if (material->emissive_texture.texture)
-                indices.emissiveTexture = textureOffset + static_cast<uint32_t>(cgltf_texture_index(data, material->emissive_texture.texture));
+            if (cgltfMaterial->emissive_texture.texture)
+                material.m_uiEmissiveTexture = textureOffset + static_cast<uint32_t>(cgltf_texture_index(data, cgltfMaterial->emissive_texture.texture));
 
-            textureIndices.push_back(indices);
+            materials.push_back(material);
         }
 
         for (std::size_t i{ 0 }; i < data->textures_count; ++i) {

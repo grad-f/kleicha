@@ -36,27 +36,10 @@ private:
 	VkFence m_immFence{};
 
 	VkPipelineLayout m_dummyPipelineLayout{};
-	VkPipeline m_lightPipeline{};
-	VkPipeline m_lightShadowPipeline{};
+	VkPipeline m_blinnPhongPipeline{};
+	VkPipeline m_GGXPipeline{};
 	VkPipeline m_shadowPipeline{};
 	VkPipeline m_cubeShadowPipeline;
-	VkPipeline m_lightCubeShadowPCSSPipeline;
-	VkPipeline m_lightCubeShadowPipeline{};
-	VkPipeline m_skyboxPipeline{};
-	VkPipeline m_reflectPipeline{};
-	VkPipeline m_refractPipeline{};
-	VkPipeline m_bezierPipeline{};
-
-	VkPipeline m_lightAlphaPipeline;
-	VkPipeline m_lightShadowAlphaPipeline;
-	VkPipeline m_lightCubeShadowAlphaPipeline;
-	VkPipeline m_lightCubeShadowPCSSAlphaPipeline;
-
-	bool m_enableShadows{ false };
-	bool m_enableCubeShadows{ false };
-	bool m_enableCubeShadowsPCSS{ true };
-	bool m_enableBumpMapping{ true };
-	bool m_enableHeightMapping{ false };
 
 	VmaAllocator m_allocator{};
 
@@ -83,7 +66,6 @@ private:
 	// this buffer specifies indicies and offsets to the other buffers available in the shader
 	vkt::Buffer m_drawBuffer{};
 	vkt::Buffer m_globalsBuffer{};
-	vkt::Buffer m_textureIndicesBuffer{};
 
 	// each of these sets of draw data will be drawn with a different pipeline, provides flexibility.
 	std::vector<vkt::HostDrawData> m_draws{};
@@ -93,7 +75,7 @@ private:
 	//std::vector<VkDrawIndexedIndirectCommand> m_drawIndirectParams{};
 	std::vector<vkt::Transform> m_meshTransforms{};
 	std::vector<vkt::Material> m_materials{};
-	std::vector<vkt::Light> m_lights{};
+	std::vector<vkt::PointLight> m_pointLights{};
 
 	glm::mat4 m_persp{ utils::perspective(1000.0f, 0.1f) };
 

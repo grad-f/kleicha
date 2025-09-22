@@ -44,7 +44,6 @@ vec3 calcShadingNormal(uint textureIndex) {
 }
 
 void main() {
-
 	DrawData dd = draws[pc.drawId];
 	Material material = materials[dd.materialIndex];
 	TextureData textureData = textures[dd.textureIndex];

@@ -1,57 +1,40 @@
 struct Vertex {
-	vec3 position;
-	vec2 UV;
-	vec3 normal;
-	vec4 tangent;
-	vec3 bitangent;
+	vec3 v3Position;
+	vec2 v2UV;
+	vec3 v3Normal;
+	vec4 v4Tangent;
+	vec3 v4Bitangent;
 };
 
 struct GlobalData {
-	vec4 ambientLight;
-	mat4 bias;
-	uint lightsCount;
-	uint skyboxTexIndex;
+	vec3 v3CameraPosition;
+	uint uilightCount;
 };
 
 struct DrawData {
-	uint materialIndex;
-	uint textureIndex;
-	uint transformIndex;
+	uint uiMaterialIndex;
+	uint uiTransformIndex;
 };
 
 struct Transform {
-	mat4 model;
-	mat4 modelView;
-	mat4 modelInvTr;
-	mat4 modelViewInvTr;
+	mat4 m4Model;
+	mat4 m4ModelInvTr;
 };
 
 struct Material {
-	vec4 ambient;
-	vec4 diffuse;
-	vec4 specular;
-	float shininess;
-	float refractiveIndex;
+	vec3 v3Diffuse;	
+	vec3 v3Specular;
+	float fShininess;
+	uint uiAlbedoTexture;
+	uint uiNormalTexture;
+	uint uiHeightTexture;
+	uint uiEmissiveTexture;
 };
 
-struct Light {
-	vec4 ambient;
-	vec4 diffuse;
-	vec4 specular;
-	mat4 viewProj;
-	mat4 cubeViewProjs[6];
-	vec3 attenuationFactors;
-	float lightSize;
-	vec3 mPos;
-	float frustumWidth;
-	vec3 mvPos;
-};
-
-struct TextureData {
-	uint albedoTexture;
-	uint normalTexture;
-	uint heightTexture;
-	uint emissiveTexture;
+struct PointLight {
+	vec3 v3Position;
+	vec3 v3Intensity;
+	float m_fFalloff;
 };
 
 layout(binding = 0, set = 0) readonly buffer Vertices {
@@ -66,10 +49,6 @@ layout(binding = 2, set = 0) readonly buffer Globals {
 	GlobalData globals;
 };
 
-layout(binding = 3, set = 0) readonly buffer Textures {
-	TextureData textures[];
-};
-
 // view * model
 layout(binding = 0, set = 1) readonly buffer Transforms {
 	Transform transforms[];
@@ -80,20 +59,17 @@ layout(binding = 1, set = 1) readonly buffer Materials {
 };
 
 layout(binding = 2, set = 1) readonly buffer Lights {
-	Light lights[];
+	PointLight lights[];
 };
 
-layout(set = 0, binding = 4) uniform sampler2D texSampler[];
-layout(set = 0, binding = 4) uniform samplerCube texCubeSampler[];
+layout(set = 0, binding = 3) uniform sampler2D texSampler[];
+layout(set = 0, binding = 3) uniform samplerCube texCubeSampler[];
 
 layout(set = 1, binding = 3) uniform sampler2D shadowSampler[];
 layout(set = 1, binding = 4) uniform samplerCube cubeShadowSampler[];
 
 layout(push_constant) uniform constants {
-	mat4 perspectiveProj;
-	vec3 viewWorldPos;
-	uint drawId;
-	uint lightId;
-	uint enableBumpMapping;
-	uint enableHeightMapping;
+	// orthographic projection * perspective * view
+	mat4 m4ViewProjection;
+	uint uidrawId;
 }pc;

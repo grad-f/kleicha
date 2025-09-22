@@ -162,7 +162,7 @@ void Kleicha::init_sync_primitives() {
 void Kleicha::init_graphics_pipelines() {
 
 	// create dummy shader modules to test pipeline builder.
-	VkPushConstantRange pushConstantRange{ .stageFlags = VK_SHADER_STAGE_ALL, .offset = 0, .size = sizeof(vkt::PushConstants)};
+	VkPushConstantRange pushConstantRange{ .stageFlags = VK_SHADER_STAGE_ALL, .offset = 0, .size = sizeof(vkt::PushConstants) };
 
 	VkDescriptorSetLayout setLayouts[]{ m_globDescSetLayout, m_frameDescSetLayout };
 
@@ -173,14 +173,8 @@ void Kleicha::init_graphics_pipelines() {
 	pipelineLayoutInfo.pSetLayouts = setLayouts;
 	vkCreatePipelineLayout(m_device.device, &pipelineLayoutInfo, nullptr, &m_dummyPipelineLayout);
 
-	VkShaderModule lightShadowVertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_blinnPhongShadows.spv") };
-	VkShaderModule lightShadowFragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_blinnPhongShadowsPCF.spv") };
-
-	VkShaderModule lightCubeShadowFragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_blinnPhongCubeShadowsPCF.spv") };
-	VkShaderModule lightCubeShadowPCSSFragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_blinnPhongCubeShadowsPCSS.spv") };
-
-	VkShaderModule lightVertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_blinnPhong.spv") };
-	VkShaderModule lightFragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_blinnPhong.spv") };
+	VkShaderModule blinnPhongVertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_light.spv") };
+	VkShaderModule blinnPhongFragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_light.spv") };
 
 	VkShaderModule shadowVertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_shadow.spv") };
 	VkShaderModule shadowFragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_shadow.spv") };
@@ -188,48 +182,17 @@ void Kleicha::init_graphics_pipelines() {
 	VkShaderModule cubeShadowVertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_omniShadow.spv") };
 	VkShaderModule cubeShadowFragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_omniShadow.spv") };
 
-	//VkShaderModule lightDrawsVertModule{utils::create_shader_module(m_device.device, "../shaders/vert_lightDraws.spv")};
-	//VkShaderModule lightDrawsFragModule{utils::create_shader_module(m_device.device, "../shaders/frag_lightDraws.spv")};
-
-	VkShaderModule skyboxVertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_skybox.spv") };
-	VkShaderModule skyboxFragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_skybox.spv") };
-
-	VkShaderModule environmentMapVertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_environmentMapping.spv") };
-	VkShaderModule reflectFragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_environmentMappingReflect.spv") };
-	VkShaderModule refractFragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_environmentMappingRefract.spv") };
-
-
-	VkShaderModule bezierVertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_bezier.spv") };
-	VkShaderModule bezierTCSModule{ utils::create_shader_module(m_device.device, "../shaders/tesc_bezier.spv") };
-	VkShaderModule bezierTESModule{ utils::create_shader_module(m_device.device, "../shaders/tese_bezier.spv") };
-	VkShaderModule bezierFragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_bezier.spv") };
-
 	PipelineBuilder pipelineBuilder{ m_device.device };
 	pipelineBuilder.pipelineLayout = m_dummyPipelineLayout;
-	pipelineBuilder.set_input_assembly_state(VK_PRIMITIVE_TOPOLOGY_PATCH_LIST);
-	pipelineBuilder.set_rasterizer_state(VK_POLYGON_MODE_FILL , VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+	pipelineBuilder.set_input_assembly_state(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+	pipelineBuilder.set_rasterizer_state(VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
 	pipelineBuilder.set_color_blend_state(VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT, false);
 	pipelineBuilder.set_depth_stencil_state(VK_TRUE);
 	pipelineBuilder.set_depth_attachment_format(DEPTH_IMAGE_FORMAT);
 	pipelineBuilder.set_color_attachment_format(INTERMEDIATE_IMAGE_FORMAT);
-	pipelineBuilder.set_shaders(&bezierVertModule, nullptr, &bezierFragModule, nullptr, &bezierTCSModule, &bezierTESModule);
-	m_bezierPipeline = pipelineBuilder.build();
 
-	pipelineBuilder.set_input_assembly_state(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-	pipelineBuilder.set_shaders(&lightVertModule, nullptr, &lightFragModule);
-	m_lightPipeline = pipelineBuilder.build();
-
-	//	2D pcf
-	pipelineBuilder.set_shaders(&lightShadowVertModule, nullptr, &lightShadowFragModule);
-	m_lightShadowPipeline = pipelineBuilder.build();
-
-	//	PCF
-	pipelineBuilder.set_shaders(&lightShadowVertModule, nullptr, &lightCubeShadowFragModule);
-	m_lightCubeShadowPipeline = pipelineBuilder.build();
-
-	//	PCSS
-	pipelineBuilder.set_shaders(&lightShadowVertModule, nullptr, &lightCubeShadowPCSSFragModule);
-	m_lightCubeShadowPCSSPipeline = pipelineBuilder.build();
+	pipelineBuilder.set_shaders(&blinnPhongVertModule, nullptr, &blinnPhongFragModule);
+	m_blinnPhongPipeline = pipelineBuilder.build();
 
 	/*	the below defined speciailization constant allows the driver compiler to optimize around our alpha testing
 	allowing us to retain early - z occlusion culling when rendering meshes that aren't performing alpha testing	*/
@@ -246,19 +209,7 @@ void Kleicha::init_graphics_pipelines() {
 	specializationInfo.dataSize = sizeof(uint32_t);
 	specializationInfo.pData = &useAlphaTest;
 
-	pipelineBuilder.set_shaders(&lightVertModule, nullptr, &lightFragModule, &specializationInfo);
-	m_lightAlphaPipeline = pipelineBuilder.build();
-
-	pipelineBuilder.set_shaders(&lightShadowVertModule, nullptr, &lightShadowFragModule, &specializationInfo);
-	m_lightShadowAlphaPipeline = pipelineBuilder.build();
-
-	pipelineBuilder.set_shaders(&lightShadowVertModule, nullptr, &lightCubeShadowPCSSFragModule, &specializationInfo);
-	m_lightCubeShadowPCSSAlphaPipeline = pipelineBuilder.build();
-
-	pipelineBuilder.set_shaders(&lightShadowVertModule, nullptr, &lightCubeShadowFragModule, &specializationInfo);
-	m_lightCubeShadowAlphaPipeline = pipelineBuilder.build();
-
-	pipelineBuilder.set_rasterizer_state(VK_POLYGON_MODE_FILL, VK_CULL_MODE_FRONT_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE, -1.25f, -1.75f);
+	/*pipelineBuilder.set_rasterizer_state(VK_POLYGON_MODE_FILL, VK_CULL_MODE_FRONT_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE, -1.25f, -1.75f);
 	pipelineBuilder.set_shaders(&shadowVertModule, nullptr, &shadowFragModule);
 	pipelineBuilder.disable_color_output();
 	m_shadowPipeline = pipelineBuilder.build();
@@ -268,53 +219,23 @@ void Kleicha::init_graphics_pipelines() {
 	pipelineBuilder.set_color_attachment_format(VK_FORMAT_R32_SFLOAT);
 	pipelineBuilder.enable_color_output();
 	pipelineBuilder.set_view_mask(0b111111);
-	m_cubeShadowPipeline = pipelineBuilder.build();
-
-	/* {
-		pipelineBuilder.set_shaders(environmentMapVertModule, reflectFragModule);
-		m_reflectPipeline = pipelineBuilder.build();
-
-		pipelineBuilder.set_shaders(environmentMapVertModule, refractFragModule);
-		m_refractPipeline = pipelineBuilder.build();
-
-		pipelineBuilder.set_rasterizer_state(VK_POLYGON_MODE_FILL, VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE);
-		pipelineBuilder.set_shaders(skyboxVertModule, skyboxFragModule);
-		m_skyboxPipeline = pipelineBuilder.build();
-	}*/
-
+	m_cubeShadowPipeline = pipelineBuilder.build();*/
 
 	// TO-DO: we should find a better way of doing this. Perhaps pipeline builder should deallocate these automatically after creating the pipeline?
 	// we're free to destroy shader modules after pipeline creation
-	vkDestroyShaderModule(m_device.device, lightShadowVertModule, nullptr);
-	vkDestroyShaderModule(m_device.device, lightShadowFragModule, nullptr);
-	vkDestroyShaderModule(m_device.device, lightCubeShadowFragModule, nullptr);
-	vkDestroyShaderModule(m_device.device, lightCubeShadowPCSSFragModule, nullptr);
-	vkDestroyShaderModule(m_device.device, lightVertModule, nullptr);
-	vkDestroyShaderModule(m_device.device, lightFragModule, nullptr);
+
+	vkDestroyShaderModule(m_device.device, blinnPhongVertModule, nullptr);
+	vkDestroyShaderModule(m_device.device, blinnPhongFragModule, nullptr);
 	vkDestroyShaderModule(m_device.device, shadowVertModule, nullptr);
 	vkDestroyShaderModule(m_device.device, shadowFragModule, nullptr);
 	vkDestroyShaderModule(m_device.device, cubeShadowVertModule, nullptr);
 	vkDestroyShaderModule(m_device.device, cubeShadowFragModule, nullptr);
-	//vkDestroyShaderModule(m_device.device, lightDrawsVertModule, nullptr);
-	//vkDestroyShaderModule(m_device.device, lightDrawsFragModule, nullptr);
-	vkDestroyShaderModule(m_device.device, skyboxVertModule, nullptr);
-	vkDestroyShaderModule(m_device.device, skyboxFragModule, nullptr);
-
-	vkDestroyShaderModule(m_device.device, environmentMapVertModule, nullptr);
-	vkDestroyShaderModule(m_device.device, reflectFragModule, nullptr);
-	vkDestroyShaderModule(m_device.device, refractFragModule, nullptr);
-
-	vkDestroyShaderModule(m_device.device, bezierVertModule, nullptr);	
-	vkDestroyShaderModule(m_device.device, bezierTCSModule, nullptr);	
-	vkDestroyShaderModule(m_device.device, bezierTESModule, nullptr);
-	vkDestroyShaderModule(m_device.device, bezierFragModule, nullptr);
 }
 
 void Kleicha::init_descriptors() {
 
 	{			// create global descriptor set layout	
-		VkDescriptorBindingFlags bindingFlags[5]{
-			{},
+		VkDescriptorBindingFlags bindingFlags[4]{
 			{},
 			{},
 			{},
@@ -324,12 +245,11 @@ void Kleicha::init_descriptors() {
 		layoutBindingFlagsInfo.bindingCount = std::size(bindingFlags);
 		layoutBindingFlagsInfo.pBindingFlags = bindingFlags;
 
-		VkDescriptorSetLayoutBinding bindings[5]{
+		VkDescriptorSetLayoutBinding bindings[4]{
 			{0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_ALL, nullptr},
 			{1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_ALL, nullptr},
 			{2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,VK_SHADER_STAGE_ALL, nullptr},
-			{3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_ALL, nullptr},
-			{4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 200, VK_SHADER_STAGE_ALL, nullptr}
+			{3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 200, VK_SHADER_STAGE_ALL, nullptr}
 		};
 
 		// create descriptor set layout
@@ -345,8 +265,8 @@ void Kleicha::init_descriptors() {
 			{0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_ALL, nullptr},
 			{1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_ALL, nullptr},
 			{2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_ALL, nullptr},
-			{3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, static_cast<uint32_t>(m_lights.size()), VK_SHADER_STAGE_ALL, nullptr}, // 2D shadow map
-			{4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, static_cast<uint32_t>(m_lights.size()), VK_SHADER_STAGE_ALL, nullptr}, // cube shadow map
+			{3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, static_cast<uint32_t>(m_pointLights.size()), VK_SHADER_STAGE_ALL, nullptr}, // 2D shadow map
+			{4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, static_cast<uint32_t>(m_pointLights.size()), VK_SHADER_STAGE_ALL, nullptr}, // cube shadow map
 		};
 
 		VkDescriptorSetLayoutCreateInfo descriptorSetLayoutInfo{ .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
@@ -459,18 +379,18 @@ void Kleicha::init_load_scene() {
 
 	std::vector<vkt::Mesh> meshes{};
 	std::vector<vkt::DrawData> draws{};
-	std::vector<vkt::TextureIndices> texIndices{};
+	std::vector<vkt::Material> materials{};
 	std::vector<std::string> texturePaths{};
 	
-	if (!utils::load_gltf("../data/Sponza/glTF/Sponza.gltf", meshes, draws, m_meshTransforms, texIndices, texturePaths)) {
+	if (!utils::load_gltf("../data/Sponza/glTF/Sponza.gltf", meshes, draws, m_meshTransforms, materials, texturePaths)) {
 		throw std::runtime_error{ "[Kleicha] Failed to load scene!" };
 	}
 
-	if (!utils::load_gltf("../data/DamagedHelmet/glTF/DamagedHelmet.gltf", meshes, draws, m_meshTransforms, texIndices, texturePaths)) {
+	if (!utils::load_gltf("../data/DamagedHelmet/glTF/DamagedHelmet.gltf", meshes, draws, m_meshTransforms, materials, texturePaths)) {
 		throw std::runtime_error{ "[Kleicha] Failed to load scene!" };
 	}
 
-	if (!utils::load_gltf("../data/BoomBox/glTF/BoomBox.gltf", meshes, draws, m_meshTransforms, texIndices, texturePaths)) {
+	if (!utils::load_gltf("../data/BoomBox/glTF/BoomBox.gltf", meshes, draws, m_meshTransforms, materials, texturePaths)) {
 		throw std::runtime_error{ "[Kleicha] Failed to load scene!" };
 	}
 
@@ -478,7 +398,7 @@ void Kleicha::init_load_scene() {
 	std::vector<glm::uvec3> unifiedTriangles{};
 	for (std::size_t i{ 0 }; i < meshes.size(); ++i) {
 
-		if (meshes[i].computeTangent)
+		if (meshes[i].bComputeTangent)
 			utils::compute_mesh_tangents(meshes[i]);
 
 		// store the current vertex and triangle counts
@@ -487,12 +407,12 @@ void Kleicha::init_load_scene() {
 
 		// store vertex and index buffer mesh start positions
 		vkt::HostDrawData hostDraw{};
-		hostDraw.drawId = static_cast<uint32_t>(i);
-		hostDraw.vertexOffset = vertexCount;
-		hostDraw.indicesOffset = triangleCount * glm::uvec3::length();
-		hostDraw.indicesCount = static_cast<uint32_t>(meshes[i].tInd.size() * glm::uvec3::length());
+		hostDraw.m_uiDrawId = static_cast<uint32_t>(i);
+		hostDraw.m_iVertexOffset = vertexCount;
+		hostDraw.m_uiIndicesOffset = triangleCount * glm::uvec3::length();
+		hostDraw.m_uiIndicesCount = static_cast<uint32_t>(meshes[i].tInd.size() * glm::uvec3::length());
 
-		if (meshes[i].useAlphaTest)
+		if (meshes[i].bUseAlphaTest)
 			m_alphaDraws.push_back(hostDraw);
 		else
 			m_draws.push_back(hostDraw);
@@ -507,25 +427,34 @@ void Kleicha::init_load_scene() {
 	}
 
 	// load any other draw data we're interested in -- bit of a crude approach for now.
-	uint32_t texIndicesArrOffset{ static_cast<uint32_t>(texIndices.size()) };
+	uint32_t materialOffset{ static_cast<uint32_t>(materials.size()) };
 	uint32_t textureOffset{ static_cast<uint32_t>(1 + texturePaths.size() ) };
-	texIndices.push_back(vkt::TextureIndices{ .albedoTexture = textureOffset });
-	m_meshTransforms.push_back(vkt::Transform{ .model = glm::translate(glm::mat4{1.0f}, glm::vec3{0.0f, -5.0f, -3.0f}) * glm::scale(glm::mat4{1.0f}, glm::vec3{5.0f, 5.0f, 5.0f})});
-	draws.push_back(vkt::DrawData{ .textureIndex = texIndicesArrOffset, .transformIndex = static_cast<uint32_t>(m_meshTransforms.size() - 1) });
-	m_bezierDraw = vkt::HostDrawData{ .drawId = static_cast<uint32_t>(draws.size() - 1)};
+
+	/*vkt::Material material{ vkt::Material::none() };
+	material.m_uiAlbedoTexture = textureOffset;
+	m_materials.push_back(material);
+
+	for (const auto& mat : materials) {
+
+	}*/
+
+	m_materials = materials;
+
+	m_meshTransforms.push_back(vkt::Transform{ .m_m4Model = glm::translate(glm::mat4{1.0f}, glm::vec3{0.0f, -5.0f, -3.0f}) * glm::scale(glm::mat4{1.0f}, glm::vec3{5.0f, 5.0f, 5.0f})});
+	draws.push_back(vkt::DrawData{ .m_uiMaterialIndex = materialOffset, .m_uiTransformIndex = static_cast<uint32_t>(m_meshTransforms.size() - 1) });
+	m_bezierDraw = vkt::HostDrawData{ .m_uiDrawId = static_cast<uint32_t>(draws.size() - 1)};
 
 	m_vertexBuffer = upload_data(unifiedVertices.data(), unifiedVertices.size() * sizeof(vkt::Vertex), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 	m_indexBuffer = upload_data(unifiedTriangles.data(), unifiedTriangles.size() * sizeof(glm::uvec3), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
 	m_drawBuffer = upload_data(draws.data(), sizeof(vkt::DrawData) * draws.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
-	m_textureIndicesBuffer = upload_data(texIndices.data(), sizeof(vkt::TextureIndices) * texIndices.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 	
 	m_textures.push_back(upload_texture_image("../textures/empty.jpg"));
 	for (std::size_t i{ 0 }; i < texturePaths.size(); ++i) {
 		// check if the texture we're processing is a normal map
 		bool isNormalMap{ false };
 
-		for (std::size_t j{ 0 }; j < texIndices.size(); ++j) {
-			if ((i + 1) == texIndices[j].normalTexture) {
+		for (std::size_t j{ 0 }; j < materials.size(); ++j) {
+			if ((i + 1) == materials[j].m_uiNormalTexture) {
 				isNormalMap = true;
 				break;
 			}
@@ -565,7 +494,7 @@ void Kleicha::init_image_buffers(bool windowResized) {
 
 	// allocate per frame shadow maps that'll be used as depth attachments in their own passes
 	for (auto& frame : m_frames) {
-		frame.shadowMaps.resize(m_lights.size());
+		frame.shadowMaps.resize(m_pointLights.size());
 		for (auto& shadowMap : frame.shadowMaps) {
 			// create regular (depth) shadow maps
 			VK_CHECK(vmaCreateImage(m_allocator, &shadowImageInfo, &allocationInfo, &shadowMap.image, &shadowMap.allocation, &shadowMap.allocationInfo));
@@ -580,7 +509,7 @@ void Kleicha::init_image_buffers(bool windowResized) {
 		VkImageCreateInfo cubeShadowDepthImageInfo{ init::create_image_info(DEPTH_IMAGE_FORMAT, SHADOW_CUBE_EXTENT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, 1, 6) };
 
 		for (auto& frame : m_frames) {
-			frame.cubeShadowMaps.resize(m_lights.size());
+			frame.cubeShadowMaps.resize(m_pointLights.size());
 
 			// create cube shadow maps that wioll store world space distance between surface point and light
 			for (auto& cubeShadowMap : frame.cubeShadowMaps) {
@@ -666,23 +595,15 @@ void Kleicha::init_dynamic_buffers() {
 
 	using namespace vkt;
 
-	GlobalData globalData{};
-	globalData.ambientLight = glm::vec4{ 0.22f, 0.22f, 0.22f, 1.0f };
-	globalData.bias = glm::mat4{
-		0.5f, 0.0f, 0.0f, 0.0f,
-		0.0f, 0.5f, 0.0f, 0.0f,
-		0.0f, 0.0f, 1.0f, 0.0f,
-		0.5f, 0.5f, 0.0f, 1.0f
-	};
-	globalData.lightCount = static_cast<uint32_t>(m_lights.size());
-	m_globalsBuffer = upload_data(&globalData, sizeof(globalData), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+	m_globalsBuffer = utils::create_buffer(m_allocator, sizeof(GlobalData), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+		VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
 
 	// allocate per frame buffers such as transform buffer
 	for (auto& frame : m_frames) {
 		frame.transformBuffer = utils::create_buffer(m_allocator, sizeof(Transform) * m_meshTransforms.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
 			VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
 
-		frame.lightBuffer = utils::create_buffer(m_allocator, sizeof(Light) * m_lights.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+		frame.lightBuffer = utils::create_buffer(m_allocator, sizeof(vkt::PointLight) * m_pointLights.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
 			VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
 
 		frame.materialBuffer = utils::create_buffer(m_allocator, sizeof(Material) * m_materials.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
@@ -693,23 +614,19 @@ void Kleicha::init_dynamic_buffers() {
 void Kleicha::init_lights() {		
 	m_materials.push_back(vkt::Material::none());
 	// create a standard white light 
-	vkt::Light pointLight{
-		.ambient = {0.24f, 0.24f, 0.24f, 1.0f},
-		.diffuse = {0.6f, 0.6f, 0.6f, 1.0f},
-		.specular = {1.0f, 1.0f, 1.0f, 1.0f},
-		.attenuationFactors = {1.0f, 0.133f, 0.050f},
-		.lightSize = {4.0f},
-		.mPos = { -3.0f, 5.0f, 0.0f },
-		.frustumWidth = {3.75f},
+	vkt::PointLight pointLight{
+		.m_v3Position = { -3.0f, 5.0f, 0.0f },
+		.m_v3Color = {1.0f, 1.0f, 1.0f},
+		.m_fFalloff = {0.01f}
 	};
 
-	m_lights.push_back(pointLight);
+	m_pointLights.push_back(pointLight);
 
 	//pointLight.mPos = {3.0f, 5.0f, 0.0f};
-	//m_lights.push_back(pointLight);
+	//m_pointLights.push_back(pointLight);
 
 	/*pointLight.mPos = {-6.0f, 1.5f, -5.0f};
-	m_lights.push_back(pointLight);*/
+	m_pointLights.push_back(pointLight);*/
 
 }
 
@@ -765,8 +682,7 @@ void Kleicha::init_write_descriptor_sets() {
 	utils::update_set_buffer_descriptor(m_device.device, m_globalDescSet, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, m_vertexBuffer.buffer);
 	utils::update_set_buffer_descriptor(m_device.device, m_globalDescSet, 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, m_drawBuffer.buffer);
 	utils::update_set_buffer_descriptor(m_device.device, m_globalDescSet, 2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, m_globalsBuffer.buffer);
-	utils::update_set_buffer_descriptor(m_device.device, m_globalDescSet, 3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, m_textureIndicesBuffer.buffer);
-	utils::update_set_image_sampler_descriptor(m_device.device, m_globalDescSet, 4, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, m_textureSampler, m_textures);
+	utils::update_set_image_sampler_descriptor(m_device.device, m_globalDescSet, 3, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, m_textureSampler, m_textures);
 
 	// per frame descriptor set writes
 	for (auto& frame : m_frames) {
@@ -1043,10 +959,10 @@ void Kleicha::recreate_swapchain() {
 	}
 }
 
-void Kleicha::update_dynamic_buffers(const vkt::Frame& frame, [[maybe_unused]] float currentTime, const glm::mat4& shadowCubePerspProj) {
+void Kleicha::update_dynamic_buffers(const vkt::Frame& frame, [[maybe_unused]] float currentTime, [[maybe_unused]]const glm::mat4& shadowCubePerspProj) {
 
 	// update light views
-	for (auto& light : m_lights) {
+	/*for (auto& light : m_pointLights) {
 		light.viewProj = m_perspProj * utils::lookAt(light.mPos, glm::vec3{ 0.0f, 0.0f, 0.0f }, WORLD_UP);
 
 		light.cubeViewProjs[1] = shadowCubePerspProj * glm::lookAt(light.mPos, light.mPos + glm::vec3{ 1.0f, 0.0f, 0.0f }, glm::vec3{ 0.0f, 1.0f, 0.0f });	// +X
@@ -1057,29 +973,20 @@ void Kleicha::update_dynamic_buffers(const vkt::Frame& frame, [[maybe_unused]] f
 
 		light.cubeViewProjs[5] = shadowCubePerspProj * glm::lookAt(light.mPos, light.mPos + glm::vec3{ 0.0f, 0.0f, 1.0f }, glm::vec3{ 0.0f, 1.0f, 0.0f });	  // -Z
 		light.cubeViewProjs[4] = shadowCubePerspProj * glm::lookAt(light.mPos, light.mPos + glm::vec3{ 0.0f, 0.0f, -1.0f }, glm::vec3{ 0.0f, 1.0f, 0.0f });	  // +Z
-	}
+	}*/
 
-	// update mesh transforms
-	glm::mat4 view{ m_camera.getViewMatrix() };
+	vkt::GlobalData globalData{ .m_v3CameraPosition = m_camera.get_world_pos(), .m_uiLightCount = static_cast<uint32_t>(m_pointLights.size()) };
 
 	for (auto& transform : m_meshTransforms) {
-		transform.modelInvTr = glm::transpose(glm::inverse(transform.model));
-		transform.modelView = view * transform.model;
-		transform.modelViewInvTr = glm::transpose(glm::inverse(transform.modelView));
+		transform.m_m4ModelInvTr = glm::transpose(glm::inverse(transform.m_m4Model));
 	}
 
-	// This is somewhat okay but not very robust as it depends on the light meshes being added together. This may be fine, it may not... We'll see and provide an alternative solution if needed.
-	for (std::size_t i{0}; i < m_lights.size(); ++i) {
-		m_lights[i].mvPos = view * glm::vec4{ m_lights[i].mPos, 1.0f };
-
-		/*m_meshTransforms[m_lightDrawData[0].transformIndex + i].modelView = view * glm::translate(glm::mat4{1.0f}, m_lights[i].mPos) * glm::scale(glm::mat4{1.0f}, glm::vec3{0.1f, 0.1f, 0.1f});
-		m_meshTransforms[m_lightDrawData[0].transformIndex + i].modelViewInvTr = glm::transpose(glm::inverse(m_meshTransforms[m_lightDrawData[0].transformIndex + i].modelView));*/
-	}
+	memcpy(m_globalsBuffer.allocation->GetMappedData(), &globalData, sizeof(globalData));
 
 	// update per frame buffers
 	memcpy(frame.transformBuffer.allocation->GetMappedData(), m_meshTransforms.data(), sizeof(vkt::Transform) * m_meshTransforms.size());
 	memcpy(frame.materialBuffer.allocation->GetMappedData(), m_materials.data(), sizeof(vkt::Material) * m_materials.size());
-	memcpy(frame.lightBuffer.allocation->GetMappedData(), m_lights.data(), sizeof(vkt::Light) * m_lights.size());
+	memcpy(frame.lightBuffer.allocation->GetMappedData(), m_pointLights.data(), sizeof(vkt::PointLight) * m_pointLights.size());
 
 	//TODO: On our graphice device, all host-visible device memory is cache coherent. However, this is not guaranteed on other devices. On devices where this memory
 	// does not have the property 'VK_MEMORY_PROPERTY_HOST_COHERENT_BIT', we should make all host writes visible before
@@ -1092,19 +999,20 @@ void Kleicha::record_draws(const vkt::Frame& frame, VkPipeline* opaquePipeline, 
 
 	vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, *opaquePipeline);
 	for (const auto& draw : m_draws) {
-		m_pushConstants.drawId = draw.drawId;
+		m_pushConstants.drawId = draw.m_uiDrawId;
 		vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_ALL, 0, sizeof(vkt::PushConstants), &m_pushConstants);
-		vkCmdDrawIndexed(frame.cmdBuffer, draw.indicesCount, 1, draw.indicesOffset, draw.vertexOffset, 0);
+		vkCmdDrawIndexed(frame.cmdBuffer, draw.m_uiIndicesCount, 1, draw.m_uiIndicesOffset, draw.m_iVertexOffset, 0);
 	}
 
 	if (alphaPipeline)
 		vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, *alphaPipeline);
 
 	for (const auto& draw : m_alphaDraws) {
-		m_pushConstants.drawId = draw.drawId;
+		m_pushConstants.drawId = draw.m_uiDrawId;
 		vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_ALL, 0, sizeof(vkt::PushConstants), &m_pushConstants);
-		vkCmdDrawIndexed(frame.cmdBuffer, draw.indicesCount, 1, draw.indicesOffset, draw.vertexOffset, 0);
+		vkCmdDrawIndexed(frame.cmdBuffer, draw.m_uiIndicesCount, 1, draw.m_uiIndicesOffset, draw.m_iVertexOffset, 0);
 	}
+
 }
 
 void Kleicha::shadow_cube_pass(const vkt::Frame& frame) {
@@ -1124,27 +1032,27 @@ void Kleicha::shadow_cube_pass(const vkt::Frame& frame) {
 
 	vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_cubeShadowPipeline);
 
-	for (uint32_t j{ 0 }; j < m_lights.size(); ++j) {
+	for (uint32_t j{ 0 }; j < m_pointLights.size(); ++j) {
 		VkRenderingAttachmentInfo cubeColorAttachment{ init::create_rendering_attachment_info(frame.cubeShadowMaps[j].colorImage.imageView, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, &colorClearValue) };
 		VkRenderingAttachmentInfo cubeDepthAttachment{ init::create_rendering_attachment_info(frame.cubeShadowMaps[j].depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, &depthClearValue) };
 
 		cubeShadowRenderingInfo.pColorAttachments = &cubeColorAttachment;
 		cubeShadowRenderingInfo.pDepthAttachment = &cubeDepthAttachment;
 
-		m_pushConstants.lightId = j;
+		//m_pushConstants.lightId = j;
 
 		vkCmdBeginRendering(frame.cmdBuffer, &cubeShadowRenderingInfo);
 
 		for (const auto& draw : m_draws) {
-			m_pushConstants.drawId = draw.drawId;
+			m_pushConstants.drawId = draw.m_uiDrawId;
 			vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_ALL, 0, sizeof(vkt::PushConstants), &m_pushConstants);
-			vkCmdDrawIndexed(frame.cmdBuffer, draw.indicesCount, 1, draw.indicesOffset, draw.vertexOffset, 0);
+			vkCmdDrawIndexed(frame.cmdBuffer, draw.m_uiIndicesCount, 1, draw.m_uiIndicesOffset, draw.m_iVertexOffset, 0);
 		}
 
 		for (const auto& draw : m_alphaDraws) {
-			m_pushConstants.drawId = draw.drawId;
+			m_pushConstants.drawId = draw.m_uiDrawId;
 			vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_ALL, 0, sizeof(vkt::PushConstants), &m_pushConstants);
-			vkCmdDrawIndexed(frame.cmdBuffer, draw.indicesCount, 1, draw.indicesOffset, draw.vertexOffset, 0);
+			vkCmdDrawIndexed(frame.cmdBuffer, draw.m_uiIndicesCount, 1, draw.m_uiIndicesOffset, draw.m_iVertexOffset, 0);
 		}
 
 		vkCmdEndRendering(frame.cmdBuffer);
@@ -1169,29 +1077,29 @@ void Kleicha::shadow_2D_pass(const vkt::Frame& frame) {
 	renderingInfo.colorAttachmentCount = 0;
 	renderingInfo.pColorAttachments = nullptr;
 
-	m_pushConstants.perspectiveProjection = m_perspProj;
+	//m_pushConstants.m_m4ViewProjection = m_perspProj;
 
 	vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_shadowPipeline);
 
 	// shadow passes
-	for (uint32_t j{ 0 }; j < m_lights.size(); ++j) {
+	for (uint32_t j{ 0 }; j < m_pointLights.size(); ++j) {
 		VkRenderingAttachmentInfo shadowDepthAttachment{ init::create_rendering_attachment_info(frame.shadowMaps[j].imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, &depthClearValue, VK_TRUE) };
 		renderingInfo.pDepthAttachment = &shadowDepthAttachment;
 		
 		vkCmdBeginRendering(frame.cmdBuffer, &renderingInfo);
 
-		m_pushConstants.lightId = j;
+		//m_pushConstants.lightId = j;
 
 		for (const auto& draw : m_draws) {
-			m_pushConstants.drawId = draw.drawId;
+			m_pushConstants.drawId = draw.m_uiDrawId;
 			vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_ALL, 0, sizeof(vkt::PushConstants), &m_pushConstants);
-			vkCmdDrawIndexed(frame.cmdBuffer, draw.indicesCount, 1, draw.indicesOffset, draw.vertexOffset, 0);
+			vkCmdDrawIndexed(frame.cmdBuffer, draw.m_uiIndicesCount, 1, draw.m_uiIndicesOffset, draw.m_iVertexOffset, 0);
 		}
 
 		for (const auto& draw : m_alphaDraws) {
-			m_pushConstants.drawId = draw.drawId;
+			m_pushConstants.drawId = draw.m_uiDrawId;
 			vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_ALL, 0, sizeof(vkt::PushConstants), &m_pushConstants);
-			vkCmdDrawIndexed(frame.cmdBuffer, draw.indicesCount, 1, draw.indicesOffset, draw.vertexOffset, 0);
+			vkCmdDrawIndexed(frame.cmdBuffer, draw.m_uiIndicesCount, 1, draw.m_uiIndicesOffset, draw.m_iVertexOffset, 0);
 		}
 
 		vkCmdEndRendering(frame.cmdBuffer);
@@ -1210,28 +1118,19 @@ void Kleicha::start() {
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
 
-		ImGui::Text("Shadows: ");
-		ImGui::Checkbox("Shadow Mapping (2D) PCF", &m_enableShadows);
-		ImGui::Checkbox("Shadow Mapping (Cube) PCF", &m_enableCubeShadows);
-		ImGui::Checkbox("Shadow Mapping (Cube) PCSS", &m_enableCubeShadowsPCSS);
-		ImGui::NewLine();
-		ImGui::Text("Surface Detail: ");
-		ImGui::Checkbox("Bump Mapping", &m_enableBumpMapping);
-		ImGui::Checkbox("Height Mapping", &m_enableHeightMapping);
+/*		if (ImGui::CollapsingHeader("Lights")) {
 
-		if (ImGui::CollapsingHeader("Lights")) {
-
-			for (std::size_t i{ 0 }; i < m_lights.size(); ++i) {
+			for (std::size_t i{ 0 }; i < m_pointLights.size(); ++i) {
 				ImGui::PushID(static_cast<int>(i));
 				ImGui::Text("Light %d", i);
-				ImGui::SliderFloat3("Light World Pos", &m_lights[i].mPos.x, -10.0f, 50.0f);
-				//ImGui::ColorPicker3("Light Ambient", &m_lights[i].ambient.r);)
-				ImGui::SliderFloat3("Light Ambient", &m_lights[i].ambient.r, 0.0f, 1.0f);
-				ImGui::SliderFloat3("Light Diffuse", &m_lights[i].diffuse.r, 0.0f, 1.0f);
-				ImGui::SliderFloat3("Light Specular", &m_lights[i].specular.r, 0.0f, 1.0f);
-				ImGui::SliderFloat3("Attenuation Factors", &m_lights[i].attenuationFactors.s, 0.0f, 10.0f);
-				ImGui::SliderFloat("Light Size", &m_lights[i].lightSize, 0.0f, 20.0f);
-				ImGui::SliderFloat("Frustum Width", &m_lights[i].frustumWidth, 0.0f, 20.0f);
+				ImGui::SliderFloat3("Light World Pos", &m_pointLights[i].mPos.x, -10.0f, 50.0f);
+				//ImGui::ColorPicker3("Light Ambient", &m_pointLights[i].ambient.r);)
+				ImGui::SliderFloat3("Light Ambient", &m_pointLights[i].ambient.r, 0.0f, 1.0f);
+				ImGui::SliderFloat3("Light Diffuse", &m_pointLights[i].diffuse.r, 0.0f, 1.0f);
+				ImGui::SliderFloat3("Light Specular", &m_pointLights[i].specular.r, 0.0f, 1.0f);
+				ImGui::SliderFloat3("Attenuation Factors", &m_pointLights[i].attenuationFactors.s, 0.0f, 10.0f);
+				ImGui::SliderFloat("Light Size", &m_pointLights[i].lightSize, 0.0f, 20.0f);
+				ImGui::SliderFloat("Frustum Width", &m_pointLights[i].frustumWidth, 0.0f, 20.0f);
 				ImGui::NewLine();
 				ImGui::PopID();
 			}
@@ -1242,15 +1141,13 @@ void Kleicha::start() {
 			for (std::size_t i{ 0 }; i < m_materials.size(); ++i) {
 				ImGui::PushID(static_cast<int>(i));
 				ImGui::Text("Material %d", i - 1);
-				ImGui::SliderFloat3("Material Ambient", &m_materials[i].ambient.r, 0.0f, 1.0f);
-				ImGui::SliderFloat3("Material Diffuse", &m_materials[i].diffuse.r, 0.0f, 1.0f);
-				ImGui::SliderFloat3("Material Specular", &m_materials[i].specular.r, 0.0f, 1.0f);
-				ImGui::SliderFloat("Shininess", &m_materials[i].shininess, 0.0f, 100.0f);
-				ImGui::SliderFloat("Refractive Index", &m_materials[i].refractiveIndex, 0.0f, 5.0f);
+				ImGui::SliderFloat3("Material Diffuse", &m_materials[i].m_v3Diffuse.r, 0.0f, 1.0f);
+				ImGui::SliderFloat3("Material Specular", &m_materials[i].m_v3Specular.r, 0.0f, 1.0f);
+				ImGui::SliderFloat("Shininess", &m_materials[i].m_fShininess, 0.0f, 100.0f);
 				ImGui::NewLine();
 				ImGui::PopID();
 			}
-		}
+		}*/
 		ImGui::Render();
 
 		draw(currentTime);
@@ -1317,28 +1214,15 @@ void Kleicha::draw(float currentTime) {
 
 	// cube shadow pass perspective proj
 	glm::mat4 shadowCubePerspProj{ utils::orthographicProj(glm::radians(90.0f), static_cast<float>(SHADOW_CUBE_EXTENT.width) / SHADOW_CUBE_EXTENT.height, 1000.0f, 0.1f) * m_persp };
-	m_pushConstants.perspectiveProjection = shadowCubePerspProj;
+	//m_pushConstants.perspectiveProjection = shadowCubePerspProj;
 	update_dynamic_buffers(frame, currentTime, shadowCubePerspProj);
 
-	m_pushConstants.viewWorldPos = m_camera.get_world_pos();
-	m_pushConstants.enableBumpMapping = m_enableBumpMapping;
-	m_pushConstants.enableHeightMapping = m_enableHeightMapping;
-
 	vkCmdBindIndexBuffer(frame.cmdBuffer, m_indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-
-	// will be used to compute the viewport transformation (NDC to screen space)
-	if (m_enableCubeShadows || m_enableCubeShadowsPCSS) {
-		shadow_cube_pass(frame);
-	}	
-
-	if (m_enableShadows) {
-		shadow_2D_pass(frame);
-	}
 
 	VkClearValue colorClearValue{ {{0.0f, 0.0f, 0.0f, 1.0f}} };
 	VkClearValue depthClearValue{ .depthStencil = {0.0f, 0U} };
 	utils::set_viewport_scissor(frame, m_swapchain.imageExtent);
-	m_pushConstants.perspectiveProjection = m_perspProj;
+	m_pushConstants.m_m4ViewProjection = m_perspProj * m_camera.getViewMatrix();;
 	/*		main pass		*/
 	// specify the attachments for second pass
 	VkRenderingAttachmentInfo colorAttachment{ init::create_rendering_attachment_info(rasterImage.imageView, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, &colorClearValue) };
@@ -1356,20 +1240,7 @@ void Kleicha::draw(float currentTime) {
 
 	vkCmdBeginRendering(frame.cmdBuffer, &renderingInfo);
 
-	if (m_enableShadows)
-		record_draws(frame, &m_lightShadowPipeline, &m_lightShadowAlphaPipeline);
-	else if (m_enableCubeShadows)
-		record_draws(frame, &m_lightCubeShadowPipeline, &m_lightCubeShadowAlphaPipeline);
-	else if (m_enableCubeShadowsPCSS)
-		record_draws(frame, &m_lightCubeShadowPCSSPipeline, &m_lightCubeShadowPCSSAlphaPipeline);
-	else
-		record_draws(frame, &m_lightPipeline, &m_lightAlphaPipeline);
-
-	m_pushConstants.drawId = m_bezierDraw.drawId;
-	vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_ALL, 0, sizeof(vkt::PushConstants), &m_pushConstants);
-	vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_bezierPipeline);
-
-	vkCmdDraw(frame.cmdBuffer, 16, 1, 0, 0);
+	record_draws(frame, &m_blinnPhongPipeline, nullptr);
 
 	vkCmdEndRendering(frame.cmdBuffer);
 
@@ -1482,7 +1353,6 @@ void Kleicha::cleanup() const {
 	vmaDestroyBuffer(m_allocator, m_vertexBuffer.buffer, m_vertexBuffer.allocation);
 	vmaDestroyBuffer(m_allocator, m_indexBuffer.buffer, m_indexBuffer.allocation);
 	vmaDestroyBuffer(m_allocator, m_globalsBuffer.buffer, m_globalsBuffer.allocation);
-	vmaDestroyBuffer(m_allocator, m_textureIndicesBuffer.buffer, m_textureIndicesBuffer.allocation);
 
 	vkDestroyFence(m_device.device, m_immFence, nullptr);
 
@@ -1513,21 +1383,9 @@ void Kleicha::cleanup() const {
 	vkDestroyDescriptorSetLayout(m_device.device, m_globDescSetLayout, nullptr);
 	vkDestroyDescriptorSetLayout(m_device.device, m_frameDescSetLayout, nullptr);
 
-	vkDestroyPipeline(m_device.device, m_bezierPipeline, nullptr);
-	vkDestroyPipeline(m_device.device, m_lightShadowPipeline, nullptr);
-	vkDestroyPipeline(m_device.device, m_lightCubeShadowPipeline, nullptr);
-	vkDestroyPipeline(m_device.device, m_lightCubeShadowPCSSPipeline, nullptr);
-	vkDestroyPipeline(m_device.device, m_lightPipeline, nullptr);
+	vkDestroyPipeline(m_device.device, m_blinnPhongPipeline, nullptr);
 	vkDestroyPipeline(m_device.device, m_shadowPipeline, nullptr);
 	vkDestroyPipeline(m_device.device, m_cubeShadowPipeline, nullptr);
-	vkDestroyPipeline(m_device.device, m_skyboxPipeline, nullptr);
-	vkDestroyPipeline(m_device.device, m_reflectPipeline, nullptr);
-	vkDestroyPipeline(m_device.device, m_refractPipeline, nullptr);
-
-	vkDestroyPipeline(m_device.device, m_lightAlphaPipeline, nullptr);
-	vkDestroyPipeline(m_device.device, m_lightShadowAlphaPipeline, nullptr);
-	vkDestroyPipeline(m_device.device, m_lightCubeShadowAlphaPipeline, nullptr);
-	vkDestroyPipeline(m_device.device, m_lightCubeShadowPCSSAlphaPipeline, nullptr);
 
 	vkDestroyPipelineLayout(m_device.device, m_dummyPipelineLayout, nullptr);
 

@@ -22,6 +22,9 @@
     <Filter Include="imgui">
       <UniqueIdentifier>{647a313c-536d-47c8-b1dc-49228f77d91d}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders\Physically-Based">
+      <UniqueIdentifier>{10ef2963-6cb9-40f1-8431-adecd8a17995}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -216,6 +219,12 @@
     </None>
     <None Include="..\shaders\bezier.vert">
       <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shaders\light.vert">
+      <Filter>Shaders\Physically-Based</Filter>
+    </None>
+    <None Include="..\shaders\light.frag">
+      <Filter>Shaders\Physically-Based</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>

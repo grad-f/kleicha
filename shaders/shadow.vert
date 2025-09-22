@@ -11,14 +11,9 @@ layout (location = 0) out flat uint outDrawId;
 void main() {
 	DrawData dd = draws[pc.drawId];
 	Vertex vert = vertices[gl_VertexIndex];
-	TextureData textureData = textures[dd.textureIndex];
+	Material md = materials[dd.materialIndex];
 
 	vec3 vertPos = vert.position;
-
-	// we choose to perform out lighting computations in camera-space.
-	if (textureData.heightTexture > 0 && pc.enableHeightMapping > 0) {
-		vertPos += vert.normal * (texture(texSampler[textureData.heightTexture], vert.UV).r * 0.13);
-	}
 
 	// we choose to perform out lighting computations in camera-space.
 	gl_Position = lights[pc.lightId].viewProj * transforms[dd.transformIndex].model * vec4(vertPos, 1.0f);

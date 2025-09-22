@@ -15,13 +15,9 @@
 namespace vkt {
 	// need not have alignment of 16 bytes as we won't be creating arrays of this type.
 	// TODO: Global constants should be updated per frame and much of what is currently provided via push constants can be moved.
-	struct PushConstants {
-		glm::mat4 perspectiveProjection{};
-		glm::vec3 viewWorldPos{};
+	struct alignas(16) PushConstants {
+		glm::mat4 m_m4ViewProjection{};
 		uint32_t drawId{};
-		uint32_t lightId{};
-		uint32_t enableBumpMapping{};
-		uint32_t enableHeightMapping{};
 	};
 
 	struct Instance {
@@ -82,147 +78,68 @@ namespace vkt {
 	};
 
 	struct Vertex {
-		alignas(16)glm::vec3 position{};
-		alignas(16)glm::vec2 UV{};
-		alignas(16)glm::vec3 normal{};
-		alignas(16)glm::vec4 tangent{};
-		alignas(16)glm::vec3 bitangent{};
+		alignas(16)glm::vec3 m_v3Position{};
+		alignas(16)glm::vec2 m_v2UV{};
+		alignas(16)glm::vec3 m_v3Normal{};
+		alignas(16)glm::vec4 m_v4Tangent{};
+		alignas(16)glm::vec3 m_v3Bitangent{};
 		bool operator==(const Vertex& other) const {
-			return position == other.position && UV == other.UV && normal == other.normal;
+			return m_v3Position == other.m_v3Position && m_v2UV == other.m_v2UV && m_v3Normal == other.m_v3Normal;
 		}
 	};
 
 	struct DrawData {
-		uint32_t materialIndex{};
-		uint32_t textureIndex{};
-		uint32_t transformIndex{};
+		uint32_t m_uiMaterialIndex{};
+		uint32_t m_uiTransformIndex{};
 	};
 
 	struct HostDrawData {
-		uint32_t drawId{};
-		uint32_t indicesCount{};
-		uint32_t indicesOffset{};
-		int32_t vertexOffset{};
+		uint32_t m_uiDrawId{};
+		uint32_t m_uiIndicesCount{};
+		uint32_t m_uiIndicesOffset{};
+		int32_t m_iVertexOffset{};
 	};
 
 	struct Mesh {
 		// triangle indices
 		std::vector<glm::uvec3> tInd{};
 		std::vector<Vertex> verts{};
-		bool useAlphaTest{ false };
-		bool computeTangent{ false };
+		bool bUseAlphaTest{ false };
+		bool bComputeTangent{ false };
 	};
 
 	struct GlobalData {
-		glm::vec4 ambientLight{};
-		// Bias matrix maps NDC to texture space [0,1]
-		glm::mat4 bias{};
-		uint32_t lightCount{};
-		uint32_t skyboxTexIndex{};
+		glm::vec3 m_v3CameraPosition{};
+		uint32_t m_uiLightCount{};
 	};
 
 	struct Transform {
-		glm::mat4 model{};
-		glm::mat4 modelView{};
-		glm::mat4 modelInvTr{};
-		glm::mat4 modelViewInvTr{};
+		glm::mat4 m_m4Model{};
+		glm::mat4 m_m4ModelInvTr{};
 	};
 
-	struct Light {
-		glm::vec4 ambient{};
-		glm::vec4 diffuse{};
-		glm::vec4 specular{};
-		glm::mat4 viewProj{};
-		glm::mat4 cubeViewProjs[6]{};
-		glm::vec3 attenuationFactors{};
-		float lightSize{};
-		glm::vec3 mPos{};
-		float frustumWidth{};
-		alignas(16)glm::vec3 mvPos{};
-	};
-
-	struct TextureIndices {
-		uint32_t albedoTexture{};
-		uint32_t normalTexture{};
-		uint32_t heightTexture{};
-		uint32_t emissiveTexture{};
+	struct PointLight {
+		glm::vec3 m_v3Position{};
+		alignas(16)glm::vec3 m_v3Color{};
+		float m_fFalloff{};
 	};
 
 	struct alignas(16) Material {
-		glm::vec4 ambient{};
-		glm::vec4 diffuse{};
-		glm::vec4 specular{};
+		glm::vec3 m_v3Diffuse{};
+		alignas(16)glm::vec3 m_v3Specular{};
 		// controls specular contribution fall-off
-		float shininess{};
-		float refractiveIndex{ 1.0f };
+		float m_fShininess{};
+		uint32_t m_uiAlbedoTexture{};
+		uint32_t m_uiNormalTexture{};
+		uint32_t m_uiHeightTexture{};
+		uint32_t m_uiEmissiveTexture{};
 
 		// surface material helpers
 		static Material none() {
 			return {
-				.ambient = {0.05f, 0.05f, 0.05f, 1.0f},
-				.diffuse = {0.2f, 0.2f, 0.2f, 1.0f},
-				.specular = {1.0f, 1.0f, 1.0f, 1.0f},
-				.shininess = 51.2f
-			};
-		}
-		
-		static Material gold() {
-			return {
-				.ambient = {0.050f, 0.033f, 0.007f, 1.0f},
-				.diffuse = {0.525f, 0.326f, 0.042f, 1.0f},
-				.specular = {0.353f, 0.269f, 0.110f, 1.0f},
-				.shininess = 51.2f
-			};
-		}
-
-		static Material jade() {
-			return {
-				.ambient = {0.016f, 0.041f, 0.021f, .95f},
-				.diffuse = {0.253f, 0.768f, 0.355f, .95f},
-				.specular = {0.082f, 0.082f, 0.082f, .95f},
-				.shininess = 12.8f
-			};
-		}
-
-		static Material pearl() {
-			return {
-				.ambient = {0.051f, 0.035f, 0.035f, .922f},
-				.diffuse = {1.0f, 0.654f, 0.654f, .922f},
-				.specular = {0.072f, 0.072f, 0.072f, .922f},
-				.shininess = 11.264f
-			};
-		}
-
-		static Material silver() {
-			return {
-				.ambient = {0.031f, 0.031f, 0.031f, 1.0f},
-				.diffuse = {0.221f, 0.221f, 0.221f, 1.0f},
-				.specular = {0.222f, 0.222f, 0.222f, 1.0f},
-				.shininess = 51.2f
-			};
-		}
-
-		static Material water() {
-			return {
-				.refractiveIndex = 1.33f
-			};
-		}
-
-		static Material ice() {
-			return {
-				.refractiveIndex = 1.309f
-			};
-		}
-
-		static Material glass() {
-			return {
-				.refractiveIndex = 1.52f
-			};
-		}
-
-		static Material diamond() {
-			return {
-				.refractiveIndex = 2.42f
+				.m_v3Diffuse = {0.2f, 0.2f, 0.2f},
+				.m_v3Specular = {1.0f, 1.0f, 1.0f},
+				.m_fShininess = 51.2f
 			};
 		}
 	};
