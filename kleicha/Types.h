@@ -137,8 +137,8 @@ namespace vkt {
 		// surface material helpers
 		static Material none() {
 			return {
-				.m_v3Diffuse = {0.2f, 0.2f, 0.2f},
-				.m_v3Specular = {1.0f, 1.0f, 1.0f},
+				.m_v3Diffuse = {1.0f, 0.0f, 0.0f},
+				.m_v3Specular = {1.0f, 0.3f, 0.3f},
 				.m_fShininess = 51.2f
 			};
 		}

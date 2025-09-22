@@ -1,4 +1,5 @@
 #version 450
+#extension GL_EXT_debug_printf : enable
 #include "common.h"
 
 layout (location = 0) out vec3 v3OutColor;
@@ -36,13 +37,15 @@ void main() {
 
 	vec4 v4Position = td.m4Model * vec4(vert.v3Position, 1.0f);
 	gl_Position = pc.m4ViewProjection * v4Position;
+	
+//	debugPrintfEXT("%f | %f | %f\n", globals.v3CameraPosition.x, globals.v3CameraPosition.y, globals.v3CameraPosition.z);
 
 	vec3 v3Normal = normalize((td.m4ModelInvTr * vec4(vert.v3Normal, 1.0f)).xyz);
 	vec3 v3ViewDirection = normalize(globals.v3CameraPosition - v4Position.xyz);
 	vec3 v3LightDirection = normalize(light.v3Position - v4Position.xyz);
 
 	// compute amount of light falling onto this point
-	vec3 v3LightIrradiance = lightFalloff(light.v3Intensity, 0.01f, light.v3Position, v4Position.xyz);
+	vec3 v3LightIrradiance = lightFalloff(light.v3Intensity, light.fFalloff, light.v3Position, v4Position.xyz);
 
 	// compute shading
 	vec3 v3LightColor = blinnPhong(v3Normal, v3LightDirection, v3ViewDirection, v3LightIrradiance, md.v3Diffuse.xyz, md.v3Specular.xyz, md.fShininess);

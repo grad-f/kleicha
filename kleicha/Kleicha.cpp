@@ -612,7 +612,6 @@ void Kleicha::init_dynamic_buffers() {
 }
 
 void Kleicha::init_lights() {		
-	m_materials.push_back(vkt::Material::none());
 	// create a standard white light 
 	vkt::PointLight pointLight{
 		.m_v3Position = { -3.0f, 5.0f, 0.0f },
@@ -1118,19 +1117,15 @@ void Kleicha::start() {
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
 
-/*		if (ImGui::CollapsingHeader("Lights")) {
+		if (ImGui::CollapsingHeader("Lights")) {
 
 			for (std::size_t i{ 0 }; i < m_pointLights.size(); ++i) {
 				ImGui::PushID(static_cast<int>(i));
 				ImGui::Text("Light %d", i);
-				ImGui::SliderFloat3("Light World Pos", &m_pointLights[i].mPos.x, -10.0f, 50.0f);
+				ImGui::SliderFloat3("Light World Pos", &m_pointLights[i].m_v3Position.x, -10.0f, 50.0f);
 				//ImGui::ColorPicker3("Light Ambient", &m_pointLights[i].ambient.r);)
-				ImGui::SliderFloat3("Light Ambient", &m_pointLights[i].ambient.r, 0.0f, 1.0f);
-				ImGui::SliderFloat3("Light Diffuse", &m_pointLights[i].diffuse.r, 0.0f, 1.0f);
-				ImGui::SliderFloat3("Light Specular", &m_pointLights[i].specular.r, 0.0f, 1.0f);
-				ImGui::SliderFloat3("Attenuation Factors", &m_pointLights[i].attenuationFactors.s, 0.0f, 10.0f);
-				ImGui::SliderFloat("Light Size", &m_pointLights[i].lightSize, 0.0f, 20.0f);
-				ImGui::SliderFloat("Frustum Width", &m_pointLights[i].frustumWidth, 0.0f, 20.0f);
+				ImGui::SliderFloat3("Light Color", &m_pointLights[i].m_v3Color.r, 0.0f, 1.0f);
+				ImGui::SliderFloat("Light Falloff", &m_pointLights[i].m_fFalloff, 0.0f, 10.0f);
 				ImGui::NewLine();
 				ImGui::PopID();
 			}
@@ -1147,7 +1142,7 @@ void Kleicha::start() {
 				ImGui::NewLine();
 				ImGui::PopID();
 			}
-		}*/
+		}
 		ImGui::Render();
 
 		draw(currentTime);
