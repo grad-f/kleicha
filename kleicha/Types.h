@@ -128,7 +128,7 @@ namespace vkt {
 		glm::vec3 m_v3Diffuse{};
 		alignas(16)glm::vec3 m_v3Specular{};
 		// controls specular contribution fall-off
-		float m_fShininess{};
+		float m_fRoughness{};
 		uint32_t m_uiAlbedoTexture{};
 		uint32_t m_uiNormalTexture{};
 		uint32_t m_uiHeightTexture{};
@@ -139,7 +139,7 @@ namespace vkt {
 			return {
 				.m_v3Diffuse = {1.0f, 0.0f, 0.0f},
 				.m_v3Specular = {1.0f, 0.3f, 0.3f},
-				.m_fShininess = 51.2f
+				.m_fRoughness = 15.0f
 			};
 		}
 	};

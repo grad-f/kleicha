@@ -1138,7 +1138,7 @@ void Kleicha::start() {
 				ImGui::Text("Material %d", i - 1);
 				ImGui::SliderFloat3("Material Diffuse", &m_materials[i].m_v3Diffuse.r, 0.0f, 1.0f);
 				ImGui::SliderFloat3("Material Specular", &m_materials[i].m_v3Specular.r, 0.0f, 1.0f);
-				ImGui::SliderFloat("Shininess", &m_materials[i].m_fShininess, 0.0f, 100.0f);
+				ImGui::SliderFloat("Shininess", &m_materials[i].m_fRoughness, 0.0f, 100.0f);
 				ImGui::NewLine();
 				ImGui::PopID();
 			}

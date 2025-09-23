@@ -24,7 +24,7 @@ struct Transform {
 struct Material {
 	vec3 v3Diffuse;	
 	vec3 v3Specular;
-	float fShininess;
+	float fRoughness;
 	uint uiAlbedoTexture;
 	uint uiNormalTexture;
 	uint uiHeightTexture;
