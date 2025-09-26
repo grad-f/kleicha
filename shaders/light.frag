@@ -42,6 +42,59 @@ vec3 blinnPhong(vec3 v3Normal, vec3 v3LightDirection, vec3 v3ViewDirection, vec3
 	return v3RetColor;
 }
 
+// Trowbridge-Reitz Distribution Function
+float TRDistribution(vec3 v3Normal, vec3 v3HalfVector, float fRoughness) {
+	
+	float fRsq = fRoughness * fRoughness;
+	float fNdotH = max(dot(v3Normal, v3HalfVector), 0.0f);
+	float fDenom = fNdotH * fNdotH * (fRsq - 1.0f) + 1.0f;
+
+	return fRsq / (M_PI * fDenom * fDenom);
+}
+
+// approximates the ratio of light reflected to light refracted
+vec3 schlickFresnel(vec3 v3LightDirection, vec3 v3Normal, vec3 v3SpecularColor) {
+	float fLdotN = dot(v3LightDirection, v3Normal);
+
+	return v3SpecularColor + (1.0f - v3SpecularColor) * pow(1.0f - fLdotN, 5.0f);
+}
+
+// GGX Geometry Function with normalizing cosine factor to simplify the overall equation
+float GGXVisibility(vec3 v3Normal, vec3 v3LightDirection, vec3 v3ViewDirection, float fRoughness) {
+	float fNdotL = max(dot(v3Normal, v3LightDirection), 0.0f);
+	float fNdotV = max(dot(v3Normal, v3ViewDirection), 0.0f);
+	float fRSq = fRoughness * fRoughness;
+	float fRMod = 1.0f - fRSq;
+
+	// Must consider both geometric obstruction and shadowing
+	float fRecipG1 = fNdotL + sqrt(fRSq + (fRMod * fNdotL * fNdotL));
+	float fRecipG2 = fNdotV + sqrt(fRSq + (fRMod * fNdotV * fNdotV));
+
+	return 1.0f / (fRecipG1 * fRecipG2);
+}
+
+vec3 GGX(vec3 v3Normal, vec3 v3LightDirection, vec3 v3ViewDirection, vec3 v3LightIrradiance, vec3 v3DiffuseColor, vec3 v3SpecularColor, float fRoughness) {
+
+	vec3 v3HalfVector = normalize(v3ViewDirection + v3LightDirection);
+
+	vec3 v3Diffuse = v3DiffuseColor * M_RCPPI;
+
+	// determines irradiance that is reflected rather than refracted
+	vec3 v3F = schlickFresnel(v3LightDirection, v3HalfVector, v3SpecularColor);
+	// determines the distribution (arrangement) of reflected light rays
+	float fD = TRDistribution(v3Normal, v3HalfVector, fRoughness);
+	// models self-shadowing component
+	float fV = GGXVisibility(v3Normal, v3LightDirection, v3ViewDirection, fRoughness);
+
+	vec3 v3Color = v3Diffuse + (v3F * fD * fV);
+
+	v3Color *= max(dot(v3Normal, v3LightDirection), 0.0f);
+
+	v3Color *= v3LightIrradiance;
+
+	return v3Color;
+}
+
 void main() {
 	DrawData dd = draws[pc.uidrawId];
 	Material md = materials[dd.uiMaterialIndex];
@@ -57,7 +110,11 @@ void main() {
 	vec3 v3LightIrradiance = lightFalloff(light.v3Intensity, light.fFalloff, light.v3Position, v3InPosition);
 
 	// compute shading
-	vec3 v3LightColor = blinnPhong(v3Normal, v3LightDirection, v3ViewDirection, v3LightIrradiance, md.v3Diffuse.xyz, md.v3Specular.xyz, md.fRoughness);
+	vec3 v3LightColor = GGX(v3Normal, v3LightDirection, v3ViewDirection, v3LightIrradiance, md.v3Diffuse.xyz, md.v3Specular.xyz, md.fRoughness);
+
+	// for now..
+	float fRoughnessPhong = (2.0f / md.fRoughness * md.fRoughness) - 2.0f;
+	//vec3 v3LightColor = blinnPhong(v3Normal, v3LightDirection, v3ViewDirection, v3LightIrradiance, md.v3Diffuse.xyz, md.v3Specular.xyz, fRoughnessPhong);
 
 	v3OutColor = v3LightColor;
 }

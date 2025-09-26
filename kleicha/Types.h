@@ -139,7 +139,7 @@ namespace vkt {
 			return {
 				.m_v3Diffuse = {1.0f, 0.0f, 0.0f},
 				.m_v3Specular = {1.0f, 0.3f, 0.3f},
-				.m_fRoughness = 15.0f
+				.m_fRoughness = 0.35f
 			};
 		}
 	};
