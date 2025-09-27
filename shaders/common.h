@@ -27,8 +27,8 @@ struct Material {
 	float fRoughness;
 	uint uiAlbedoTexture;
 	uint uiNormalTexture;
-	uint uiHeightTexture;
-	uint uiEmissiveTexture;
+	uint uiSpecularTexture;
+	uint uiRoughnessTexture;
 };
 
 struct PointLight {

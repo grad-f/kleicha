@@ -4,6 +4,7 @@
 
 layout (location = 0) out vec3 v3OutPosition;
 layout (location = 1) out vec3 v3OutNormal;
+layout (location = 2) out vec2 v2OutUV;
 
 void main() {
 	DrawData dd = draws[pc.uidrawId];
@@ -16,4 +17,6 @@ void main() {
 
 	vec4 v4Normal = td.m4ModelInvTr * vec4(vert.v3Normal, 0.0f);
 	v3OutNormal = v4Normal.xyz;
+
+	v2OutUV = vert.v2UV;
 }

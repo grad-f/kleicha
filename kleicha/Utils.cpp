@@ -565,14 +565,14 @@ namespace utils {
                     material.m_uiAlbedoTexture = textureOffset + static_cast<uint32_t>(cgltf_texture_index(data, cgltfMaterial->pbr_metallic_roughness.base_color_texture.texture));
 
                 if (cgltfMaterial->pbr_metallic_roughness.metallic_roughness_texture.texture)
-                    material.m_uiAlbedoTexture = textureOffset + static_cast<uint32_t>(cgltf_texture_index(data, cgltfMaterial->pbr_metallic_roughness.metallic_roughness_texture.texture));
+                    material.m_uiRoughnessTexture = textureOffset + static_cast<uint32_t>(cgltf_texture_index(data, cgltfMaterial->pbr_metallic_roughness.metallic_roughness_texture.texture));
             }
 
             if (cgltfMaterial->normal_texture.texture)
                 material.m_uiNormalTexture = textureOffset + static_cast<uint32_t>(cgltf_texture_index(data, cgltfMaterial->normal_texture.texture));
 
             if (cgltfMaterial->emissive_texture.texture)
-                material.m_uiEmissiveTexture = textureOffset + static_cast<uint32_t>(cgltf_texture_index(data, cgltfMaterial->emissive_texture.texture));
+                material.m_uiSpecularTexture = textureOffset + static_cast<uint32_t>(cgltf_texture_index(data, cgltfMaterial->emissive_texture.texture));
 
             materials.push_back(material);
         }

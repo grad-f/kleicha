@@ -616,19 +616,19 @@ void Kleicha::init_dynamic_buffers() {
 void Kleicha::init_lights() {		
 	// create a standard white light 
 	vkt::PointLight pointLight{
-		.m_v3Position = { -3.0f, 5.0f, 0.0f },
-		.m_v3Color = {1.0f, 0.0f, 0.0f},
+		.m_v3Position = { 0.0f, 5.0f, 0.0f },
+		.m_v3Color = {0.7f, 0.7f, 0.7f},
 		.m_fFalloff = {0.0f, 0.0f, 0.01f}
 	};
 	m_pointLights.push_back(pointLight);
 
 	pointLight.m_v3Position = { 0.0f, 5.0f, 0.0 };
 	pointLight.m_v3Color = { 0.0f, 1.0f, 0.0f };
-	m_pointLights.push_back(pointLight);
+	//m_pointLights.push_back(pointLight);
 
 	pointLight.m_v3Position = { 3.0f, 5.0f, 0.0 };
 	pointLight.m_v3Color = { 0.0f, 0.0f, 1.0f };
-	m_pointLights.push_back(pointLight);
+	//m_pointLights.push_back(pointLight);
 
 	//pointLight.mPos = {3.0f, 5.0f, 0.0f};
 	//m_pointLights.push_back(pointLight);
@@ -1393,6 +1393,7 @@ void Kleicha::cleanup() const {
 	vkDestroyDescriptorSetLayout(m_device.device, m_frameDescSetLayout, nullptr);
 
 	vkDestroyPipeline(m_device.device, m_blinnPhongPipeline, nullptr);
+	vkDestroyPipeline(m_device.device, m_GGXPipeline, nullptr);
 	vkDestroyPipeline(m_device.device, m_shadowPipeline, nullptr);
 	vkDestroyPipeline(m_device.device, m_cubeShadowPipeline, nullptr);
 

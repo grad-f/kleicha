@@ -1,5 +1,5 @@
 #version 450
-
+#extension GL_EXT_nonuniform_qualifier : require
 #include "common.h"
 
 #define M_RCPPI 0.31830988618379067153776752674503f
@@ -9,6 +9,7 @@
 layout(constant_id = 0) const uint uiUseBlinnPhong = 0;
 layout (location = 0) in vec3 v3InPosition;
 layout (location = 1) in vec3 v3InNormal;
+layout (location = 2) in vec2 v2InUV;
 
 layout (location = 0) out vec3 v3OutColor;
 
@@ -85,6 +86,7 @@ vec3 GGX(vec3 v3Normal, vec3 v3LightDirection, vec3 v3ViewDirection, vec3 v3Ligh
 	// models self-shadowing component
 	float fV = GGXVisibility(v3Normal, v3LightDirection, v3ViewDirection, fRoughness);
 
+	// scale diffuse by ratio of light refracted
 	v3Diffuse *= (1.0f - v3F);
 
 	vec3 v3Color = v3Diffuse + (v3F * fD * fV);
@@ -105,6 +107,9 @@ void main() {
 
 	vec3 v3LightColor = vec3(0.0f);
 
+	vec3 v3Diffuse = texture(texSampler[md.uiAlbedoTexture], v2InUV).rgb;
+	float fRoughness = texture(texSampler[md.uiRoughnessTexture], v2InUV).g;
+
 	for (uint i = 0; i < globals.uiNumPointLights; ++i) {
 		PointLight light = lights[i];
 		vec3 v3LightDirection = normalize(light.v3Position - v3InPosition);
@@ -113,15 +118,16 @@ void main() {
 		vec3 v3LightIrradiance = lightFalloff(light.v3Intensity, light.v3Falloff, light.v3Position, v3InPosition);
 
 		if (uiUseBlinnPhong > 0) {
-			float fRoughnessPhong = (2.0f / (md.fRoughness * md.fRoughness)) - 2.0f;
-			v3LightColor += blinnPhong(v3Normal, v3LightDirection, v3ViewDirection, v3LightIrradiance, md.v3Diffuse.xyz, md.v3Specular.xyz, fRoughnessPhong);
+			float fRoughnessPhong = (2.0f / (fRoughness * fRoughness)) - 2.0f;
+			v3LightColor += blinnPhong(v3Normal, v3LightDirection, v3ViewDirection, v3LightIrradiance, v3Diffuse, md.v3Specular.xyz, fRoughnessPhong);
 		}
 		else {
-			v3LightColor += GGX(v3Normal, v3LightDirection, v3ViewDirection, v3LightIrradiance, md.v3Diffuse.xyz, md.v3Specular.xyz, md.fRoughness);
+			// sample albedo
+			v3LightColor += GGX(v3Normal, v3LightDirection, v3ViewDirection, v3LightIrradiance, v3Diffuse, md.v3Specular.xyz, fRoughness);
 		}
 	}
 
 	// add ambient contribution
-	v3LightColor += md.v3Diffuse * 0.2f;
+	v3LightColor += v3Diffuse * 0.3f;
 	v3OutColor = v3LightColor;
 }

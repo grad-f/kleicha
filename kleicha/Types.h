@@ -131,14 +131,14 @@ namespace vkt {
 		float m_fRoughness{};
 		uint32_t m_uiAlbedoTexture{};
 		uint32_t m_uiNormalTexture{};
-		uint32_t m_uiHeightTexture{};
-		uint32_t m_uiEmissiveTexture{};
+		uint32_t m_uiSpecularTexture{};
+		uint32_t m_uiRoughnessTexture{};
 
 		// surface material helpers
 		static Material none() {
 			return {
-				.m_v3Diffuse = {1.0f, 1.0f, 1.0f},
-				.m_v3Specular = {1.0f, 0.3f, 0.3f},
+				.m_v3Diffuse = {1.0f, 0.0f, 0.0f},
+				.m_v3Specular = {0.1f, 0.1f, 0.1f},
 				.m_fRoughness = 0.35f
 			};
 		}
