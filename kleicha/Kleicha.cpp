@@ -617,10 +617,17 @@ void Kleicha::init_lights() {
 	// create a standard white light 
 	vkt::PointLight pointLight{
 		.m_v3Position = { -3.0f, 5.0f, 0.0f },
-		.m_v3Color = {0.7f, 0.7f, 0.7f},
+		.m_v3Color = {1.0f, 0.0f, 0.0f},
 		.m_fFalloff = {0.0f, 0.0f, 0.01f}
 	};
+	m_pointLights.push_back(pointLight);
 
+	pointLight.m_v3Position = { 0.0f, 5.0f, 0.0 };
+	pointLight.m_v3Color = { 0.0f, 1.0f, 0.0f };
+	m_pointLights.push_back(pointLight);
+
+	pointLight.m_v3Position = { 3.0f, 5.0f, 0.0 };
+	pointLight.m_v3Color = { 0.0f, 0.0f, 1.0f };
 	m_pointLights.push_back(pointLight);
 
 	//pointLight.mPos = {3.0f, 5.0f, 0.0f};
@@ -976,7 +983,7 @@ void Kleicha::update_dynamic_buffers(const vkt::Frame& frame, [[maybe_unused]] f
 		light.cubeViewProjs[4] = shadowCubePerspProj * glm::lookAt(light.mPos, light.mPos + glm::vec3{ 0.0f, 0.0f, -1.0f }, glm::vec3{ 0.0f, 1.0f, 0.0f });	  // +Z
 	}*/
 
-	vkt::GlobalData globalData{ .m_v3CameraPosition = m_camera.get_world_pos(), .m_uiLightCount = static_cast<uint32_t>(m_pointLights.size()) };
+	vkt::GlobalData globalData{ .m_v3CameraPosition = m_camera.get_world_pos(), .m_uiNumPointLights = static_cast<uint32_t>(m_pointLights.size()) };
 
 	for (auto& transform : m_meshTransforms) {
 		transform.m_m4ModelInvTr = glm::transpose(glm::inverse(transform.m_m4Model));

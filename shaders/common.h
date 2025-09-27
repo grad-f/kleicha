@@ -8,7 +8,7 @@ struct Vertex {
 
 struct GlobalData {
 	vec3 v3CameraPosition;
-	uint uilightCount;
+	uint uiNumPointLights;
 };
 
 struct DrawData {

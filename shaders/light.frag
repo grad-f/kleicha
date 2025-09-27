@@ -38,9 +38,6 @@ vec3 blinnPhong(vec3 v3Normal, vec3 v3LightDirection, vec3 v3ViewDirection, vec3
 
 	v3RetColor *= v3LightIrradiance;
 
-	// ambient
-	v3RetColor += v3Diffuse * vec3(0.05f);
-
 	return v3RetColor;
 }
 
@@ -88,6 +85,8 @@ vec3 GGX(vec3 v3Normal, vec3 v3LightDirection, vec3 v3ViewDirection, vec3 v3Ligh
 	// models self-shadowing component
 	float fV = GGXVisibility(v3Normal, v3LightDirection, v3ViewDirection, fRoughness);
 
+	v3Diffuse *= (1.0f - v3F);
+
 	vec3 v3Color = v3Diffuse + (v3F * fD * fV);
 
 	v3Color *= max(dot(v3Normal, v3LightDirection), 0.0f);
@@ -101,24 +100,28 @@ void main() {
 	DrawData dd = draws[pc.uidrawId];
 	Material md = materials[dd.uiMaterialIndex];
 	
-	// for now..
-	PointLight light = lights[0];
-
 	vec3 v3ViewDirection = normalize(globals.v3CameraPosition - v3InPosition);
-	vec3 v3LightDirection = normalize(light.v3Position - v3InPosition);
 	vec3 v3Normal = normalize(v3InNormal);
 
-	// compute amount of light falling onto this point
-	vec3 v3LightIrradiance = lightFalloff(light.v3Intensity, light.v3Falloff, light.v3Position, v3InPosition);
+	vec3 v3LightColor = vec3(0.0f);
 
-	vec3 v3LightColor;
-	if (uiUseBlinnPhong > 0) {
-		float fRoughnessPhong = (2.0f / (md.fRoughness * md.fRoughness)) - 2.0f;
-		v3LightColor = blinnPhong(v3Normal, v3LightDirection, v3ViewDirection, v3LightIrradiance, md.v3Diffuse.xyz, md.v3Specular.xyz, fRoughnessPhong);
-	}
-	else {
-		v3LightColor = GGX(v3Normal, v3LightDirection, v3ViewDirection, v3LightIrradiance, md.v3Diffuse.xyz, md.v3Specular.xyz, md.fRoughness);
+	for (uint i = 0; i < globals.uiNumPointLights; ++i) {
+		PointLight light = lights[i];
+		vec3 v3LightDirection = normalize(light.v3Position - v3InPosition);
+		
+		// compute amount of light falling onto this point
+		vec3 v3LightIrradiance = lightFalloff(light.v3Intensity, light.v3Falloff, light.v3Position, v3InPosition);
+
+		if (uiUseBlinnPhong > 0) {
+			float fRoughnessPhong = (2.0f / (md.fRoughness * md.fRoughness)) - 2.0f;
+			v3LightColor += blinnPhong(v3Normal, v3LightDirection, v3ViewDirection, v3LightIrradiance, md.v3Diffuse.xyz, md.v3Specular.xyz, fRoughnessPhong);
+		}
+		else {
+			v3LightColor += GGX(v3Normal, v3LightDirection, v3ViewDirection, v3LightIrradiance, md.v3Diffuse.xyz, md.v3Specular.xyz, md.fRoughness);
+		}
 	}
 
+	// add ambient contribution
+	v3LightColor += md.v3Diffuse * 0.2f;
 	v3OutColor = v3LightColor;
 }

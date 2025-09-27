@@ -110,7 +110,7 @@ namespace vkt {
 
 	struct GlobalData {
 		glm::vec3 m_v3CameraPosition{};
-		uint32_t m_uiLightCount{};
+		uint32_t m_uiNumPointLights{};
 	};
 
 	struct Transform {
@@ -137,7 +137,7 @@ namespace vkt {
 		// surface material helpers
 		static Material none() {
 			return {
-				.m_v3Diffuse = {1.0f, 0.0f, 0.0f},
+				.m_v3Diffuse = {1.0f, 1.0f, 1.0f},
 				.m_v3Specular = {1.0f, 0.3f, 0.3f},
 				.m_fRoughness = 0.35f
 			};
