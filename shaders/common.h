@@ -34,7 +34,7 @@ struct Material {
 struct PointLight {
 	vec3 v3Position;
 	vec3 v3Intensity;
-	float fFalloff;
+	vec3 v3Falloff;
 };
 
 layout(binding = 0, set = 0) readonly buffer Vertices {

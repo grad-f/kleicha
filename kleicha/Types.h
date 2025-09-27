@@ -121,7 +121,7 @@ namespace vkt {
 	struct PointLight {
 		glm::vec3 m_v3Position{};
 		alignas(16)glm::vec3 m_v3Color{};
-		float m_fFalloff{};
+		alignas(16)glm::vec3 m_fFalloff{};
 	};
 
 	struct alignas(16) Material {

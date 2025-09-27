@@ -173,8 +173,21 @@ void Kleicha::init_graphics_pipelines() {
 	pipelineLayoutInfo.pSetLayouts = setLayouts;
 	vkCreatePipelineLayout(m_device.device, &pipelineLayoutInfo, nullptr, &m_dummyPipelineLayout);
 
-	VkShaderModule blinnPhongVertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_light.spv") };
-	VkShaderModule blinnPhongFragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_light.spv") };
+	VkSpecializationMapEntry blinnMapEntry{};
+	blinnMapEntry.constantID = 0;
+	blinnMapEntry.offset = 0;
+	blinnMapEntry.size = sizeof(uint32_t);
+
+	// create specialization constant that'll allow the compiler to remove the alpha testing discard rather than introducing a new shader
+	uint32_t useBlinn{ 0 };
+	VkSpecializationInfo blinnSpecializationInfo{};
+	blinnSpecializationInfo.mapEntryCount = 1;
+	blinnSpecializationInfo.pMapEntries = &blinnMapEntry;
+	blinnSpecializationInfo.dataSize = sizeof(uint32_t);
+	blinnSpecializationInfo.pData = &useBlinn;
+
+	VkShaderModule lightVertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_light.spv") };
+	VkShaderModule lightFragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_light.spv") };
 
 	VkShaderModule shadowVertModule{ utils::create_shader_module(m_device.device, "../shaders/vert_shadow.spv") };
 	VkShaderModule shadowFragModule{ utils::create_shader_module(m_device.device, "../shaders/frag_shadow.spv") };
@@ -191,23 +204,12 @@ void Kleicha::init_graphics_pipelines() {
 	pipelineBuilder.set_depth_attachment_format(DEPTH_IMAGE_FORMAT);
 	pipelineBuilder.set_color_attachment_format(INTERMEDIATE_IMAGE_FORMAT);
 
-	pipelineBuilder.set_shaders(&blinnPhongVertModule, nullptr, &blinnPhongFragModule);
+	pipelineBuilder.set_shaders(&lightVertModule, nullptr, &lightFragModule);
+	m_GGXPipeline = pipelineBuilder.build();
+
+	useBlinn = 1;
+	pipelineBuilder.set_shaders(&lightVertModule, nullptr, &lightFragModule, &blinnSpecializationInfo);
 	m_blinnPhongPipeline = pipelineBuilder.build();
-
-	/*	the below defined speciailization constant allows the driver compiler to optimize around our alpha testing
-	allowing us to retain early - z occlusion culling when rendering meshes that aren't performing alpha testing	*/
-	VkSpecializationMapEntry mapEntry{};
-	mapEntry.constantID = 0;
-	mapEntry.offset = 0;
-	mapEntry.size = sizeof(uint32_t);
-
-	// create specialization constant that'll allow the compiler to remove the alpha testing discard rather than introducing a new shader
-	uint32_t useAlphaTest{ 1 };
-	VkSpecializationInfo specializationInfo{};
-	specializationInfo.mapEntryCount = 1;
-	specializationInfo.pMapEntries = &mapEntry;
-	specializationInfo.dataSize = sizeof(uint32_t);
-	specializationInfo.pData = &useAlphaTest;
 
 	/*pipelineBuilder.set_rasterizer_state(VK_POLYGON_MODE_FILL, VK_CULL_MODE_FRONT_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE, -1.25f, -1.75f);
 	pipelineBuilder.set_shaders(&shadowVertModule, nullptr, &shadowFragModule);
@@ -224,8 +226,8 @@ void Kleicha::init_graphics_pipelines() {
 	// TO-DO: we should find a better way of doing this. Perhaps pipeline builder should deallocate these automatically after creating the pipeline?
 	// we're free to destroy shader modules after pipeline creation
 
-	vkDestroyShaderModule(m_device.device, blinnPhongVertModule, nullptr);
-	vkDestroyShaderModule(m_device.device, blinnPhongFragModule, nullptr);
+	vkDestroyShaderModule(m_device.device, lightVertModule, nullptr);
+	vkDestroyShaderModule(m_device.device, lightFragModule, nullptr);
 	vkDestroyShaderModule(m_device.device, shadowVertModule, nullptr);
 	vkDestroyShaderModule(m_device.device, shadowFragModule, nullptr);
 	vkDestroyShaderModule(m_device.device, cubeShadowVertModule, nullptr);
@@ -615,8 +617,8 @@ void Kleicha::init_lights() {
 	// create a standard white light 
 	vkt::PointLight pointLight{
 		.m_v3Position = { -3.0f, 5.0f, 0.0f },
-		.m_v3Color = {1.0f, 1.0f, 1.0f},
-		.m_fFalloff = {0.01f}
+		.m_v3Color = {0.7f, 0.7f, 0.7f},
+		.m_fFalloff = {0.0f, 0.0f, 0.01f}
 	};
 
 	m_pointLights.push_back(pointLight);
@@ -1117,6 +1119,8 @@ void Kleicha::start() {
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
 
+		ImGui::Checkbox("Blinn-Phong", &m_bUseBlinnPhong);
+
 		if (ImGui::CollapsingHeader("Lights")) {
 
 			for (std::size_t i{ 0 }; i < m_pointLights.size(); ++i) {
@@ -1125,7 +1129,7 @@ void Kleicha::start() {
 				ImGui::SliderFloat3("Light World Pos", &m_pointLights[i].m_v3Position.x, -10.0f, 50.0f);
 				//ImGui::ColorPicker3("Light Ambient", &m_pointLights[i].ambient.r);)
 				ImGui::SliderFloat3("Light Color", &m_pointLights[i].m_v3Color.r, 0.0f, 1.0f);
-				ImGui::SliderFloat("Light Falloff", &m_pointLights[i].m_fFalloff, 0.0f, 10.0f);
+				ImGui::SliderFloat3("Light Falloff", &m_pointLights[i].m_fFalloff.r, 0.0f, 10.0f);
 				ImGui::NewLine();
 				ImGui::PopID();
 			}
@@ -1138,7 +1142,7 @@ void Kleicha::start() {
 				ImGui::Text("Material %d", i - 1);
 				ImGui::SliderFloat3("Material Diffuse", &m_materials[i].m_v3Diffuse.r, 0.0f, 1.0f);
 				ImGui::SliderFloat3("Material Specular", &m_materials[i].m_v3Specular.r, 0.0f, 1.0f);
-				ImGui::SliderFloat("Roughness", &m_materials[i].m_fRoughness, 0.0f, 100.0f);
+				ImGui::SliderFloat("Roughness", &m_materials[i].m_fRoughness, 0.0f, 1.0f);
 				ImGui::NewLine();
 				ImGui::PopID();
 			}
@@ -1235,7 +1239,10 @@ void Kleicha::draw(float currentTime) {
 
 	vkCmdBeginRendering(frame.cmdBuffer, &renderingInfo);
 
-	record_draws(frame, &m_blinnPhongPipeline, nullptr);
+	if (m_bUseBlinnPhong)
+		record_draws(frame, &m_blinnPhongPipeline, nullptr);
+	else
+		record_draws(frame, &m_GGXPipeline, nullptr);
 
 	vkCmdEndRendering(frame.cmdBuffer);
 

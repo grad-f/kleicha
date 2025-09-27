@@ -128,8 +128,8 @@ private:
 		m_windowExtent = extent;
 	}
 
+	bool m_bUseBlinnPhong{ false };
 	uint32_t m_totalDraws{0};
-
 	float m_deltaTime{};
 	float m_lastFrame{};
 };
