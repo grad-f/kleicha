@@ -14,6 +14,8 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
+#include <ktxvulkan.h>
+
 #include "../imgui/imgui.h"
 #include "../imgui/imgui_impl_glfw.h"
 #include "../imgui/imgui_impl_vulkan.h"
@@ -450,7 +452,7 @@ void Kleicha::init_load_scene() {
 	m_indexBuffer = upload_data(unifiedTriangles.data(), unifiedTriangles.size() * sizeof(glm::uvec3), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
 	m_drawBuffer = upload_data(draws.data(), sizeof(vkt::DrawData) * draws.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 	
-	m_textures.push_back(upload_texture_image("../textures/empty.jpg"));
+	m_textures.push_back(upload_texture_image_ktx("../textures/WindowDiff.ktx"));
 	for (std::size_t i{ 0 }; i < texturePaths.size(); ++i) {
 		// check if the texture we're processing is a normal map
 		bool isNormalMap{ false };
@@ -765,6 +767,77 @@ vkt::Image Kleicha::upload_texture_image(const char** filePaths) {
 		});
 
 	vmaDestroyBuffer(m_allocator, stagingBuffer.buffer, stagingBuffer.allocation);
+
+	return textureImage;
+}
+
+vkt::Image Kleicha::upload_texture_image_ktx(const char* filePath) {
+	ktxTexture* kTexture{};
+	KTX_error_code result{ ktxTexture_CreateFromNamedFile(filePath, KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT, &kTexture) };
+	if (result != KTX_SUCCESS)
+		throw std::runtime_error{ "[Kleicha] Failed to load ktx texture image: " + std::string{ktxErrorString(result)}};
+
+	uint32_t uiTexWidth{ kTexture->baseWidth };
+	uint32_t uiTexHeight{ kTexture->baseHeight };
+	ktx_uint8_t* ktxTexData{ ktxTexture_GetData(kTexture) };
+
+	VkFormat ktxTexFormat{ ktxTexture_GetVkFormat(kTexture) };
+
+	//fmt::println("KTX FORMAT:{}", string_VkFormat(ktxTexture_GetVkFormat(kTexture)));
+
+	VmaAllocationCreateInfo allocationInfo{};
+	allocationInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+	allocationInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+	vkt::Image textureImage{};
+	uint32_t mipLevels{ kTexture->numLevels };
+	textureImage.mipLevels = mipLevels;	
+	
+	VkImageCreateInfo textureImageInfo{ init::create_image_info(ktxTexFormat, VkExtent2D{uiTexWidth, uiTexHeight}, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, textureImage.mipLevels)};
+	VK_CHECK(vmaCreateImage(m_allocator, &textureImageInfo, &allocationInfo, &textureImage.image, &textureImage.allocation, &textureImage.allocationInfo));
+	VkImageViewCreateInfo imageViewInfo{ init::create_image_view_info(textureImage.image, ktxTexFormat, VK_IMAGE_ASPECT_COLOR_BIT, textureImage.mipLevels) };
+	VK_CHECK(vkCreateImageView(m_device.device, &imageViewInfo, nullptr, &textureImage.imageView));
+
+	for (std::size_t i{ 0 }; i < mipLevels; ++i) {
+		// returns size of bytes of an image at the specified mip level
+		ktx_size_t uiTexDataSize{ ktxTexture_GetImageSize(kTexture, i) };
+
+		// get byte offset
+		ktx_size_t offset{};
+		result =  ktxTexture_GetImageOffset(kTexture, i, 0, 0, &offset);
+		if (result != KTX_SUCCESS)
+			throw std::runtime_error{ "[Kleicha] ktxTexture_GetImageOffset failed with error: " + std::string{ktxErrorString(result)} };
+
+		vkt::Buffer stagingBuffer{ utils::create_buffer(m_allocator, uiTexDataSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT) };
+		memcpy(stagingBuffer.allocationInfo.pMappedData, ktxTexData + offset, uiTexDataSize);
+
+		immediate_submit([&](VkCommandBuffer cmdBuffer) {
+			utils::image_memory_barrier(cmdBuffer, VK_PIPELINE_STAGE_2_NONE_KHR, VK_ACCESS_2_NONE,
+				VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, textureImage.image, textureImage.mipLevels);
+
+			VkBufferImageCopy imageCopy{};
+			imageCopy.bufferOffset = 0;
+			imageCopy.bufferRowLength = 0;
+			imageCopy.bufferImageHeight = 0;
+			imageCopy.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			imageCopy.imageSubresource.mipLevel = i;
+			imageCopy.imageSubresource.layerCount = 1;
+			imageCopy.imageSubresource.baseArrayLayer = 0;
+			imageCopy.imageOffset = { .x = 0,.y = 0,.z = 0 };
+			imageCopy.imageExtent = { .width = uiTexWidth, .height = uiTexHeight, .depth = 1 };
+			vkCmdCopyBufferToImage(cmdBuffer, stagingBuffer.buffer, textureImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageCopy);
+			});
+
+		vmaDestroyBuffer(m_allocator, stagingBuffer.buffer, stagingBuffer.allocation);
+		uiTexWidth = uiTexWidth >> 1;
+		uiTexHeight = uiTexHeight >> 1;
+
+		if (uiTexWidth < 1 || uiTexHeight < 1)
+			break;
+	}
+
+	ktxTexture_Destroy(kTexture);
 
 	return textureImage;
 }
