@@ -56,6 +56,6 @@ namespace utils {
     void compute_mesh_tangents(vkt::Mesh& mesh);
 
     bool load_gltf(const char* filePath, std::vector<vkt::Mesh>& meshes, std::vector<vkt::DrawData>& draws, std::vector<vkt::Transform>& transforms, std::vector<vkt::Material>& materials, std::vector<std::string>& texturePaths);
-
+    bool load_fbx(const char* filePath, std::vector<vkt::Mesh>& meshes, std::vector<vkt::DrawData>& draws, std::vector<vkt::Transform>& transforms, std::vector<vkt::Material>& materials, std::vector<std::string>& texturePaths);
 }
 #endif // !UTILS_H

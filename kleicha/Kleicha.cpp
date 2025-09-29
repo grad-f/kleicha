@@ -383,18 +383,21 @@ void Kleicha::init_load_scene() {
 
 	std::vector<vkt::Mesh> meshes{};
 	std::vector<vkt::DrawData> draws{};
-	std::vector<vkt::Material> materials{};
 	std::vector<std::string> texturePaths{};
 	
-	if (!utils::load_gltf("../data/Sponza/glTF/Sponza.gltf", meshes, draws, m_meshTransforms, materials, texturePaths)) {
+	/*if (!utils::load_gltf("../data/Sponza/glTF/Sponza.gltf", meshes, draws, m_meshTransforms, m_materials, texturePaths)) {
 		throw std::runtime_error{ "[Kleicha] Failed to load scene!" };
 	}
 
-	if (!utils::load_gltf("../data/DamagedHelmet/glTF/DamagedHelmet.gltf", meshes, draws, m_meshTransforms, materials, texturePaths)) {
+	if (!utils::load_gltf("../data/DamagedHelmet/glTF/DamagedHelmet.gltf", meshes, draws, m_meshTransforms, m_materials, texturePaths)) {
 		throw std::runtime_error{ "[Kleicha] Failed to load scene!" };
 	}
 
-	if (!utils::load_gltf("../data/BoomBox/glTF/BoomBox.gltf", meshes, draws, m_meshTransforms, materials, texturePaths)) {
+	if (!utils::load_gltf("../data/BoomBox/glTF/BoomBox.gltf", meshes, draws, m_meshTransforms, m_materials, texturePaths)) {
+		throw std::runtime_error{ "[Kleicha] Failed to load scene!" };
+	}*/
+
+	if (!utils::load_fbx("../data/Cathedral/Cathedral.fbx", meshes, draws, m_meshTransforms, m_materials, texturePaths)) {
 		throw std::runtime_error{ "[Kleicha] Failed to load scene!" };
 	}
 
@@ -430,35 +433,17 @@ void Kleicha::init_load_scene() {
 		unifiedTriangles.insert(unifiedTriangles.end(), meshes[i].tInd.begin(), meshes[i].tInd.end());
 	}
 
-	// load any other draw data we're interested in -- bit of a crude approach for now.
-	uint32_t materialOffset{ static_cast<uint32_t>(materials.size()) };
-	uint32_t textureOffset{ static_cast<uint32_t>(1 + texturePaths.size() ) };
-
-	/*vkt::Material material{ vkt::Material::none() };
-	material.m_uiAlbedoTexture = textureOffset;
-	m_materials.push_back(material);
-
-	for (const auto& mat : materials) {
-
-	}*/
-
-	m_materials = materials;
-
-	m_meshTransforms.push_back(vkt::Transform{ .m_m4Model = glm::translate(glm::mat4{1.0f}, glm::vec3{0.0f, -5.0f, -3.0f}) * glm::scale(glm::mat4{1.0f}, glm::vec3{5.0f, 5.0f, 5.0f})});
-	draws.push_back(vkt::DrawData{ .m_uiMaterialIndex = materialOffset, .m_uiTransformIndex = static_cast<uint32_t>(m_meshTransforms.size() - 1) });
-	m_bezierDraw = vkt::HostDrawData{ .m_uiDrawId = static_cast<uint32_t>(draws.size() - 1)};
-
 	m_vertexBuffer = upload_data(unifiedVertices.data(), unifiedVertices.size() * sizeof(vkt::Vertex), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 	m_indexBuffer = upload_data(unifiedTriangles.data(), unifiedTriangles.size() * sizeof(glm::uvec3), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
 	m_drawBuffer = upload_data(draws.data(), sizeof(vkt::DrawData) * draws.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 	
-	m_textures.push_back(upload_texture_image_ktx("../textures/WindowDiff.ktx"));
+	m_textures.push_back(upload_texture_image_ktx("../textures/WindowRough.ktx"));
 	for (std::size_t i{ 0 }; i < texturePaths.size(); ++i) {
 		// check if the texture we're processing is a normal map
 		bool isNormalMap{ false };
 
-		for (std::size_t j{ 0 }; j < materials.size(); ++j) {
-			if ((i + 1) == materials[j].m_uiNormalTexture) {
+		for (std::size_t j{ 0 }; j < m_materials.size(); ++j) {
+			if ((i + 1) == m_materials[j].m_uiNormalTexture) {
 				isNormalMap = true;
 				break;
 			}
@@ -721,7 +706,7 @@ vkt::Image Kleicha::upload_texture_image(const char** filePaths) {
 			stbi_image_free(faces[i]);
 			throw std::runtime_error{ "[Kleicha] Failed to load cube texture image" + std::string{ stbi_failure_reason() } };
 		}
-		fmt::println("Loaded Texture: {}", filePaths[i]);
+		fmt::println("[Kleicha] Loaded Texture: {}", filePaths[i]);
 	}
 
 	VkExtent2D textureExtent{ static_cast<uint32_t>(width), static_cast<uint32_t>(height) };
@@ -798,7 +783,7 @@ vkt::Image Kleicha::upload_texture_image_ktx(const char* filePath) {
 	VkImageViewCreateInfo imageViewInfo{ init::create_image_view_info(textureImage.image, ktxTexFormat, VK_IMAGE_ASPECT_COLOR_BIT, textureImage.mipLevels) };
 	VK_CHECK(vkCreateImageView(m_device.device, &imageViewInfo, nullptr, &textureImage.imageView));
 
-	for (std::size_t i{ 0 }; i < mipLevels; ++i) {
+	for (uint32_t i{ 0 }; i < mipLevels; ++i) {
 		// returns size of bytes of an image at the specified mip level
 		ktx_size_t uiTexDataSize{ ktxTexture_GetImageSize(kTexture, i) };
 
@@ -836,8 +821,10 @@ vkt::Image Kleicha::upload_texture_image_ktx(const char* filePath) {
 		if (uiTexWidth < 1 || uiTexHeight < 1)
 			break;
 	}
-
+	
 	ktxTexture_Destroy(kTexture);
+
+	fmt::println("[Kleicha] Loaded KTX texture {0}. Format: {1}", filePath, string_VkFormat(ktxTexFormat));
 
 	return textureImage;
 }
@@ -852,8 +839,7 @@ vkt::Image Kleicha::upload_texture_image(const char* filePath, VkFormat format) 
 		throw std::runtime_error{ "[Kleicha] Failed to load texture image: " + std::string{ stbi_failure_reason() } };
 	}
 
-	fmt::println("Loaded Texture: {}", filePath);
-
+	fmt::println("[Kleicha] Loaded Texture: {}", filePath);
 
 	VkExtent2D textureExtent{ static_cast<uint32_t>(width), static_cast<uint32_t>(height) };
 	VkDeviceSize bufferSize{ static_cast<VkDeviceSize>(width * height * 4) };
