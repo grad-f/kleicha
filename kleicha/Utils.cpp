@@ -611,6 +611,17 @@ namespace utils {
         return true;
     }
 
+    void LoadNode(aiNode* pNode, const aiScene* pScene, std::vector<vkt::DrawData>& draws, std::vector<vkt::Transform>& transforms, const glm::mat4& m4Transform) {
+
+        // compute node transformation
+        glm::mat4 m4CurrentTransform{ glm::transpose(*reinterpret_cast<glm::mat4*>(&pNode->mTransformation)) * m4Transform };
+
+        // traverse all meshes in the node
+        for (std::size_t i{ 0 }; i < pNode->mNumMeshes; ++i) {
+
+        }
+    }
+
     bool load_fbx(const char* filePath, std::vector<vkt::Mesh>& meshes, std::vector<vkt::DrawData>& draws, std::vector<vkt::Transform>& transforms, std::vector<vkt::Material>& materials, std::vector<std::string>& texturePaths) {
         const aiScene* pScene{ aiImportFile(filePath,
             aiProcess_GenSmoothNormals |
@@ -647,6 +658,25 @@ namespace utils {
             }
 
             meshes[i + uiMeshOffset] = mesh;
+
+            /* TO - DO: Create a class which is responsible for loading a scene.
+             What we want to do is when we traverse these meshes, rather than just add them to a list of meshes, we'd like to call a function
+             called 'append_mesh'. This function takes the given mesh and does two things:
+
+             It adds it to unified vertex and index vectors such as
+                std::vector<vkt::Vertex> unifiedVertices{};
+                std::vector<glm::uvec3> unifiedTriangles{};
+
+                these are eventually what we will upload to the device as the unified vertex and index buffer.
+
+                It also constructs a corresponding entry of what I will call the canonical host draw data.
+                This canonical host draw data is a unique vector of host draw data for each unique mesh.
+                It is this that is then used to generate per node host draw data and corresponding draw data
+
+                Therefore, the class will have some members and we can really break this entire process down so that it is less hacky/convoluted and easier to digest.
+
+                We also likely do not need draw id anymore and simply assume drawid corresponds to its position in non-canonical host draw data.
+             */
         }
 
         //std::size_t uiTextureOffset{ texturePaths.size() };
@@ -679,8 +709,6 @@ namespace utils {
 
             materials.push_back(material);
         }
-
-        // TO-DO: Traverse nodes
 
         return true;
     }

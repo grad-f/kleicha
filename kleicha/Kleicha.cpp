@@ -438,6 +438,7 @@ void Kleicha::init_load_scene() {
 	m_drawBuffer = upload_data(draws.data(), sizeof(vkt::DrawData) * draws.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 	
 	m_textures.push_back(upload_texture_image_ktx("../textures/WindowRough.ktx"));
+
 	for (std::size_t i{ 0 }; i < texturePaths.size(); ++i) {
 		// check if the texture we're processing is a normal map
 		bool isNormalMap{ false };
@@ -454,8 +455,6 @@ void Kleicha::init_load_scene() {
 			m_textures.push_back(upload_texture_image(texturePaths[i].c_str()));
 	}
 	m_textures.push_back(upload_texture_image("../textures/brick_color.png"));
-
-
 }
 
 void Kleicha::init_image_buffers(bool windowResized) {
