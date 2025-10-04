@@ -69,8 +69,6 @@ private:
 
 	// each of these sets of draw data will be drawn with a different pipeline, provides flexibility.
 	std::vector<vkt::HostDrawData> m_draws{};
-	std::vector<vkt::HostDrawData> m_alphaDraws{};
-	vkt::HostDrawData m_bezierDraw{};
 
 	//std::vector<VkDrawIndexedIndirectCommand> m_drawIndirectParams{};
 	std::vector<vkt::Transform> m_meshTransforms{};

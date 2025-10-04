@@ -6,6 +6,7 @@
 #include "PipelineBuilder.h"
 #include "Initializers.h"
 #include "Types.h"
+#include "Scene.h"
 
 #pragma warning(push)
 #pragma warning(disable : 26819 6262 26110 26813 26495 6386 4100 4365 4127 4189 6387 33010)
@@ -381,10 +382,13 @@ void Kleicha::init_imgui() {
 
 void Kleicha::init_load_scene() {
 
-	std::vector<vkt::Mesh> meshes{};
+	//std::vector<vkt::Mesh> meshes{};
 	std::vector<vkt::DrawData> draws{};
 	std::vector<std::string> texturePaths{};
 	
+	Scene scene{};
+	scene.load_scene("../data/Cathedral/Cathedral.fbx", m_draws, draws, m_pointLights, m_meshTransforms, m_materials, texturePaths);
+
 	/*if (!utils::load_gltf("../data/Sponza/glTF/Sponza.gltf", meshes, draws, m_meshTransforms, m_materials, texturePaths)) {
 		throw std::runtime_error{ "[Kleicha] Failed to load scene!" };
 	}
@@ -397,64 +401,51 @@ void Kleicha::init_load_scene() {
 		throw std::runtime_error{ "[Kleicha] Failed to load scene!" };
 	}*/
 
-	if (!utils::load_fbx("../data/Cathedral/Cathedral.fbx", meshes, draws, m_meshTransforms, m_materials, texturePaths)) {
+	/*if (!utils::load_fbx("../data/Cathedral/Cathedral.fbx", meshes, draws, m_meshTransforms, m_materials, texturePaths)) {
 		throw std::runtime_error{ "[Kleicha] Failed to load scene!" };
-	}
+	}*/
 
-	std::vector<vkt::Vertex> unifiedVertices{};
-	std::vector<glm::uvec3> unifiedTriangles{};
-	for (std::size_t i{ 0 }; i < meshes.size(); ++i) {
+	//std::vector<vkt::Vertex> unifiedVertices{};
+	//std::vector<glm::uvec3> unifiedTriangles{};
+	//for (std::size_t i{ 0 }; i < meshes.size(); ++i) {
 
-		if (meshes[i].bComputeTangent)
-			utils::compute_mesh_tangents(meshes[i]);
+	//	if (meshes[i].bComputeTangent)
+	//		utils::compute_mesh_tangents(meshes[i]);
 
-		// store the current vertex and triangle counts
-		int32_t vertexCount{ static_cast<int32_t>(unifiedVertices.size()) };
-		uint32_t triangleCount{ static_cast<uint32_t>(unifiedTriangles.size()) };
+	//	// store the current vertex and triangle counts
+	//	int32_t vertexCount{ static_cast<int32_t>(unifiedVertices.size()) };
+	//	uint32_t triangleCount{ static_cast<uint32_t>(unifiedTriangles.size()) };
 
-		// store vertex and index buffer mesh start positions
-		vkt::HostDrawData hostDraw{};
-		hostDraw.m_uiDrawId = static_cast<uint32_t>(i);
-		hostDraw.m_iVertexOffset = vertexCount;
-		hostDraw.m_uiIndicesOffset = triangleCount * glm::uvec3::length();
-		hostDraw.m_uiIndicesCount = static_cast<uint32_t>(meshes[i].tInd.size() * glm::uvec3::length());
+	//	// store vertex and index buffer mesh start positions
+	//	vkt::HostDrawData hostDraw{};
+	//	hostDraw.m_uiDrawId = static_cast<uint32_t>(i);
+	//	hostDraw.m_iVertexOffset = vertexCount;
+	//	hostDraw.m_uiIndicesOffset = triangleCount * glm::uvec3::length();
+	//	hostDraw.m_uiIndicesCount = static_cast<uint32_t>(meshes[i].tInd.size() * glm::uvec3::length());
 
-		if (meshes[i].bUseAlphaTest)
-			m_alphaDraws.push_back(hostDraw);
-		else
-			m_draws.push_back(hostDraw);
+	//	if (meshes[i].bUseAlphaTest)
+	//		m_alphaDraws.push_back(hostDraw);
+	//	else
+	//		m_draws.push_back(hostDraw);
 
-		// allocate memory for mesh vertex data and insert it
-		unifiedVertices.reserve(vertexCount + meshes[i].verts.size());
-		unifiedVertices.insert(unifiedVertices.end(), meshes[i].verts.begin(), meshes[i].verts.end());
+	//	// allocate memory for mesh vertex data and insert it
+	//	unifiedVertices.reserve(vertexCount + meshes[i].verts.size());
+	//	unifiedVertices.insert(unifiedVertices.end(), meshes[i].verts.begin(), meshes[i].verts.end());
 
-		// allocate memory for mesh index data and insert it
-		unifiedTriangles.reserve(triangleCount + meshes[i].tInd.size());
-		unifiedTriangles.insert(unifiedTriangles.end(), meshes[i].tInd.begin(), meshes[i].tInd.end());
-	}
+	//	// allocate memory for mesh index data and insert it
+	//	unifiedTriangles.reserve(triangleCount + meshes[i].tInd.size());
+	//	unifiedTriangles.insert(unifiedTriangles.end(), meshes[i].tInd.begin(), meshes[i].tInd.end());
+	//}
 
-	m_vertexBuffer = upload_data(unifiedVertices.data(), unifiedVertices.size() * sizeof(vkt::Vertex), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
-	m_indexBuffer = upload_data(unifiedTriangles.data(), unifiedTriangles.size() * sizeof(glm::uvec3), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+	m_vertexBuffer = upload_data(scene.m_unifiedVertices.data(), scene.m_unifiedVertices.size() * sizeof(vkt::Vertex), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+	m_indexBuffer = upload_data(scene.m_unifiedTriangles.data(), scene.m_unifiedTriangles.size() * sizeof(glm::uvec3), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
 	m_drawBuffer = upload_data(draws.data(), sizeof(vkt::DrawData) * draws.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 	
 	m_textures.push_back(upload_texture_image_ktx("../textures/WindowRough.ktx"));
 
 	for (std::size_t i{ 0 }; i < texturePaths.size(); ++i) {
-		// check if the texture we're processing is a normal map
-		bool isNormalMap{ false };
-
-		for (std::size_t j{ 0 }; j < m_materials.size(); ++j) {
-			if ((i + 1) == m_materials[j].m_uiNormalTexture) {
-				isNormalMap = true;
-				break;
-			}
-		}
-		if(isNormalMap)
-			m_textures.push_back(upload_texture_image(texturePaths[i].c_str(), VK_FORMAT_R8G8B8A8_UNORM));
-		else
-			m_textures.push_back(upload_texture_image(texturePaths[i].c_str()));
+		m_textures.push_back(upload_texture_image_ktx(texturePaths[i].c_str()));
 	}
-	m_textures.push_back(upload_texture_image("../textures/brick_color.png"));
 }
 
 void Kleicha::init_image_buffers(bool windowResized) {
@@ -600,27 +591,27 @@ void Kleicha::init_dynamic_buffers() {
 }
 
 void Kleicha::init_lights() {		
-	// create a standard white light 
-	vkt::PointLight pointLight{
-		.m_v3Position = { 0.0f, 5.0f, 0.0f },
-		.m_v3Color = {0.7f, 0.7f, 0.7f},
-		.m_fFalloff = {0.0f, 0.0f, 0.01f}
-	};
-	m_pointLights.push_back(pointLight);
-
-	pointLight.m_v3Position = { 0.0f, 5.0f, 0.0 };
-	pointLight.m_v3Color = { 0.0f, 1.0f, 0.0f };
+	//// create a standard white light 
+	//vkt::PointLight pointLight{
+	//	.m_v3Position = { 0.0f, 5.0f, 0.0f },
+	//	.m_v3Color = {0.7f, 0.7f, 0.7f},
+	//	.m_fFalloff = {0.0f, 0.0f, 0.01f}
+	//};
 	//m_pointLights.push_back(pointLight);
 
-	pointLight.m_v3Position = { 3.0f, 5.0f, 0.0 };
-	pointLight.m_v3Color = { 0.0f, 0.0f, 1.0f };
-	//m_pointLights.push_back(pointLight);
+	//pointLight.m_v3Position = { 0.0f, 5.0f, 0.0 };
+	//pointLight.m_v3Color = { 0.0f, 1.0f, 0.0f };
+	////m_pointLights.push_back(pointLight);
 
-	//pointLight.mPos = {3.0f, 5.0f, 0.0f};
-	//m_pointLights.push_back(pointLight);
+	//pointLight.m_v3Position = { 3.0f, 5.0f, 0.0 };
+	//pointLight.m_v3Color = { 0.0f, 0.0f, 1.0f };
+	////m_pointLights.push_back(pointLight);
 
-	/*pointLight.mPos = {-6.0f, 1.5f, -5.0f};
-	m_pointLights.push_back(pointLight);*/
+	////pointLight.mPos = {3.0f, 5.0f, 0.0f};
+	////m_pointLights.push_back(pointLight);
+
+	///*pointLight.mPos = {-6.0f, 1.5f, -5.0f};
+	//m_pointLights.push_back(pointLight);*/
 
 }
 
@@ -1059,26 +1050,15 @@ void Kleicha::update_dynamic_buffers(const vkt::Frame& frame, [[maybe_unused]] f
 	// the below draw calls using a pipeline barrier.
 }
 
-void Kleicha::record_draws(const vkt::Frame& frame, VkPipeline* opaquePipeline, VkPipeline* alphaPipeline) {
+void Kleicha::record_draws(const vkt::Frame& frame, VkPipeline* opaquePipeline, [[maybe_unused]]VkPipeline* alphaPipeline) {
 
 	assert(opaquePipeline);
-
 	vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, *opaquePipeline);
-	for (const auto& draw : m_draws) {
-		m_pushConstants.drawId = draw.m_uiDrawId;
+	for (uint32_t i{ 0 }; i < m_draws.size(); ++i) {
+		m_pushConstants.drawId = i;
 		vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_ALL, 0, sizeof(vkt::PushConstants), &m_pushConstants);
-		vkCmdDrawIndexed(frame.cmdBuffer, draw.m_uiIndicesCount, 1, draw.m_uiIndicesOffset, draw.m_iVertexOffset, 0);
+		vkCmdDrawIndexed(frame.cmdBuffer, m_draws[i].m_uiIndicesCount, 1, m_draws[i].m_uiIndicesOffset, m_draws[i].m_iVertexOffset, 0);
 	}
-
-	if (alphaPipeline)
-		vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, *alphaPipeline);
-
-	for (const auto& draw : m_alphaDraws) {
-		m_pushConstants.drawId = draw.m_uiDrawId;
-		vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_ALL, 0, sizeof(vkt::PushConstants), &m_pushConstants);
-		vkCmdDrawIndexed(frame.cmdBuffer, draw.m_uiIndicesCount, 1, draw.m_uiIndicesOffset, draw.m_iVertexOffset, 0);
-	}
-
 }
 
 void Kleicha::shadow_cube_pass(const vkt::Frame& frame) {
@@ -1109,16 +1089,10 @@ void Kleicha::shadow_cube_pass(const vkt::Frame& frame) {
 
 		vkCmdBeginRendering(frame.cmdBuffer, &cubeShadowRenderingInfo);
 
-		for (const auto& draw : m_draws) {
-			m_pushConstants.drawId = draw.m_uiDrawId;
+		for (uint32_t i{ 0 }; i < m_draws.size(); ++i) {
+			m_pushConstants.drawId = i;
 			vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_ALL, 0, sizeof(vkt::PushConstants), &m_pushConstants);
-			vkCmdDrawIndexed(frame.cmdBuffer, draw.m_uiIndicesCount, 1, draw.m_uiIndicesOffset, draw.m_iVertexOffset, 0);
-		}
-
-		for (const auto& draw : m_alphaDraws) {
-			m_pushConstants.drawId = draw.m_uiDrawId;
-			vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_ALL, 0, sizeof(vkt::PushConstants), &m_pushConstants);
-			vkCmdDrawIndexed(frame.cmdBuffer, draw.m_uiIndicesCount, 1, draw.m_uiIndicesOffset, draw.m_iVertexOffset, 0);
+			vkCmdDrawIndexed(frame.cmdBuffer, m_draws[i].m_uiIndicesCount, 1, m_draws[i].m_uiIndicesOffset, m_draws[i].m_iVertexOffset, 0);
 		}
 
 		vkCmdEndRendering(frame.cmdBuffer);
@@ -1156,16 +1130,10 @@ void Kleicha::shadow_2D_pass(const vkt::Frame& frame) {
 
 		//m_pushConstants.lightId = j;
 
-		for (const auto& draw : m_draws) {
-			m_pushConstants.drawId = draw.m_uiDrawId;
+		for (uint32_t i{ 0 }; i < m_draws.size(); ++i) {
+			m_pushConstants.drawId = i;
 			vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_ALL, 0, sizeof(vkt::PushConstants), &m_pushConstants);
-			vkCmdDrawIndexed(frame.cmdBuffer, draw.m_uiIndicesCount, 1, draw.m_uiIndicesOffset, draw.m_iVertexOffset, 0);
-		}
-
-		for (const auto& draw : m_alphaDraws) {
-			m_pushConstants.drawId = draw.m_uiDrawId;
-			vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_ALL, 0, sizeof(vkt::PushConstants), &m_pushConstants);
-			vkCmdDrawIndexed(frame.cmdBuffer, draw.m_uiIndicesCount, 1, draw.m_uiIndicesOffset, draw.m_iVertexOffset, 0);
+			vkCmdDrawIndexed(frame.cmdBuffer, m_draws[i].m_uiIndicesCount, 1, m_draws[i].m_uiIndicesOffset, m_draws[i].m_iVertexOffset, 0);
 		}
 
 		vkCmdEndRendering(frame.cmdBuffer);

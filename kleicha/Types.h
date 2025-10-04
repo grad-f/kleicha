@@ -95,7 +95,6 @@ namespace vkt {
 	};
 
 	struct HostDrawData {
-		uint32_t m_uiDrawId{};
 		uint32_t m_uiIndicesCount{};
 		uint32_t m_uiIndicesOffset{};
 		int32_t m_iVertexOffset{};

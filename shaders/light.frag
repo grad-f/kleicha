@@ -108,7 +108,7 @@ void main() {
 	vec3 v3LightColor = vec3(0.0f);
 
 	vec3 v3Diffuse = texture(texSampler[md.uiAlbedoTexture], v2InUV).rgb;
-	float fRoughness = texture(texSampler[md.uiRoughnessTexture], v2InUV).g;
+	float fRoughness = texture(texSampler[md.uiRoughnessTexture], v2InUV).r;
 
 	for (uint i = 0; i < globals.uiNumPointLights; ++i) {
 		PointLight light = lights[i];
