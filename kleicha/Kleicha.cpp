@@ -387,55 +387,8 @@ void Kleicha::init_load_scene() {
 	std::vector<std::string> texturePaths{};
 	
 	Scene scene{};
-	scene.load_scene("../data/Cathedral/Cathedral.fbx", m_draws, draws, m_pointLights, m_meshTransforms, m_materials, texturePaths);
-
-	/*if (!utils::load_gltf("../data/Sponza/glTF/Sponza.gltf", meshes, draws, m_meshTransforms, m_materials, texturePaths)) {
+	if (!scene.load_scene("../data/Cathedral/Cathedral.fbx", m_draws, draws, m_pointLights, m_meshTransforms, m_materials, texturePaths))
 		throw std::runtime_error{ "[Kleicha] Failed to load scene!" };
-	}
-
-	if (!utils::load_gltf("../data/DamagedHelmet/glTF/DamagedHelmet.gltf", meshes, draws, m_meshTransforms, m_materials, texturePaths)) {
-		throw std::runtime_error{ "[Kleicha] Failed to load scene!" };
-	}
-
-	if (!utils::load_gltf("../data/BoomBox/glTF/BoomBox.gltf", meshes, draws, m_meshTransforms, m_materials, texturePaths)) {
-		throw std::runtime_error{ "[Kleicha] Failed to load scene!" };
-	}*/
-
-	/*if (!utils::load_fbx("../data/Cathedral/Cathedral.fbx", meshes, draws, m_meshTransforms, m_materials, texturePaths)) {
-		throw std::runtime_error{ "[Kleicha] Failed to load scene!" };
-	}*/
-
-	//std::vector<vkt::Vertex> unifiedVertices{};
-	//std::vector<glm::uvec3> unifiedTriangles{};
-	//for (std::size_t i{ 0 }; i < meshes.size(); ++i) {
-
-	//	if (meshes[i].bComputeTangent)
-	//		utils::compute_mesh_tangents(meshes[i]);
-
-	//	// store the current vertex and triangle counts
-	//	int32_t vertexCount{ static_cast<int32_t>(unifiedVertices.size()) };
-	//	uint32_t triangleCount{ static_cast<uint32_t>(unifiedTriangles.size()) };
-
-	//	// store vertex and index buffer mesh start positions
-	//	vkt::HostDrawData hostDraw{};
-	//	hostDraw.m_uiDrawId = static_cast<uint32_t>(i);
-	//	hostDraw.m_iVertexOffset = vertexCount;
-	//	hostDraw.m_uiIndicesOffset = triangleCount * glm::uvec3::length();
-	//	hostDraw.m_uiIndicesCount = static_cast<uint32_t>(meshes[i].tInd.size() * glm::uvec3::length());
-
-	//	if (meshes[i].bUseAlphaTest)
-	//		m_alphaDraws.push_back(hostDraw);
-	//	else
-	//		m_draws.push_back(hostDraw);
-
-	//	// allocate memory for mesh vertex data and insert it
-	//	unifiedVertices.reserve(vertexCount + meshes[i].verts.size());
-	//	unifiedVertices.insert(unifiedVertices.end(), meshes[i].verts.begin(), meshes[i].verts.end());
-
-	//	// allocate memory for mesh index data and insert it
-	//	unifiedTriangles.reserve(triangleCount + meshes[i].tInd.size());
-	//	unifiedTriangles.insert(unifiedTriangles.end(), meshes[i].tInd.begin(), meshes[i].tInd.end());
-	//}
 
 	m_vertexBuffer = upload_data(scene.m_unifiedVertices.data(), scene.m_unifiedVertices.size() * sizeof(vkt::Vertex), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 	m_indexBuffer = upload_data(scene.m_unifiedTriangles.data(), scene.m_unifiedTriangles.size() * sizeof(glm::uvec3), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
@@ -522,54 +475,6 @@ void Kleicha::init_image_buffers(bool windowResized) {
 			});
 	}
 
-/*std::vector<vkt::GPUMesh> Kleicha::load_mesh_data() {
-
-
-	std::vector<vkt::Mesh> meshes{};
-	meshes.emplace_back(utils::generate_pyramid_mesh());
-	meshes.emplace_back(utils::generate_sphere(64));
-	meshes.emplace_back(utils::generate_torus(64, 1.2f, 0.45f));
-	meshes.emplace_back(utils::generate_cube_mesh());
-	meshes.emplace_back(utils::load_obj_mesh("../models/shuttle.obj", vkt::MeshType::SHUTTLE));
-	meshes.emplace_back(utils::load_obj_mesh("../models/icosphere.obj", vkt::MeshType::ICOSPHERE));
-	meshes.emplace_back(utils::load_obj_mesh("../models/dolphinHighPoly.obj", vkt::MeshType::DOLPHIN));
-	meshes.emplace_back(utils::load_obj_mesh("../models/grid.obj", vkt::MeshType::PLANE));
-	//utils::load_gltf("F:\\Projects\\glTF Sample Models\\glTF-Sample-Models-main\\glTF-Sample-Models-main\\2.0\\Sponza\\glTF\\Sponza.gltf", meshes);
-	meshes.emplace_back(utils::load_obj_mesh("../models/sponza.obj", vkt::MeshType::SPONZA));
-
-
-	std::vector<vkt::GPUMesh> GPUMeshes(meshes.size());
-	// create unified vertex and index buffers for upload. meshDrawData will keep track of mesh buffer offsets within the unified buffer.
-	std::vector<vkt::Vertex> unifiedVertices{};
-	std::vector<glm::uvec3> unifiedTriangles{};
-
-	for (std::size_t i{ 0 }; i < meshes.size(); ++i) {
-
-		// store the current vertex and triangle counts
-		int32_t vertexCount{ static_cast<int32_t>(unifiedVertices.size()) };
-		uint32_t triangleCount{ static_cast<uint32_t>(unifiedTriangles.size()) };
-
-		// store vertex and index buffer mesh start positions
-		GPUMeshes[i].meshType = meshes[i].meshType;
-		GPUMeshes[i].vertexOffset = vertexCount;
-		GPUMeshes[i].indicesOffset = triangleCount * glm::uvec3::length();
-		GPUMeshes[i].indicesCount = static_cast<uint32_t>(meshes[i].tInd.size() * glm::uvec3::length());
-
-		// allocate memory for mesh vertex data and insert it
-		unifiedVertices.reserve(vertexCount + meshes[i].verts.size());
-		unifiedVertices.insert(unifiedVertices.end(), meshes[i].verts.begin(), meshes[i].verts.end());
-
-		// allocate memory for mesh index data and insert it
-		unifiedTriangles.reserve(triangleCount + meshes[i].tInd.size());
-		unifiedTriangles.insert(unifiedTriangles.end(), meshes[i].tInd.begin(), meshes[i].tInd.end());
-	}
-
-	m_vertexBuffer = upload_data(unifiedVertices.data(), unifiedVertices.size() * sizeof(vkt::Vertex), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
-	m_indexBuffer = upload_data(unifiedTriangles.data(), unifiedTriangles.size() * sizeof(glm::uvec3), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
-
-	return GPUMeshes;
-}*/
-
 void Kleicha::init_dynamic_buffers() {
 
 	using namespace vkt;
@@ -591,27 +496,8 @@ void Kleicha::init_dynamic_buffers() {
 }
 
 void Kleicha::init_lights() {		
-	//// create a standard white light 
-	//vkt::PointLight pointLight{
-	//	.m_v3Position = { 0.0f, 5.0f, 0.0f },
-	//	.m_v3Color = {0.7f, 0.7f, 0.7f},
-	//	.m_fFalloff = {0.0f, 0.0f, 0.01f}
-	//};
-	//m_pointLights.push_back(pointLight);
 
-	//pointLight.m_v3Position = { 0.0f, 5.0f, 0.0 };
-	//pointLight.m_v3Color = { 0.0f, 1.0f, 0.0f };
-	////m_pointLights.push_back(pointLight);
-
-	//pointLight.m_v3Position = { 3.0f, 5.0f, 0.0 };
-	//pointLight.m_v3Color = { 0.0f, 0.0f, 1.0f };
-	////m_pointLights.push_back(pointLight);
-
-	////pointLight.mPos = {3.0f, 5.0f, 0.0f};
-	////m_pointLights.push_back(pointLight);
-
-	///*pointLight.mPos = {-6.0f, 1.5f, -5.0f};
-	//m_pointLights.push_back(pointLight);*/
+	// this is where we manually add any lights
 
 }
 

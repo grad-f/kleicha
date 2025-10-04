@@ -158,6 +158,6 @@ bool Scene::load_scene(const char* filePath, std::vector<vkt::HostDrawData>& hos
 
     // builds host draw data, gpu draw data and transforms
     load_scene_node(pScene->mRootNode, pScene, hostDraws, draws, transforms, glm::mat4{ 1.0f });
-
+    aiReleaseImport(pScene);
     return true;
 }
