@@ -118,6 +118,18 @@ namespace vkt {
 		glm::mat4 m_m4ModelInvTr{};
 	};
 
+	enum class TextureType {
+		ALBEDO,
+		NORMAL,
+		SPECULAR,
+		ROUGHNESS,
+	};
+
+	struct Texture {
+		std::string path{};
+		TextureType type{};
+	};
+
 	struct PointLight {
 		glm::vec3 m_v3Position{};
 		alignas(16)glm::vec3 m_v3Color{};

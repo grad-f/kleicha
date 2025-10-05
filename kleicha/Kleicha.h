@@ -108,7 +108,7 @@ private:
 	// potentially move these to utils?
 	vkt::Image upload_texture_image(const char* filePath, VkFormat format = VK_FORMAT_R8G8B8A8_SRGB);
 	vkt::Image upload_texture_image(const char** filePaths);
-	vkt::Image upload_texture_image_ktx(const char* filePath);
+	vkt::Image upload_texture_image_ktx(const vkt::Texture& texture);
 	vkt::Buffer upload_data(void* data, VkDeviceSize bufferSize, VkBufferUsageFlags bufferUsage, VkBool32 bdaUsage = VK_FALSE);
 
 	void draw(float currentTime);

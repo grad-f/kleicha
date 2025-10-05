@@ -70,7 +70,7 @@ void Scene::append_mesh(const vkt::Mesh& mesh) {
 }
 
 bool Scene::load_scene(const char* filePath, std::vector<vkt::HostDrawData>& hostDraws, std::vector<vkt::DrawData>& draws, std::vector<vkt::PointLight>& pointLights, std::vector<vkt::Transform>& transforms,
-    std::vector<vkt::Material>& materials, std::vector<std::string>& texturePaths) {
+    std::vector<vkt::Material>& materials, std::vector<vkt::Texture>& textures) {
 
     const aiScene* pScene{ aiImportFile(filePath,
        aiProcess_GenSmoothNormals |
@@ -120,17 +120,30 @@ bool Scene::load_scene(const char* filePath, std::vector<vkt::HostDrawData>& hos
             sPath = sPath.substr(0, pos + 1);
 
         aiString sTexture{};
+        vkt::Texture texture{};
         aiGetMaterialTexture(pAiMaterial, aiTextureType_DIFFUSE, 0, &sTexture);
-        material.m_uiAlbedoTexture = 1 + texturePaths.size();
-        texturePaths.push_back(sPath + sTexture.data);
+        material.m_uiAlbedoTexture = 1 + textures.size();
+        if (!sTexture.Empty()) {
+            texture.path = sPath + sTexture.data;
+            texture.type = vkt::TextureType::ALBEDO;
+            textures.push_back(texture);
+        }
 
         aiGetMaterialTexture(pAiMaterial, aiTextureType_SPECULAR, 0, &sTexture);
-        material.m_uiSpecularTexture = 1 + texturePaths.size();
-        texturePaths.push_back(sPath + sTexture.data);
+        material.m_uiSpecularTexture = 1 + textures.size();
+        if (!sTexture.Empty()) {
+            texture.path = sPath + sTexture.data;
+            texture.type = vkt::TextureType::SPECULAR;
+            textures.push_back(texture);
+        }
 
         aiGetMaterialTexture(pAiMaterial, aiTextureType_SHININESS, 0, &sTexture);
-        material.m_uiRoughnessTexture = 1 + texturePaths.size();
-        texturePaths.push_back(sPath + sTexture.data);
+        material.m_uiRoughnessTexture = 1 + textures.size();
+        if (!sTexture.Empty()) {
+            texture.path = sPath + sTexture.data;
+            texture.type = vkt::TextureType::ROUGHNESS;
+            textures.push_back(texture);
+        }
 
         materials.push_back(material);
     }

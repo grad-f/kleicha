@@ -1,5 +1,6 @@
 #version 450
 #extension GL_EXT_nonuniform_qualifier : require
+#extension GL_EXT_debug_printf : enable
 #include "common.h"
 
 #define M_RCPPI 0.31830988618379067153776752674503f
@@ -108,6 +109,9 @@ void main() {
 	vec3 v3LightColor = vec3(0.0f);
 
 	vec3 v3Diffuse = texture(texSampler[md.uiAlbedoTexture], v2InUV).rgb;
+	vec3 v3Specular = texture(texSampler[md.uiSpecularTexture], v2InUV).rgb;
+	if(v3Specular.b == 0.0f)
+		v3Specular.b = v3Specular.r;
 	float fRoughness = texture(texSampler[md.uiRoughnessTexture], v2InUV).r;
 
 	for (uint i = 0; i < globals.uiNumPointLights; ++i) {
@@ -119,11 +123,11 @@ void main() {
 
 		if (uiUseBlinnPhong > 0) {
 			float fRoughnessPhong = (2.0f / (fRoughness * fRoughness)) - 2.0f;
-			v3LightColor += blinnPhong(v3Normal, v3LightDirection, v3ViewDirection, v3LightIrradiance, v3Diffuse, md.v3Specular.xyz, fRoughnessPhong);
+			v3LightColor += blinnPhong(v3Normal, v3LightDirection, v3ViewDirection, v3LightIrradiance, v3Diffuse, v3Specular, fRoughnessPhong);
 		}
 		else {
 			// sample albedo
-			v3LightColor += GGX(v3Normal, v3LightDirection, v3ViewDirection, v3LightIrradiance, v3Diffuse, md.v3Specular.xyz, fRoughness);
+			v3LightColor += GGX(v3Normal, v3LightDirection, v3ViewDirection, v3LightIrradiance, v3Diffuse, v3Specular, fRoughness);
 		}
 	}
 

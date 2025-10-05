@@ -384,20 +384,19 @@ void Kleicha::init_load_scene() {
 
 	//std::vector<vkt::Mesh> meshes{};
 	std::vector<vkt::DrawData> draws{};
-	std::vector<std::string> texturePaths{};
-	
+	std::vector<vkt::Texture> textures{};
+
 	Scene scene{};
-	if (!scene.load_scene("../data/Cathedral/Cathedral.fbx", m_draws, draws, m_pointLights, m_meshTransforms, m_materials, texturePaths))
+	if (!scene.load_scene("../data/Cathedral/TutorialCathedral.fbx", m_draws, draws, m_pointLights, m_meshTransforms, m_materials, textures))
 		throw std::runtime_error{ "[Kleicha] Failed to load scene!" };
 
 	m_vertexBuffer = upload_data(scene.m_unifiedVertices.data(), scene.m_unifiedVertices.size() * sizeof(vkt::Vertex), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 	m_indexBuffer = upload_data(scene.m_unifiedTriangles.data(), scene.m_unifiedTriangles.size() * sizeof(glm::uvec3), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
 	m_drawBuffer = upload_data(draws.data(), sizeof(vkt::DrawData) * draws.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 	
-	m_textures.push_back(upload_texture_image_ktx("../textures/WindowRough.ktx"));
-
-	for (std::size_t i{ 0 }; i < texturePaths.size(); ++i) {
-		m_textures.push_back(upload_texture_image_ktx(texturePaths[i].c_str()));
+	m_textures.push_back(upload_texture_image("../textures/empty.jpg"));
+ 	for (std::size_t i{ 0 }; i < textures.size(); ++i) {
+		m_textures.push_back(upload_texture_image_ktx(textures[i]));
 	}
 }
 
@@ -632,9 +631,9 @@ vkt::Image Kleicha::upload_texture_image(const char** filePaths) {
 	return textureImage;
 }
 
-vkt::Image Kleicha::upload_texture_image_ktx(const char* filePath) {
+vkt::Image Kleicha::upload_texture_image_ktx(const vkt::Texture& texture) {
 	ktxTexture* kTexture{};
-	KTX_error_code result{ ktxTexture_CreateFromNamedFile(filePath, KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT, &kTexture) };
+	KTX_error_code result{ ktxTexture_CreateFromNamedFile(texture.path.c_str(), KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT, &kTexture)};
 	if (result != KTX_SUCCESS)
 		throw std::runtime_error{ "[Kleicha] Failed to load ktx texture image: " + std::string{ktxErrorString(result)}};
 
@@ -643,8 +642,8 @@ vkt::Image Kleicha::upload_texture_image_ktx(const char* filePath) {
 	ktx_uint8_t* ktxTexData{ ktxTexture_GetData(kTexture) };
 
 	VkFormat ktxTexFormat{ ktxTexture_GetVkFormat(kTexture) };
-
-	//fmt::println("KTX FORMAT:{}", string_VkFormat(ktxTexture_GetVkFormat(kTexture)));
+	if (ktxTexFormat == VK_FORMAT_BC1_RGB_UNORM_BLOCK && texture.type == vkt::TextureType::ALBEDO)
+		ktxTexFormat = VK_FORMAT_BC1_RGB_SRGB_BLOCK;
 
 	VmaAllocationCreateInfo allocationInfo{};
 	allocationInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
@@ -700,7 +699,7 @@ vkt::Image Kleicha::upload_texture_image_ktx(const char* filePath) {
 	
 	ktxTexture_Destroy(kTexture);
 
-	fmt::println("[Kleicha] Loaded KTX texture {0}. Format: {1}", filePath, string_VkFormat(ktxTexFormat));
+	fmt::println("[Kleicha] Loaded KTX texture {0}. Format: {1}", texture.path.c_str(), string_VkFormat(ktxTexFormat));
 
 	return textureImage;
 }

@@ -9,7 +9,7 @@
 
 class Scene {
 public:
-	bool load_scene(const char* filePath, std::vector<vkt::HostDrawData>& hostDraws, std::vector<vkt::DrawData>& draws, std::vector<vkt::PointLight>& pointLights, std::vector<vkt::Transform>& transforms, std::vector<vkt::Material>& materials, std::vector<std::string>& texturePaths);
+	bool load_scene(const char* filePath, std::vector<vkt::HostDrawData>& hostDraws, std::vector<vkt::DrawData>& draws, std::vector<vkt::PointLight>& pointLights, std::vector<vkt::Transform>& transforms, std::vector<vkt::Material>& materials, std::vector<vkt::Texture>& textures);
 	std::vector<vkt::Vertex> m_unifiedVertices{};
 	std::vector<glm::uvec3> m_unifiedTriangles{};
 private:
