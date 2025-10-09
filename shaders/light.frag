@@ -8,6 +8,8 @@
 #define M_PI 3.1415926535897932384626433832795f
 
 layout(constant_id = 0) const uint uiUseBlinnPhong = 0;
+
+
 layout (location = 0) in vec3 v3InPosition;
 layout (location = 1) in vec3 v3InNormal;
 layout (location = 2) in vec2 v2InUV;
@@ -132,6 +134,11 @@ void main() {
 	}
 
 	// add ambient contribution
-	v3LightColor += v3Diffuse * 0.3f;
+	v3LightColor += v3Diffuse * 0.005f;
+
+	// add emissive contribution
+	if (globals.uiUseEmissive > 0)
+		v3LightColor += (v3Diffuse * md.fEmissive);
+
 	v3OutColor = v3LightColor;
 }

@@ -75,6 +75,8 @@ private:
 	std::vector<vkt::Material> m_materials{};
 	std::vector<vkt::PointLight> m_pointLights{};
 
+	vkt::GlobalData m_globalData{};
+
 	glm::mat4 m_persp{ utils::perspective(1000.0f, 0.1f) };
 
 	glm::mat4 m_perspProj{ utils::orthographicProj(glm::radians(90.0f),

@@ -111,6 +111,7 @@ namespace vkt {
 	struct GlobalData {
 		glm::vec3 m_v3CameraPosition{};
 		uint32_t m_uiNumPointLights{};
+		uint32_t m_uiUseEmissive{};
 	};
 
 	struct Transform {
@@ -139,6 +140,8 @@ namespace vkt {
 	struct alignas(16) Material {
 		glm::vec3 m_v3Diffuse{};
 		alignas(16)glm::vec3 m_v3Specular{};
+		// emissive factor
+		float m_fEmissive{};
 		// controls specular contribution fall-off
 		float m_fRoughness{};
 		uint32_t m_uiAlbedoTexture{};

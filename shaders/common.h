@@ -9,6 +9,8 @@ struct Vertex {
 struct GlobalData {
 	vec3 v3CameraPosition;
 	uint uiNumPointLights;
+	uint uiUseEmissive;
+
 };
 
 struct DrawData {
@@ -24,6 +26,7 @@ struct Transform {
 struct Material {
 	vec3 v3Diffuse;	
 	vec3 v3Specular;
+	float fEmissive;
 	float fRoughness;
 	uint uiAlbedoTexture;
 	uint uiNormalTexture;

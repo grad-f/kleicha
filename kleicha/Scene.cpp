@@ -55,7 +55,7 @@ void Scene::append_mesh(const vkt::Mesh& mesh) {
 
     // build mesh host draw data
     vkt::HostDrawData hDraw{};
-    hDraw.m_iVertexOffset = static_cast<uint32_t>(m_unifiedVertices.size());
+    hDraw.m_iVertexOffset = static_cast<int32_t>(m_unifiedVertices.size());
     hDraw.m_uiIndicesOffset = static_cast<uint32_t>(m_unifiedTriangles.size() * 3);
     hDraw.m_uiIndicesCount = static_cast<uint32_t>(mesh.tInd.size() * 3);
 
@@ -122,7 +122,7 @@ bool Scene::load_scene(const char* filePath, std::vector<vkt::HostDrawData>& hos
         aiString sTexture{};
         vkt::Texture texture{};
         aiGetMaterialTexture(pAiMaterial, aiTextureType_DIFFUSE, 0, &sTexture);
-        material.m_uiAlbedoTexture = 1 + textures.size();
+        material.m_uiAlbedoTexture = static_cast<uint32_t>(1 + textures.size());
         if (!sTexture.Empty()) {
             texture.path = sPath + sTexture.data;
             texture.type = vkt::TextureType::ALBEDO;
@@ -130,7 +130,7 @@ bool Scene::load_scene(const char* filePath, std::vector<vkt::HostDrawData>& hos
         }
 
         aiGetMaterialTexture(pAiMaterial, aiTextureType_SPECULAR, 0, &sTexture);
-        material.m_uiSpecularTexture = 1 + textures.size();
+        material.m_uiSpecularTexture = static_cast<uint32_t>(1 + textures.size());
         if (!sTexture.Empty()) {
             texture.path = sPath + sTexture.data;
             texture.type = vkt::TextureType::SPECULAR;
@@ -138,12 +138,27 @@ bool Scene::load_scene(const char* filePath, std::vector<vkt::HostDrawData>& hos
         }
 
         aiGetMaterialTexture(pAiMaterial, aiTextureType_SHININESS, 0, &sTexture);
-        material.m_uiRoughnessTexture = 1 + textures.size();
+        material.m_uiRoughnessTexture = static_cast<uint32_t>(1 + textures.size());
         if (!sTexture.Empty()) {
             texture.path = sPath + sTexture.data;
             texture.type = vkt::TextureType::ROUGHNESS;
             textures.push_back(texture);
         }
+
+        aiGetMaterialTexture(pAiMaterial, aiTextureType_NORMALS, 0, &sTexture);
+        if (!sTexture.Empty()) {
+            texture.path = sPath + sTexture.data;
+            texture.type = vkt::TextureType::NORMAL;
+            textures.push_back(texture);
+        }
+
+        aiColor4D emissiveColor{ 0.0f, 0.0f, 0.0f, 0.0f };
+        aiGetMaterialColor(pAiMaterial, AI_MATKEY_COLOR_EMISSIVE, &emissiveColor);
+        aiColor4D diffuseColor{ 1.0f, 1.0f, 1.0f, 1.0f };
+        aiGetMaterialColor(pAiMaterial, AI_MATKEY_COLOR_DIFFUSE, &diffuseColor);
+
+        // in this scene, emissiveness is stored as a multiple of a diffuse color. by dividing by the diffuse color we are left with the emissiveness of the material
+        material.m_fEmissive = emissiveColor.r / diffuseColor.r;
 
         materials.push_back(material);
     }

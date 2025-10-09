@@ -477,6 +477,8 @@ void Kleicha::init_image_buffers(bool windowResized) {
 void Kleicha::init_dynamic_buffers() {
 
 	using namespace vkt;
+	
+	m_globalData.m_uiUseEmissive = true;
 
 	m_globalsBuffer = utils::create_buffer(m_allocator, sizeof(GlobalData), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
 		VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
@@ -901,7 +903,7 @@ void Kleicha::recreate_swapchain() {
 	}
 }
 
-void Kleicha::update_dynamic_buffers(const vkt::Frame& frame, [[maybe_unused]] float currentTime, [[maybe_unused]]const glm::mat4& shadowCubePerspProj) {
+void Kleicha::update_dynamic_buffers(const vkt::Frame& frame, [[maybe_unused]] float currentTime, [[maybe_unused]] const glm::mat4& shadowCubePerspProj) {
 
 	// update light views
 	/*for (auto& light : m_pointLights) {
@@ -917,13 +919,14 @@ void Kleicha::update_dynamic_buffers(const vkt::Frame& frame, [[maybe_unused]] f
 		light.cubeViewProjs[4] = shadowCubePerspProj * glm::lookAt(light.mPos, light.mPos + glm::vec3{ 0.0f, 0.0f, -1.0f }, glm::vec3{ 0.0f, 1.0f, 0.0f });	  // +Z
 	}*/
 
-	vkt::GlobalData globalData{ .m_v3CameraPosition = m_camera.get_world_pos(), .m_uiNumPointLights = static_cast<uint32_t>(m_pointLights.size()) };
+	m_globalData.m_v3CameraPosition = m_camera.get_world_pos();
+	m_globalData.m_uiNumPointLights = static_cast<uint32_t>(m_pointLights.size());
 
 	for (auto& transform : m_meshTransforms) {
 		transform.m_m4ModelInvTr = glm::transpose(glm::inverse(transform.m_m4Model));
 	}
 
-	memcpy(m_globalsBuffer.allocation->GetMappedData(), &globalData, sizeof(globalData));
+	memcpy(m_globalsBuffer.allocation->GetMappedData(), &m_globalData, sizeof(m_globalData));
 
 	// update per frame buffers
 	memcpy(frame.transformBuffer.allocation->GetMappedData(), m_meshTransforms.data(), sizeof(vkt::Transform) * m_meshTransforms.size());
@@ -1038,6 +1041,7 @@ void Kleicha::start() {
 		ImGui::NewFrame();
 
 		ImGui::Checkbox("Blinn-Phong", &m_bUseBlinnPhong);
+		ImGui::Checkbox("Emissive Materials", reinterpret_cast<bool*>(&m_globalData.m_uiUseEmissive));
 
 		if (ImGui::CollapsingHeader("Lights")) {
 
