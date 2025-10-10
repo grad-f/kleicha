@@ -387,7 +387,7 @@ void Kleicha::init_load_scene() {
 	std::vector<vkt::Texture> textures{};
 
 	Scene scene{};
-	if (!scene.load_scene("../data/Cathedral/TutorialCathedral.fbx", m_draws, draws, m_pointLights, m_meshTransforms, m_materials, textures))
+	if (!scene.load_scene("../data/Cathedral/TutorialCathedral.fbx", m_draws, m_TransparentDraws, draws, m_pointLights, m_meshTransforms, m_materials, textures))
 		throw std::runtime_error{ "[Kleicha] Failed to load scene!" };
 
 	m_vertexBuffer = upload_data(scene.m_unifiedVertices.data(), scene.m_unifiedVertices.size() * sizeof(vkt::Vertex), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
@@ -942,10 +942,16 @@ void Kleicha::record_draws(const vkt::Frame& frame, VkPipeline* opaquePipeline, 
 
 	assert(opaquePipeline);
 	vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, *opaquePipeline);
-	for (uint32_t i{ 0 }; i < m_draws.size(); ++i) {
-		m_pushConstants.drawId = i;
+	for (const auto& draw : m_draws) {
+		m_pushConstants.drawId = draw.m_uiDrawId;
 		vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_ALL, 0, sizeof(vkt::PushConstants), &m_pushConstants);
-		vkCmdDrawIndexed(frame.cmdBuffer, m_draws[i].m_uiIndicesCount, 1, m_draws[i].m_uiIndicesOffset, m_draws[i].m_iVertexOffset, 0);
+		vkCmdDrawIndexed(frame.cmdBuffer, draw.m_uiIndicesCount, 1, draw.m_uiIndicesOffset, draw.m_iVertexOffset, 0);
+	}
+
+	for (const auto& draw : m_TransparentDraws) {
+		m_pushConstants.drawId = draw.m_uiDrawId;
+		vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_ALL, 0, sizeof(vkt::PushConstants), &m_pushConstants);
+		vkCmdDrawIndexed(frame.cmdBuffer, draw.m_uiIndicesCount, 1, draw.m_uiIndicesOffset, draw.m_iVertexOffset, 0);
 	}
 }
 
@@ -977,10 +983,10 @@ void Kleicha::shadow_cube_pass(const vkt::Frame& frame) {
 
 		vkCmdBeginRendering(frame.cmdBuffer, &cubeShadowRenderingInfo);
 
-		for (uint32_t i{ 0 }; i < m_draws.size(); ++i) {
-			m_pushConstants.drawId = i;
+		for (const auto& draw : m_draws) {
+			m_pushConstants.drawId = draw.m_uiDrawId;
 			vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_ALL, 0, sizeof(vkt::PushConstants), &m_pushConstants);
-			vkCmdDrawIndexed(frame.cmdBuffer, m_draws[i].m_uiIndicesCount, 1, m_draws[i].m_uiIndicesOffset, m_draws[i].m_iVertexOffset, 0);
+			vkCmdDrawIndexed(frame.cmdBuffer, draw.m_uiIndicesCount, 1, draw.m_uiIndicesOffset, draw.m_iVertexOffset, 0);
 		}
 
 		vkCmdEndRendering(frame.cmdBuffer);
@@ -1018,10 +1024,10 @@ void Kleicha::shadow_2D_pass(const vkt::Frame& frame) {
 
 		//m_pushConstants.lightId = j;
 
-		for (uint32_t i{ 0 }; i < m_draws.size(); ++i) {
-			m_pushConstants.drawId = i;
+		for (const auto& draw : m_draws) {
+			m_pushConstants.drawId = draw.m_uiDrawId;
 			vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_ALL, 0, sizeof(vkt::PushConstants), &m_pushConstants);
-			vkCmdDrawIndexed(frame.cmdBuffer, m_draws[i].m_uiIndicesCount, 1, m_draws[i].m_uiIndicesOffset, m_draws[i].m_iVertexOffset, 0);
+			vkCmdDrawIndexed(frame.cmdBuffer, draw.m_uiIndicesCount, 1, draw.m_uiIndicesOffset, draw.m_iVertexOffset, 0);
 		}
 
 		vkCmdEndRendering(frame.cmdBuffer);
