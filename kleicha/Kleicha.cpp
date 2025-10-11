@@ -387,7 +387,7 @@ void Kleicha::init_load_scene() {
 	std::vector<vkt::Texture> textures{};
 
 	Scene scene{};
-	if (!scene.load_scene("../data/Cathedral/TutorialCathedral.fbx", m_draws, m_TransparentDraws, draws, m_pointLights, m_meshTransforms, m_materials, textures))
+	if (!scene.load_scene("../data/Cathedral/TutorialCathedral.fbx", m_draws, draws, m_pointLights, m_meshTransforms, m_materials, textures))
 		throw std::runtime_error{ "[Kleicha] Failed to load scene!" };
 
 	m_vertexBuffer = upload_data(scene.m_unifiedVertices.data(), scene.m_unifiedVertices.size() * sizeof(vkt::Vertex), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
@@ -398,6 +398,11 @@ void Kleicha::init_load_scene() {
  	for (std::size_t i{ 0 }; i < textures.size(); ++i) {
 		m_textures.push_back(upload_texture_image_ktx(textures[i]));
 	}
+
+	vkt::Texture tSkybox{};
+	tSkybox.type = vkt::TextureType::CUBEMAP;
+	tSkybox.path = "../data/Cathedral/textures/SkyBox.ktx";
+	m_textures.push_back(upload_texture_image_ktx(tSkybox));
 }
 
 void Kleicha::init_image_buffers(bool windowResized) {
@@ -644,8 +649,10 @@ vkt::Image Kleicha::upload_texture_image_ktx(const vkt::Texture& texture) {
 	ktx_uint8_t* ktxTexData{ ktxTexture_GetData(kTexture) };
 
 	VkFormat ktxTexFormat{ ktxTexture_GetVkFormat(kTexture) };
-	if (ktxTexFormat == VK_FORMAT_BC1_RGB_UNORM_BLOCK && texture.type == vkt::TextureType::ALBEDO)
+	if (ktxTexFormat == VK_FORMAT_BC1_RGB_UNORM_BLOCK && (texture.type == vkt::TextureType::ALBEDO || texture.type == vkt::TextureType::CUBEMAP))
 		ktxTexFormat = VK_FORMAT_BC1_RGB_SRGB_BLOCK;
+	else if (ktxTexFormat == VK_FORMAT_BC3_UNORM_BLOCK && texture.type == vkt::TextureType::ALBEDO)
+		ktxTexFormat = VK_FORMAT_BC3_SRGB_BLOCK;
 
 	VmaAllocationCreateInfo allocationInfo{};
 	allocationInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
@@ -653,51 +660,58 @@ vkt::Image Kleicha::upload_texture_image_ktx(const vkt::Texture& texture) {
 
 	vkt::Image textureImage{};
 	uint32_t mipLevels{ kTexture->numLevels };
-	textureImage.mipLevels = mipLevels;	
+	uint32_t layerCount{ kTexture->numFaces };
+	textureImage.mipLevels = mipLevels;
 	
-	VkImageCreateInfo textureImageInfo{ init::create_image_info(ktxTexFormat, VkExtent2D{uiTexWidth, uiTexHeight}, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, textureImage.mipLevels)};
+	VkImageCreateInfo textureImageInfo{ init::create_image_info(ktxTexFormat, VkExtent2D{uiTexWidth, uiTexHeight}, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, textureImage.mipLevels, layerCount)};
 	VK_CHECK(vmaCreateImage(m_allocator, &textureImageInfo, &allocationInfo, &textureImage.image, &textureImage.allocation, &textureImage.allocationInfo));
-	VkImageViewCreateInfo imageViewInfo{ init::create_image_view_info(textureImage.image, ktxTexFormat, VK_IMAGE_ASPECT_COLOR_BIT, textureImage.mipLevels) };
+	VkImageViewCreateInfo imageViewInfo{ init::create_image_view_info(textureImage.image, ktxTexFormat, VK_IMAGE_ASPECT_COLOR_BIT, textureImage.mipLevels, layerCount) };
 	VK_CHECK(vkCreateImageView(m_device.device, &imageViewInfo, nullptr, &textureImage.imageView));
 
+	immediate_submit([&](VkCommandBuffer cmdBuffer) {
+		utils::image_memory_barrier(cmdBuffer, VK_PIPELINE_STAGE_2_NONE_KHR, VK_ACCESS_2_NONE,
+			VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, textureImage.image, textureImage.mipLevels);
+		});
+
 	for (uint32_t i{ 0 }; i < mipLevels; ++i) {
-		// returns size of bytes of an image at the specified mip level
-		ktx_size_t uiTexDataSize{ ktxTexture_GetImageSize(kTexture, i) };
+		for (uint32_t j{ 0 }; j < layerCount; ++j) {
+			// returns size of bytes of an image at the specified mip level
+			ktx_size_t uiTexDataSize{ ktxTexture_GetImageSize(kTexture, i) };
 
-		// get byte offset
-		ktx_size_t offset{};
-		result =  ktxTexture_GetImageOffset(kTexture, i, 0, 0, &offset);
-		if (result != KTX_SUCCESS)
-			throw std::runtime_error{ "[Kleicha] ktxTexture_GetImageOffset failed with error: " + std::string{ktxErrorString(result)} };
+			// get byte offset
+			ktx_size_t offset{};
+			result = ktxTexture_GetImageOffset(kTexture, i, 0, j, &offset);
+			if (result != KTX_SUCCESS)
+				throw std::runtime_error{ "[Kleicha] ktxTexture_GetImageOffset failed with error: " + std::string{ktxErrorString(result)} };
 
-		vkt::Buffer stagingBuffer{ utils::create_buffer(m_allocator, uiTexDataSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT) };
-		memcpy(stagingBuffer.allocationInfo.pMappedData, ktxTexData + offset, uiTexDataSize);
+			vkt::Buffer stagingBuffer{ utils::create_buffer(m_allocator, uiTexDataSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT) };
+			memcpy(stagingBuffer.allocationInfo.pMappedData, ktxTexData + offset, uiTexDataSize);
 
-		immediate_submit([&](VkCommandBuffer cmdBuffer) {
-			utils::image_memory_barrier(cmdBuffer, VK_PIPELINE_STAGE_2_NONE_KHR, VK_ACCESS_2_NONE,
-				VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, textureImage.image, textureImage.mipLevels);
+			immediate_submit([&](VkCommandBuffer cmdBuffer) {
+				VkBufferImageCopy imageCopy{};
+				imageCopy.bufferOffset = 0;
+				imageCopy.bufferRowLength = 0;
+				imageCopy.bufferImageHeight = 0;
+				imageCopy.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+				imageCopy.imageSubresource.mipLevel = i;
+				imageCopy.imageSubresource.layerCount = 1;
+				imageCopy.imageSubresource.baseArrayLayer = j;
+				imageCopy.imageOffset = { .x = 0,.y = 0,.z = 0 };
+				imageCopy.imageExtent = { .width = uiTexWidth, .height = uiTexHeight, .depth = 1 };
+				vkCmdCopyBufferToImage(cmdBuffer, stagingBuffer.buffer, textureImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageCopy);
+				});
 
-			VkBufferImageCopy imageCopy{};
-			imageCopy.bufferOffset = 0;
-			imageCopy.bufferRowLength = 0;
-			imageCopy.bufferImageHeight = 0;
-			imageCopy.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-			imageCopy.imageSubresource.mipLevel = i;
-			imageCopy.imageSubresource.layerCount = 1;
-			imageCopy.imageSubresource.baseArrayLayer = 0;
-			imageCopy.imageOffset = { .x = 0,.y = 0,.z = 0 };
-			imageCopy.imageExtent = { .width = uiTexWidth, .height = uiTexHeight, .depth = 1 };
-			vkCmdCopyBufferToImage(cmdBuffer, stagingBuffer.buffer, textureImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageCopy);
-			});
+			vmaDestroyBuffer(m_allocator, stagingBuffer.buffer, stagingBuffer.allocation);
+		}
 
-		vmaDestroyBuffer(m_allocator, stagingBuffer.buffer, stagingBuffer.allocation);
 		uiTexWidth = uiTexWidth >> 1;
 		uiTexHeight = uiTexHeight >> 1;
 
 		if (uiTexWidth < 1 || uiTexHeight < 1)
 			break;
 	}
+
 	
 	ktxTexture_Destroy(kTexture);
 
@@ -942,16 +956,11 @@ void Kleicha::record_draws(const vkt::Frame& frame, VkPipeline* opaquePipeline, 
 
 	assert(opaquePipeline);
 	vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, *opaquePipeline);
-	for (const auto& draw : m_draws) {
-		m_pushConstants.drawId = draw.m_uiDrawId;
-		vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_ALL, 0, sizeof(vkt::PushConstants), &m_pushConstants);
-		vkCmdDrawIndexed(frame.cmdBuffer, draw.m_uiIndicesCount, 1, draw.m_uiIndicesOffset, draw.m_iVertexOffset, 0);
-	}
 
-	for (const auto& draw : m_TransparentDraws) {
-		m_pushConstants.drawId = draw.m_uiDrawId;
+	for (std::uint32_t i{ 0 }; i < m_draws.size(); ++i) {
+		m_pushConstants.drawId = i;
 		vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_ALL, 0, sizeof(vkt::PushConstants), &m_pushConstants);
-		vkCmdDrawIndexed(frame.cmdBuffer, draw.m_uiIndicesCount, 1, draw.m_uiIndicesOffset, draw.m_iVertexOffset, 0);
+		vkCmdDrawIndexed(frame.cmdBuffer, m_draws[i].m_uiIndicesCount, 1, m_draws[i].m_uiIndicesOffset, m_draws[i].m_iVertexOffset, 0);
 	}
 }
 
@@ -983,10 +992,10 @@ void Kleicha::shadow_cube_pass(const vkt::Frame& frame) {
 
 		vkCmdBeginRendering(frame.cmdBuffer, &cubeShadowRenderingInfo);
 
-		for (const auto& draw : m_draws) {
-			m_pushConstants.drawId = draw.m_uiDrawId;
+		for (std::uint32_t i{ 0 }; i < m_draws.size(); ++i) {
+			m_pushConstants.drawId = i;
 			vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_ALL, 0, sizeof(vkt::PushConstants), &m_pushConstants);
-			vkCmdDrawIndexed(frame.cmdBuffer, draw.m_uiIndicesCount, 1, draw.m_uiIndicesOffset, draw.m_iVertexOffset, 0);
+			vkCmdDrawIndexed(frame.cmdBuffer, m_draws[i].m_uiIndicesCount, 1, m_draws[i].m_uiIndicesOffset, m_draws[i].m_iVertexOffset, 0);
 		}
 
 		vkCmdEndRendering(frame.cmdBuffer);
@@ -1024,12 +1033,11 @@ void Kleicha::shadow_2D_pass(const vkt::Frame& frame) {
 
 		//m_pushConstants.lightId = j;
 
-		for (const auto& draw : m_draws) {
-			m_pushConstants.drawId = draw.m_uiDrawId;
+		for (std::uint32_t i{ 0 }; i < m_draws.size(); ++i) {
+			m_pushConstants.drawId = i;
 			vkCmdPushConstants(frame.cmdBuffer, m_dummyPipelineLayout, VK_SHADER_STAGE_ALL, 0, sizeof(vkt::PushConstants), &m_pushConstants);
-			vkCmdDrawIndexed(frame.cmdBuffer, draw.m_uiIndicesCount, 1, draw.m_uiIndicesOffset, draw.m_iVertexOffset, 0);
+			vkCmdDrawIndexed(frame.cmdBuffer, m_draws[i].m_uiIndicesCount, 1, m_draws[i].m_uiIndicesOffset, m_draws[i].m_iVertexOffset, 0);
 		}
-
 		vkCmdEndRendering(frame.cmdBuffer);
 	}
 }

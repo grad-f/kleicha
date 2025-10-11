@@ -28,6 +28,7 @@ struct Material {
 	vec3 v3Specular;
 	float fEmissive;
 	float fRoughness;
+	uint fTransparent;
 	uint uiAlbedoTexture;
 	uint uiNormalTexture;
 	uint uiSpecularTexture;

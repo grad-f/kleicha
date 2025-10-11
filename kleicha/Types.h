@@ -95,7 +95,6 @@ namespace vkt {
 	};
 
 	struct HostDrawData {
-		uint32_t m_uiDrawId{};
 		uint32_t m_uiIndicesCount{};
 		uint32_t m_uiIndicesOffset{};
 		int32_t m_iVertexOffset{};
@@ -125,6 +124,7 @@ namespace vkt {
 		NORMAL,
 		SPECULAR,
 		ROUGHNESS,
+		CUBEMAP,
 	};
 
 	struct Texture {
@@ -145,6 +145,7 @@ namespace vkt {
 		float m_fEmissive{};
 		// controls specular contribution fall-off
 		float m_fRoughness{};
+		uint32_t m_fTransparent{};
 		uint32_t m_uiAlbedoTexture{};
 		uint32_t m_uiNormalTexture{};
 		uint32_t m_uiSpecularTexture{};

@@ -112,8 +112,6 @@ void main() {
 
 	vec3 v3Diffuse = texture(texSampler[md.uiAlbedoTexture], v2InUV).rgb;
 	vec3 v3Specular = texture(texSampler[md.uiSpecularTexture], v2InUV).rgb;
-	if(v3Specular.b == 0.0f)
-		v3Specular.b = v3Specular.r;
 	float fRoughness = texture(texSampler[md.uiRoughnessTexture], v2InUV).r;
 
 	for (uint i = 0; i < globals.uiNumPointLights; ++i) {

@@ -27,7 +27,7 @@ bool Scene::find_scene_node(aiNode* pNode, const aiString& name, const glm::mat4
     return false;
 }
 
-void Scene::load_scene_node(aiNode* pNode, const aiScene* pScene, std::vector<vkt::HostDrawData>& hostDraws, std::vector<vkt::HostDrawData>& hostTransparentDraws, std::vector<vkt::DrawData>& draws, std::vector<vkt::Transform>& transforms, const glm::mat4& m4Transform) const {
+void Scene::load_scene_node(aiNode* pNode, const aiScene* pScene, std::vector<vkt::HostDrawData>& hostDraws, std::vector<vkt::DrawData>& draws, std::vector<vkt::Transform>& transforms, const glm::mat4& m4Transform) const {
 
     // compute this node's transformation (assimp stores matrices row-major, therefore we must transpose)
     vkt::Transform nodeTransform{.m_m4Model = m4Transform};
@@ -44,21 +44,12 @@ void Scene::load_scene_node(aiNode* pNode, const aiScene* pScene, std::vector<vk
         drawData.m_uiMaterialIndex = pScene->mMeshes[pNode->mMeshes[i]]->mMaterialIndex;
         draws.push_back(drawData);
 
-        bool bTransparentDraw{ false };
-        for (const auto& transparentMaterialIndex : m_transparentMaterialIndices) {
-            if (pScene->mMeshes[pNode->mMeshes[i]]->mMaterialIndex == transparentMaterialIndex)
-                bTransparentDraw = true;
-        }
-
-        vkt::HostDrawData hostDrawData{ m_canonicalHostDrawData[pNode->mMeshes[i]] };
-        hostDrawData.m_uiDrawId = static_cast<uint32_t>(draws.size()) - 1;
-
-        bTransparentDraw ? hostTransparentDraws.push_back(hostDrawData) : hostDraws.push_back(hostDrawData);
+        hostDraws.push_back(m_canonicalHostDrawData[pNode->mMeshes[i]]);
     }
 
     // for each node, traverse its children
     for (std::size_t i{ 0 }; i < pNode->mNumChildren; ++i) {
-        load_scene_node(pNode->mChildren[i], pScene, hostDraws, hostTransparentDraws, draws, transforms, nodeTransform.m_m4Model);
+        load_scene_node(pNode->mChildren[i], pScene, hostDraws, draws, transforms, nodeTransform.m_m4Model);
     }
 }
 
@@ -82,7 +73,7 @@ void Scene::append_mesh(const vkt::Mesh& mesh) {
     m_unifiedTriangles.insert(m_unifiedTriangles.end(), mesh.tInd.begin(), mesh.tInd.end());
 }
 
-bool Scene::load_scene(const char* filePath, std::vector<vkt::HostDrawData>& hostDraws, std::vector<vkt::HostDrawData>& hostTransparentDraws, std::vector<vkt::DrawData>& draws, std::vector<vkt::PointLight>& pointLights, std::vector<vkt::Transform>& transforms,
+bool Scene::load_scene(const char* filePath, std::vector<vkt::HostDrawData>& hostDraws, std::vector<vkt::DrawData>& draws, std::vector<vkt::PointLight>& pointLights, std::vector<vkt::Transform>& transforms,
     std::vector<vkt::Material>& materials, std::vector<vkt::Texture>& textures) {
 
     const aiScene* pScene{ aiImportFile(filePath,
@@ -145,7 +136,7 @@ bool Scene::load_scene(const char* filePath, std::vector<vkt::HostDrawData>& hos
             std::string sTextureName{ sTexture.data };
             std::string sWindowDiff{ "textures\\WindowDiff.ktx"};
             if (sTextureName.find(sWindowDiff) != std::string::npos) {
-                m_transparentMaterialIndices.push_back(materials.size());
+                material.m_fTransparent = 1;
             }
             textures.push_back(texture);
         }
@@ -206,7 +197,7 @@ bool Scene::load_scene(const char* filePath, std::vector<vkt::HostDrawData>& hos
     }
 
     // builds host draw data, gpu draw data and transforms
-    load_scene_node(pScene->mRootNode, pScene, hostDraws, hostTransparentDraws, draws, transforms, glm::mat4{ 1.0f });
+    load_scene_node(pScene->mRootNode, pScene, hostDraws, draws, transforms, glm::mat4{ 1.0f });
     aiReleaseImport(pScene);
     return true;
 }
