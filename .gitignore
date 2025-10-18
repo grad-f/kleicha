@@ -415,3 +415,6 @@ FodyWeavers.xsd
 /data/DamagedHelmet
 /data/BoomBox
 /textures/WindowDiff.ktx
+/data/Bistro/glTF
+/data/Cathedral
+/textures/WindowRough.ktx
